@@ -3,5 +3,6 @@
 !early-init.el
 !init.el
 !post-init.el
+!lisp/taskwarrior-gtd.el
 !.github/
 !.LICENSE
