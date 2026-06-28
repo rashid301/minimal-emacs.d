@@ -583,19 +583,12 @@
   :init
   (popper-mode +1))
 
-;; ── Lookup (Doom's "K") ────────────────────────────────────────────────
-
-(use-package consult
-  :demand nil)
-
 ;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
 
-;; Basic help / reference lookup on "K" using built-in xref + help-at-point
-(global-set-key (kbd "<remap> help-at-pt-display-when-idle") 'my/help-or-xref)
+(require 'help-at-point)
 
 (defun my/help-or-xref (&optional arg)
   "Try help-at-point first, fall back to xref-find-definitions.
-
 With universal argument ARG, reverse the order."
   (interactive "P")
   (if arg
@@ -603,6 +596,8 @@ With universal argument ARG, reverse the order."
     (condition-case nil
         (help-at-point)
       (user-error (xref-find-definitions (thing-at-point 'symbol t))))))
+
+(define-key evil-normal-state-map (kbd "K") #'my/help-or-xref)
 
 ;; ── Icons (nerd-icons) ────────────────────────────────────────────────
 
