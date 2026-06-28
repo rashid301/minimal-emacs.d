@@ -111,8 +111,8 @@
     (define-key ewm-mode-map (kbd "s-5") #'tab-bar-select-tab)
     (define-key ewm-mode-map (kbd "s-6") #'tab-bar-select-tab))
 
-  (add-hook 'ewm-surface-mode-hook
-            (defun ewm-hide-modeline () (mode-line-invisible-mode 1)))
+  ;;(add-hook 'ewm-surface-mode-hook
+  ;;          (defun ewm-hide-modeline () (mode-line-invisible-mode 1)))
 
   (when (daemonp)
     (add-hook 'after-make-frame-functions

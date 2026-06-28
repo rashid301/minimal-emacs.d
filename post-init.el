@@ -1,4 +1,4 @@
-;;; post-init.el --- My customizations -*- no-byte-compile: t; lexical-binding: t; -*-
+;; post-init.el --- My customizations -*- no-byte-compile: t; lexical-binding: t; -*-
 
 ;; ── Themes ──────────────────────────────────────────────────────────────
 
@@ -9,9 +9,9 @@
   (doom-themes-enable-bold t)   ; if nil, bold is universally disabled
   (doom-themes-enable-italic t) ; if nil, italics is universally disabled
   ;; for treemacs users
-  (doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
+  ;;(doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
   :config
-  (load-theme 'doom-gruvbox t)
+  (load-theme 'noctalia t)
 
   ;; Enable flashing mode-line on errors
   (doom-themes-visual-bell-config)
@@ -23,17 +23,22 @@
   (doom-themes-org-config))
 
 (setq scroll-conservatively 101)
+(global-superword-mode 1)
 
 (use-package catppuccin-theme
   :ensure t
-  :config
+  ;; :config
   )
 
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
-(set-face-attribute 'default nil
-                    :font "JetBrainsMono Nerd Font-14"
-                    :weight 'normal)
+(defun my/set-font (&optional frame)
+  (set-face-attribute 'default frame
+                      :font "JetBrainsMono Nerd Font-14"
+                      :weight 'normal))
+
+(my/set-font)
+(add-hook 'after-make-frame-functions #'my/set-font)
 
 ;; ── Tree-sitter (built-in) + LSP (built-in) ────────────────────────────
 
@@ -88,7 +93,8 @@
 ;; Vertico — vertical completion in minibuffer
 (use-package vertico
   :custom
-  (vertico-count 10)
+  (vertico-count 15)
+  (vertico-resize 'fixed)
   :config
   (vertico-mode)
   (general-define-key
@@ -183,6 +189,7 @@
   (setq evil-want-keybinding nil)
   (setq evil-want-integration t)
   (setq evil-want-C-u-scroll t)
+  (setq evil-symbol-word-search t)
   :config
   (evil-mode 1)
   (setq evil-search-module 'isearch
@@ -197,6 +204,12 @@
   (define-key evil-motion-state-map [escape] #'keyboard-quit)
   (define-key evil-normal-state-map (kbd "M-q") #'evil-window-delete)
   (define-key evil-motion-state-map (kbd "M-q") #'evil-window-delete)
+
+  ;; Doom-style enhancements
+  (define-key evil-normal-state-map (kbd "TAB") #'evil-jump-item)
+  (define-key evil-normal-state-map (kbd "*") #'evil-search-word-forward)
+  (define-key evil-normal-state-map (kbd "#") #'evil-search-word-backward)
+
   (evil-set-initial-state 'minibuffer-local-map 'insert))
 
 (use-package evil-collection
@@ -215,7 +228,7 @@
 (defun my/config-reload ()
   "Byte-compile and load the user's full Emacs configuration."
   (interactive)
-  (let* ((config-dir (expand-file-name "~/.minimal-emacs.d"))
+  (let* ((config-dir (expand-file-name "~/.config/emacs/"))
          (init-el (expand-file-name "post-init.el" config-dir))
          (early-init (expand-file-name "early-init.el" config-dir)))
     (message "Reloading configuration...")
@@ -233,11 +246,25 @@
 
 ;; Taskwarrior GTD
 (use-package taskwarrior-gtd
-  :load-path "~/.minimal-emacs.d/lisp/")
+  :load-path "lisp/")
 
 (defun my/dotfiles ()
   (interactive)
   (find-file "~/dotfiles"))
+
+;; ── Local leader (SPC m) — mode-specific bindings (like Doom) ──────────
+
+(defvar my-local-leader-alist ()
+  "Alist of (major-mode . keymap) for local leader (SPC m) bindings.")
+
+(defun my-local-leader ()
+  "Read next key and dispatch to the current mode's local leader map."
+  (interactive)
+  (let* ((key (read-key-sequence-vector nil))
+         (map (cdr (assq major-mode my-local-leader-alist))))
+    (if (and map (lookup-key map key))
+        (lookup-key map key)
+      (user-error "No local leader binding for %s in %s" key major-mode))))
 
 (use-package general
   :ensure t
@@ -299,8 +326,33 @@
    ;; --- Toggle bindings ---
    "tw" '(visual-line-mode :which-key "word wrap")
 
-   ;; --- Global Shortcut ---
-   "TAB" '(consult-buffer :which-key "alternate buffer")))
+   ;; --- Mode / local leader ---
+   "m"  '(my-local-leader :which-key "mode")
+
+   ;; --- Activities ---
+   "TAB"  '(nil :which-key "activities")
+   "TAB n" '(activities-new :which-key "new activity")
+   "TAB d" '(activities-define :which-key "define activity")
+   "TAB a" '(activities-resume :which-key "resume activity")
+   "TAB s" '(activities-suspend :which-key "suspend activity")
+   "TAB k" '(activities-kill :which-key "kill activity")
+   "TAB l" '(activities-list :which-key "list activities")
+   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
+   "TAB g" '(activities-revert :which-key "revert activity")))
+
+;; ── Agent shell / app shortcuts (in global leader) ──────────────────────
+
+(general-define-key
+ :states '(normal visual motion)
+ :prefix "SPC"
+ "f." '(my/dotfiles :which-key "dotfiles")
+ "ga" '(agent-shell-toggle :which-key "agent shell toggle")
+ "og" '(taskwarrior-gtd :which-key "GTD dashboard")
+ "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
+ "oj" '(my/open-todays-journal :which-key "today's journal")
+;; "o-" #'dired
+;; "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
+ )
 
 
 ;; ── Activities (workspace management) ──────────────────────────────────
@@ -455,7 +507,8 @@
 ;; ── Line numbers ───────────────────────────────────────────────────────
 
 (global-display-line-numbers-mode 1)
-(setq display-line-numbers-width-width 4)
+(setq display-line-numbers-width 4)
+(set-fringe-mode 0)
 
 
 ;; Quick reload of this file
@@ -529,6 +582,28 @@
 ;;   :ensure t
 ;;   :after evil)
 
+;; ── Evil-commentary (gc / gcc to comment) ──────────────────────────────
+
+(use-package evil-commentary
+  :ensure t
+  :after evil
+  :config
+  (evil-commentary-mode)
+  ;; evil-commentary-mode's keymap doesn't integrate with evil's `g` prefix,
+  ;; so bind gc/gy directly in the evil state maps
+  (define-key evil-normal-state-map (kbd "gc") #'evil-commentary)
+  (define-key evil-visual-state-map (kbd "gc") #'evil-commentary)
+  (define-key evil-normal-state-map (kbd "gy") #'evil-commentary-yank)
+  (define-key evil-visual-state-map (kbd "gy") #'evil-commentary-yank))
+
+;; ── Evil-visualstar (* and # search for symbol at point) ─────────────
+
+(use-package evil-visualstar
+  :ensure t
+  :after evil
+  :config
+  (global-evil-visualstar-mode))
+
 ;; ── Smartparens ────────────────────────────────────────────────────────
 
 (use-package smartparens
@@ -551,19 +626,41 @@
 
 (use-package popper
   :ensure t
-  ;; :bind (:map popper-context-keymap
-  ;;             ("o" . popper-line-mode-toggle)
-  ;;             ("q" . popper-close)
-  ;;             ("M-TAB" . popper-cycle)
-  ;;             ("M-S-TAB" . popper-prev)
-  ;;             )
+  :bind (("C-`" . popper-toggle-latest)
+         ("M-`" . popper-cycle)
+         ("C-M-`" . popper-toggle-type))
   :custom
-  (popop-size-threshold 0.25)
-  (popop-line-position 'top)
+  (popper-window-height 0.7)
   (popper-reference-buffers
-   (list "*compilation*" "magit" "^\\*eglot" "#"))
-  :init
-  (popper-mode +1))
+   '("\\*Messages\\*"
+     "\\*Warnings\\*"
+     "\\*Compilations\\*"
+     "\\*compilation\\*"
+     "\\*Completions\\*"
+     "\\*Help\\*"
+     "\\*tramp\\*"
+     "\\*eldoc\\*"
+     "\\*prodigy\\*"
+     "\\*Flycheck errors\\*"
+     "^\\*eglot"
+     "^\\*tree-view\\*"
+     ;; "^\\*eat\\*"
+     "^\\*v?term.*"
+     ;; "^\\*eshell.*"
+     "\\*Buffer List\\*"
+     "\\*Ibuffer\\*"
+     "\\*Apropos\\*"
+     "\\*Quick Help\\*"
+     "\\*Calendar\\*"
+     "\\*Messages*"
+     "\\*Warnings*"
+     "magit"
+     "#"))
+  :config
+  (add-to-list 'display-buffer-alist
+               '("\\*Help\\*" (popper-display-popup-action)))
+  (popper-mode +1)
+  (popper-echo-mode +1))
 
 ;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
 
@@ -571,6 +668,7 @@
   "Try describe-symbol first, fall back to xref-find-definitions.
 With universal argument ARG, reverse the order."
   (interactive "P")
+  (evil-set-jump)
   (if arg
       (xref-find-definitions (thing-at-point 'symbol t))
     (condition-case nil
@@ -685,7 +783,8 @@ With universal argument ARG, reverse the order."
 (use-package eat
   :ensure t
   :hook ((eshell-mode . eat-eshell-mode)
-         (eat-mode-hook . mode-line-invisible-mode))
+        ;; (eat-mode-hook . mode-line-invisible-mode)
+         )
   :config
   (evil-set-initial-state 'eat-term-mode 'emacs)
   (setq eshell-visual-commands '()
@@ -741,8 +840,11 @@ With universal argument ARG, reverse the order."
 
 ;; ── agent-shell ecosystem ─────────────────────────────────────────────
 
-;; (use-package exec-path-from-shell
-;;   :ensure t)
+ (use-package exec-path-from-shell
+   :ensure t
+   :config
+   (exec-path-from-shell-initialize)
+   )
 
 ;; (use-package pinentry
 ;;   :ensure t)
@@ -767,9 +869,10 @@ With universal argument ARG, reverse the order."
             (lambda ()
               (when (string-match-p "\\*agent-shell-diff\\*" (buffer-name))
                 (evil-emacs-state))))
+  ;; Mode-specific keys — only active in agent-shell-mode buffers
   (general-define-key
    :states 'normal
-   :keymap agent-shell-mode-map
+   :keymaps 'agent-shell-mode-map
    "RET" #'agent-shell-submit
    "["   #'agent-shell-previous-item
    "]"   #'agent-shell-next-item
@@ -779,41 +882,18 @@ With universal argument ARG, reverse the order."
    "x"   #'agent-shell-interrupt)
   (general-define-key
    :states 'insert
-   :keymap agent-shell-mode-map
+   :keymaps 'agent-shell-mode-map
    "RET" #'comint-send-input)
-  (general-define-key
-   :states 'normal
-   :keymap agent-shell-mode-map
-   :localleader t
-   "R" #'agent-shell-restart
-   "f" #'agent-shell-fork
-   "m" #'agent-shell-set-session-mode
-   "M" #'agent-shell-set-session-model
-   "d" #'agent-shell-delete-interaction-at-point
-   "T" #'agent-shell-open-transcript
-   "l" #'agent-shell-toggle-logging)
-  (general-define-key
-   :states 'normal
-   :keymap agent-shell-mode-map
-   :prefix "SPC"
-   "f"  '(nil :which-key "file")
-   "g"  '(nil :which-key "git")
-   "o"  '(nil :which-key "apps")
-   "TAB"  '(nil :which-key "activities")
-   "TAB n" '(activities-new :which-key "new activity")
-   "TAB d" '(activities-define :which-key "define activity")
-   "TAB a" '(activities-resume :which-key "resume activity")
-   "TAB s" '(activities-suspend :which-key "suspend activity")
-   "TAB k" '(activities-kill :which-key "kill activity")
-   "TAB l" '(activities-list :which-key "list activities")
-   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
-   "TAB g" '(activities-revert :which-key "revert activity")
-   "f." '(my/dotfiles :which-key "dotfiles")
-   "ga" '(agent-shell-toggle :which-key "agent shell toggle")
-   "og" '(taskwarrior-gtd :which-key "GTD dashboard")
-   "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
-   "oj" '(my/open-todays-journal :which-key "today's journal")
-   "os" '(agent-shell-manager-toggle :which-key "agent shell manager")))
+  ;; Local leader bindings — SPC m R, SPC m f, etc.
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "R") #'agent-shell-restart)
+    (define-key map (kbd "f") #'agent-shell-fork)
+    (define-key map (kbd "m") #'agent-shell-set-session-mode)
+    (define-key map (kbd "M") #'agent-shell-set-session-model)
+    (define-key map (kbd "d") #'agent-shell-delete-interaction-at-point)
+    (define-key map (kbd "T") #'agent-shell-open-transcript)
+    (define-key map (kbd "l") #'agent-shell-toggle-logging)
+    (push (cons 'agent-shell-mode map) my-local-leader-alist)))
 
 (use-package agent-shell-tramp
   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
