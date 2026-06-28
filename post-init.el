@@ -77,8 +77,8 @@
          (js-mode . ("typescript-language-server" "--stdio"))
          (typescript-ts-mode . ("typescript-language-server" "--stdio")))
        (assq-delete-all 'python-mode 
-         (assq-delete-all 'js-mode 
-           (assq-delete-all 'typescript-ts-mode eglot-server-programs)))))
+                        (assq-delete-all 'js-mode
+                                         (assq-delete-all 'typescript-ts-mode eglot-server-programs)))))
 
 
 ;; ── Completion ──────────────────────────────────────────────────────────
@@ -183,7 +183,8 @@
   (setq evil-search-module 'isearch
         evil-respect-visual-line-mode t
         evil-want-C-u-scroll t
-        )
+        evil-leader-key "SPC"
+        evil-localleader-key "m")
   (define-key evil-normal-state-map (kbd ";") #'evil-ex)
   (define-key evil-visual-state-map (kbd ";") #'evil-ex)
   (evil-set-initial-state 'minibuffer-local-map 'insert))
@@ -196,6 +197,20 @@
   (evil-collection-init))
 
 ;; ── Leader key (Doom-style) ────────────────────────────────────────────
+
+;; Full config reload (like Doom's `SPC h R`)
+(defun my/config-reload ()
+  "Byte-compile and load the user's full Emacs configuration."
+  (interactive)
+  (let* ((config-dir (expand-file-name "~/.minimal-emacs.d"))
+         (init-el (expand-file-name "post-init.el" config-dir))
+         (early-init (expand-file-name "early-init.el" config-dir)))
+    (message "Reloading configuration...")
+    (when (file-exists-p init-el)
+      (load-file init-el))
+    (when (file-exists-p early-init)
+      (load-file early-init))
+    (message "Configuration reloaded.")))
 
 ;; Journal directory
 (defvar my/journal-dir (expand-file-name "~/notes/journal/")
@@ -228,6 +243,7 @@
    "b"  '(nil :which-key "buffer")
    "o"  '(nil :which-key "apps")
    "h"  '(nil :which-key "help")
+   "t"  '(nil :which-key "toggle")
 
    ;; --- help ---
    "hv" '(describe-variable :which-key "describe variable")
@@ -235,6 +251,7 @@
    "hF" '(describe-face :which-key "describe face")
    "hk" '(describe-key :which-key "describe key")
    "ht" '(load-theme :which-key "load theme")
+   "hR" '(my/config-reload :which-key "reload config")
 
    ;; --- Buffer bindings ---
    "bb" '(consult-buffer :which-key "switch buffer")
@@ -250,25 +267,23 @@
    ;; --- Git bindings ---
    "gg" '(magit-status :which-key "magit status")
 
-   ;; --- Project bindings (FIXED SYNTAX) ---
+   ;; --- Project bindings ---
    "p"  '(:keymap project-prefix-map :which-key "project")
-   "/" '(project-search :which-key "switch buffer")
 
    ;; --- Search bindings ---
    "sg" '(consult-grep :which-key "grep search")
-   "sd" '(consult-ripgrep :which-key "search directory")  ; Uses consult-ripgrep (or consult-grep)
+   "sd" '(consult-ripgrep :which-key "search directory")
 
    ;; --- Org-roam bindings ---
    "nl" '(org-roam-node-find :which-key "find node")
    "nc" '(org-roam-capture :which-key "capture")
    "ni" '(org-roam-node-insert :which-key "insert node")
 
-   ;; --- Global Shortcut ---
-   "TAB" '(consult-buffer :which-key "alternate buffer")
+   ;; --- Toggle bindings ---
+   "tw" '(visual-line-mode :which-key "word wrap")
 
-   ;; apps
-   "oj" '(my/open-todays-journal :which-key "journal")
-   "og" '(taskwarrior-gtd :which-key "GTD")))
+   ;; --- Global Shortcut ---
+   "TAB" '(consult-buffer :which-key "alternate buffer")))
 
 
 ;; ── Navigation ─────────────────────────────────────────────────────────
@@ -376,5 +391,198 @@
 (use-package doom-modeline
   :ensure t
   :init (doom-modeline-mode 1))
+
+;; ── Evil goodies ───────────────────────────────────────────────────────
+
+(use-package evil-surround
+  :ensure t
+  :after evil
+  :config
+  (global-evil-surround-mode 1))
+
+;; (use-package evil-textobj-line
+;;   :ensure t
+;;   :after evil)
+
+;; (use-package evil-textobj-sentence
+;;   :ensure t
+;;   :after evil)
+
+;; (use-package evil-textobj-outerword
+;;   :ensure t
+;;   :after evil)
+
+;; (use-package evil-indent-plus
+;;   :ensure t
+;;   :after evil)
+
+;; ── Smartparens ────────────────────────────────────────────────────────
+
+(use-package smartparens
+  :ensure t
+  :after evil
+  :init
+  (smartparens-global-strict-mode 1)
+  :config
+  (require 'smartparens-config)
+  ;; (sp-local-pair 'org-mode "(" ")" :postchain "\\C-m" :skip-self t)
+  ;; (sp-local-pair 'org-mode "{" "}" :postchain "\\C-m" :skip-self t)
+  )
+
+;; Make smartparens work with evil
+(use-package evil-smartparens
+  :ensure t
+  :after (smartparens evil))
+
+;; ── Popper (popup management) ──────────────────────────────────────────
+
+(use-package popper
+  :ensure t
+  ;; :bind (:map popper-context-keymap
+  ;;             ("o" . popper-line-mode-toggle)
+  ;;             ("q" . popper-close)
+  ;;             ("M-TAB" . popper-cycle)
+  ;;             ("M-S-TAB" . popper-prev)
+  ;;             )
+  :custom
+  (popop-size-threshold 0.25)
+  (popop-line-position 'top)
+  (popper-reference-buffers
+   (list "*compilation*" "magit" "^\\*eglot" "#"))
+  :init
+  (popper-mode +1))
+
+;; ── Lookup (Doom's "K") ────────────────────────────────────────────────
+
+(use-package consult
+  :demand nil)
+
+;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
+
+;; Basic help / reference lookup on "K" using built-in xref + help-at-point
+(global-set-key (kbd "<remap> help-at-pt-display-when-idle") 'my/help-or-xref)
+
+(defun my/help-or-xref (&optional arg)
+  "Try help-at-point first, fall back to xref-find-definitions.
+
+With universal argument ARG, reverse the order."
+  (interactive "P")
+  (if arg
+      (xref-find-definitions (thing-at-point 'symbol t))
+    (condition-case nil
+        (help-at-point)
+      (user-error (xref-find-definitions (thing-at-point 'symbol t))))))
+
+;; ── Icons (nerd-icons) ────────────────────────────────────────────────
+
+(use-package nerd-icons
+  :ensure t
+  :config
+  ;; (nerd-icons-install-fonts t)
+  )
+
+;; ── Dirvish (improved dired) ───────────────────────────────────────────
+
+(use-package dirvish
+  :ensure t
+  :defer t)
+
+;; ── Elfeed (RSS reader) ────────────────────────────────────────────────
+
+(use-package elfeed
+  :ensure t
+  :defer t)
+
+;; ── mu4e + org email ───────────────────────────────────────────────────
+
+(use-package mu4e
+  :ensure nil
+  :defer t)
+
+(use-package mu4e-org
+  :ensure nil)
+
+;; ── Eat (terminal emulator) ────────────────────────────────────────────
+
+(use-package eat
+  :ensure t
+  :defer t)
+
+;; ── diminish (hide minor modes from modeline) ───────────────────────
+
+(use-package diminish
+  :ensure t)
+
+;; ── Tmux control mode ──────────────────────────────────────────────────
+
+(use-package tmux-control
+  :vc (:url "https://github.com/csheaff/tmux-control" :rev :newest))
+
+;; ── rg (ripgrep integration) ───────────────────────────────────────────
+
+(use-package rg
+  :ensure t)
+
+;; ── HTTP / API testing (verb) ──────────────────────────────────────────
+
+(use-package verb
+  :ensure t
+  :defer t)
+
+;; ── Copy-as-format ─────────────────────────────────────────────────────
+
+;; (use-package copy-as-format
+;;   :ensure t)
+
+;; ── Bookmark manager (ebuku) ───────────────────────────────────────────
+
+;; (use-package ebuku
+;;   :ensure t
+;;   :defer t)
+
+;; ── Org Super Agenda ──────────────────────────────────────────────────
+
+;; (use-package org-super-agenda
+;;   :ensure t)
+
+;; ── agent-shell ecosystem ─────────────────────────────────────────────
+
+;; (use-package exec-path-from-shell
+;;   :ensure t)
+
+;; (use-package pinentry
+;;   :ensure t)
+
+;; ── acp (Auto-Complete Plus) ───────────────────────────────────────────
+
+(use-package acp
+  :ensure t)
+
+;; ── agent-shell + notifications + bookmarks ────────────────────────────
+
+(use-package agent-shell
+  :ensure t
+  :defer t)
+
+(use-package agent-shell-tramp
+  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest))
+
+(use-package agent-shell-bookmark
+  :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev :newest))
+
+;; ── shell-maker (create custom shells in eshell) ──────────────────────
+
+(use-package shell-maker
+  :ensure t)
+
+;; ── capf-autosuggest (eshell completion hints) ─────────────────────────
+
+(use-package capf-autosuggest
+  :ensure t)
+
+;; ── Quickrun ───────────────────────────────────────────────────────────
+
+(use-package quickrun
+  :ensure t)
 
 (provide 'post-init)
