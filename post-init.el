@@ -202,10 +202,10 @@
 (use-package evil-collection
   :ensure t
   :after evil
-  :init
-  (setq evil-collection-mode-list
-        (cl-set-difference evil-collection-mode-list
-                           '(agent-shell shell-maker)))
+  ;; :init
+  ;; (setq evil-collection-mode-list
+  ;;       (cl-set-difference evil-collection-mode-list
+  ;;                          '(agent-shell shell-maker)))
   :config
   (evil-collection-init))
 
@@ -567,16 +567,14 @@
 
 ;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
 
-(require 'help-at-point)
-
 (defun my/help-or-xref (&optional arg)
-  "Try help-at-point first, fall back to xref-find-definitions.
+  "Try describe-symbol first, fall back to xref-find-definitions.
 With universal argument ARG, reverse the order."
   (interactive "P")
   (if arg
       (xref-find-definitions (thing-at-point 'symbol t))
     (condition-case nil
-        (help-at-point)
+        (describe-symbol (thing-at-point 'symbol))
       (user-error (xref-find-definitions (thing-at-point 'symbol t))))))
 
 (define-key evil-normal-state-map (kbd "K") #'my/help-or-xref)
@@ -794,28 +792,28 @@ With universal argument ARG, reverse the order."
    "d" #'agent-shell-delete-interaction-at-point
    "T" #'agent-shell-open-transcript
    "l" #'agent-shell-toggle-logging))
-  (general-define-key
-   :states 'normal
-   :keymap agent-shell-mode-map
-   :prefix "SPC"
-   "f"  '(nil :which-key "file")
-   "g"  '(nil :which-key "git")
-   "o"  '(nil :which-key "apps")
-   "TAB"  '(nil :which-key "activities")
-   "TAB n" '(activities-new :which-key "new activity")
-   "TAB d" '(activities-define :which-key "define activity")
-   "TAB a" '(activities-resume :which-key "resume activity")
-   "TAB s" '(activities-suspend :which-key "suspend activity")
-   "TAB k" '(activities-kill :which-key "kill activity")
-   "TAB l" '(activities-list :which-key "list activities")
-   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
-   "TAB g" '(activities-revert :which-key "revert activity")
-   "f." '(my/dotfiles :which-key "dotfiles")
-   "ga" '(agent-shell-toggle :which-key "agent shell toggle")
-   "og" '(taskwarrior-gtd :which-key "GTD dashboard")
-   "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
-   "oj" '(my/open-todays-journal :which-key "today's journal")
-    "os" '(agent-shell-manager-toggle :which-key "agent shell manager"))
+(general-define-key
+ :states 'normal
+ :keymap agent-shell-mode-map
+ :prefix "SPC"
+ "f"  '(nil :which-key "file")
+ "g"  '(nil :which-key "git")
+ "o"  '(nil :which-key "apps")
+ "TAB"  '(nil :which-key "activities")
+ "TAB n" '(activities-new :which-key "new activity")
+ "TAB d" '(activities-define :which-key "define activity")
+ "TAB a" '(activities-resume :which-key "resume activity")
+ "TAB s" '(activities-suspend :which-key "suspend activity")
+ "TAB k" '(activities-kill :which-key "kill activity")
+ "TAB l" '(activities-list :which-key "list activities")
+ "TAB b" '(activities-switch-buffer :which-key "switch buffer")
+ "TAB g" '(activities-revert :which-key "revert activity")
+ "f." '(my/dotfiles :which-key "dotfiles")
+ "ga" '(agent-shell-toggle :which-key "agent shell toggle")
+ "og" '(taskwarrior-gtd :which-key "GTD dashboard")
+ "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
+ "oj" '(my/open-todays-journal :which-key "today's journal")
+ "os" '(agent-shell-manager-toggle :which-key "agent shell manager"))
 
 (use-package agent-shell-tramp
   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
