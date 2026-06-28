@@ -630,7 +630,7 @@
          ("M-`" . popper-cycle)
          ("C-M-`" . popper-toggle-type))
   :custom
-  (popper-window-height 0.7)
+  (popper-window-height 0.3)
   (popper-reference-buffers
    '("\\*Messages\\*"
      "\\*Warnings\\*"
@@ -786,9 +786,13 @@ With universal argument ARG, reverse the order."
         ;; (eat-mode-hook . mode-line-invisible-mode)
          )
   :config
-  (evil-set-initial-state 'eat-term-mode 'emacs)
+  ;;(evil-set-initial-state 'eat-term-mode 'emacs)
   (setq eshell-visual-commands '()
-        eat-term-name "xterm-256color"))
+        eat-term-name "xterm-256color")
+  (general-define-key
+   :states 'insert
+   :keymaps 'eshell-mode-map
+   "RET" #'eshell-send-input))
 
 ;; ── diminish (hide minor modes from modeline) ───────────────────────
 
@@ -883,7 +887,7 @@ With universal argument ARG, reverse the order."
   (general-define-key
    :states 'insert
    :keymaps 'agent-shell-mode-map
-   "RET" #'comint-send-input)
+   "RET" #'agent-shell-submit)
   ;; Local leader bindings — SPC m R, SPC m f, etc.
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "R") #'agent-shell-restart)
