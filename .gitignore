@@ -4,5 +4,7 @@
 !init.el
 !post-init.el
 !lisp/taskwarrior-gtd.el
+!lisp/activities-ewm.el
+!config-ewm.el
 !.github/
 !.LICENSE

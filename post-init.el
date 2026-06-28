@@ -286,6 +286,27 @@
    "TAB" '(consult-buffer :which-key "alternate buffer")))
 
 
+;; ── Activities (workspace management) ──────────────────────────────────
+
+(use-package activities
+  :ensure t
+  :init
+  (activities-mode 1)
+  :config
+  (setq activities-always-persist t)
+  (general-define-key
+   :states '(normal visual motion)
+   :prefix "SPC"
+   "TAB"  '(nil :which-key "activities")
+   "TAB n" '(activities-new :which-key "new activity")
+   "TAB d" '(activities-define :which-key "define activity")
+   "TAB a" '(activities-resume :which-key "resume activity")
+   "TAB s" '(activities-suspend :which-key "suspend activity")
+   "TAB k" '(activities-kill :which-key "kill activity")
+   "TAB l" '(activities-list :which-key "list activities")
+   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
+   "TAB g" '(activities-revert :which-key "revert activity")))
+
 ;; ── Navigation ─────────────────────────────────────────────────────────
 
 ;; Avy — jump to any location with 1-2 keystrokes
@@ -584,5 +605,10 @@ With universal argument ARG, reverse the order."
 
 (use-package quickrun
   :ensure t)
+
+;; ── EWM (Wayland compositor) integration ───────────────────────────────
+
+(when (getenv "EWM_MODULE_PATH")
+  (load-file (expand-file-name "config-ewm.el" user-emacs-directory)))
 
 (provide 'post-init)
