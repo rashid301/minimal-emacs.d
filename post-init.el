@@ -2,43 +2,33 @@
 
 ;; ── Themes ──────────────────────────────────────────────────────────────
 
-(use-package doom-themes
-  :ensure t
-  :custom
-  ;; Global settings (defaults)
-  (doom-themes-enable-bold t)   ; if nil, bold is universally disabled
-  (doom-themes-enable-italic t) ; if nil, italics is universally disabled
-  ;; for treemacs users
-  ;;(doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
-  :config
-  (load-theme 'noctalia t)
+;; (use-package doom-themes
+;;   :ensure t
+;;   :custom
+;;   (doom-themes-enable-bold t)
+;;   (doom-themes-enable-italic t)
+;;   :config
+;;   (doom-themes-visual-bell-config)
+;;   (doom-themes-org-config))
 
-  ;; Enable flashing mode-line on errors
-  (doom-themes-visual-bell-config)
-  ;; ;; Enable custom neotree theme (nerd-icons must be installed!)
-  ;; (doom-themes-neotree-config)
-  ;; ;; or for treemacs users
-  ;; (doom-themes-treemacs-config)
-  ;; Corrects (and improves) org-mode's native fontification.
-  (doom-themes-org-config))
+(use-package nano-theme
+  :ensure t
+  :config
+  (load-theme 'nano-dark t))
 
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
-
-(use-package catppuccin-theme
-  :ensure t
-  ;; :config
-  )
 
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
 (defun my/set-font (&optional frame)
   (set-face-attribute 'default frame
-                      :font "JetBrainsMono Nerd Font-14"
+                      :height 153
                       :weight 'normal))
 
 (my/set-font)
 (add-hook 'after-make-frame-functions #'my/set-font)
+(winner-mode)
 
 ;; ── Tree-sitter (built-in) + LSP (built-in) ────────────────────────────
 
@@ -350,7 +340,7 @@
  "og" '(taskwarrior-gtd :which-key "GTD dashboard")
  "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
  "oj" '(my/open-todays-journal :which-key "today's journal")
-;; "o-" #'dired
+ "o-" #'dired-jump
 ;; "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
  )
 
@@ -377,6 +367,12 @@
         avy-all-windows t
         avy-highlight-first t
         avy-timeout-seconds 0.3))
+
+(with-eval-after-load 'dired
+  (evil-define-key 'normal dired-mode-map
+    (kbd "h") 'dired-up-directory
+    (kbd "l") 'dired-find-alternate-file))
+
 
 ;; ── Which-key ──────────────────────────────────────────────────────────
 
@@ -654,12 +650,11 @@
      "\\*Calendar\\*"
      "\\*Messages*"
      "\\*Warnings*"
-     "magit"
+     ;;"magit"
      "#"))
   :config
-  (add-to-list 'display-buffer-alist
-               '("\\*Help\\*" (popper-display-popup-action)))
   (popper-mode +1)
+  (popper--set-reference-vars)
   (popper-echo-mode +1))
 
 ;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
@@ -929,7 +924,8 @@ With universal argument ARG, reverse the order."
 
 ;; ── EWM (Wayland compositor) integration ───────────────────────────────
 
-(when (getenv "EWM_MODULE_PATH")
-  (load-file (expand-file-name "config-ewm.el" user-emacs-directory)))
+(if (getenv "EWM_MODULE_PATH")
+  (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
+  (load-file (expand-file-name "lisp/config-i3.el" user-emacs-directory)))
 
 (provide 'post-init)
