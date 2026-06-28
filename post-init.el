@@ -88,7 +88,12 @@
   :custom
   (vertico-count 10)
   :config
-  (vertico-mode))
+  (vertico-mode)
+  (general-define-key
+   :keymaps 'vertico-map
+   :states 'insert
+   "C-n" #'vertico-next
+   "C-p" #'vertico-previous))
 
 ;; Orderless — flexible completion style
 (use-package orderless
@@ -277,6 +282,7 @@
 
    ;; --- Git bindings ---
    "gg" '(magit-status :which-key "magit status")
+   "ga" '(agent-shell-toggle :which-key "agent shell toggle")
 
    ;; --- Project bindings ---
    "p"  '(:keymap project-prefix-map :which-key "project")
@@ -294,6 +300,7 @@
    "og" '(taskwarrior-gtd :which-key "GTD dashboard")
    "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
    "oj" '(my/open-todays-journal :which-key "today's journal")
+   "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
 
    ;; --- Toggle bindings ---
    "tw" '(visual-line-mode :which-key "word wrap")
@@ -780,7 +787,36 @@ With universal argument ARG, reverse the order."
         (agent-shell-make-environment-variables
          "AWS_PROFILE" "hermes"))
   (setq agent-shell-confirm-interrupt nil
-        agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp")))
+        agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
+  (add-hook 'diff-mode-hook
+            (lambda ()
+              (when (string-match-p "\\*agent-shell-diff\\*" (buffer-name))
+                (evil-emacs-state))))
+  (general-define-key
+   :states 'normal
+   :keymap agent-shell-mode-map
+   "RET" #'agent-shell-submit
+   "["   #'agent-shell-previous-item
+   "]"   #'agent-shell-next-item
+   "TAB" #'agent-shell-ui-toggle-fragment
+   "q"   #'agent-shell-toggle
+   "c"   #'agent-shell-prompt-compose
+   "x"   #'agent-shell-interrupt)
+  (general-define-key
+   :states 'insert
+   :keymap agent-shell-mode-map
+   "RET" #'comint-send-input)
+  (general-define-key
+   :states 'normal
+   :keymap agent-shell-mode-map
+   :localleader t
+   "R" #'agent-shell-restart
+   "f" #'agent-shell-fork
+   "m" #'agent-shell-set-session-mode
+   "M" #'agent-shell-set-session-model
+   "d" #'agent-shell-delete-interaction-at-point
+   "T" #'agent-shell-open-transcript
+   "l" #'agent-shell-toggle-logging))
 
 (use-package agent-shell-tramp
   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
@@ -801,7 +837,9 @@ With universal argument ARG, reverse the order."
   :ensure t
   :hook (eshell-mode . capf-autosuggest-mode)
   :config
-  (setq capf-autosuggest-backends '(capf-autosuggest-eshell-history)))
+  (setq capf-autosuggest-backends '(capf-autosuggest-eshell-history))
+  (with-eval-after-load 'eshell
+    (define-key eshell-mode-map (kbd "C-f") #'capf-autosuggest-accept)))
 
 ;; ── Quickrun ───────────────────────────────────────────────────────────
 
