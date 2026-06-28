@@ -121,19 +121,17 @@
 
 ;; Consult — efficient searching and previewing
 (use-package consult
-  ;; :bind (("C-x b" . consult-buffer)
-  ;;        ("C-c r" . consult-recent-file)
-  ;;        ("M-g M-g" . consult-grep)
-  ;;        ("C-c /" . consult-line)
-  ;;        :map minibuffer-local-map
-  ;;        ("M-V" . consult-history)
-  ;;        :map mode-specific-map
-  ;;        ("M-V" . consult-history))
+  :bind (("C-x b" . consult-buffer)
+         ("M-y" . consult-yank-pop)
+         ("M-g g" . consult-goto-line)
+         ("M-g i" . consult-imenu)
+         ("M-g M-g" . consult-goto-line))
   :config
   (consult-customize
    consult-theme :preview-key 'C-z)
   (setq register-preview-delay 0.3
-        register-preview-function #'consult-register-format))
+        register-preview-function #'consult-register-format
+        consult-line-start-from-top nil))
 
 ;; Embark — context-sensitive actions
 (use-package embark
@@ -142,9 +140,7 @@
 ;; Embark-consult — integration
 (use-package embark-consult
   :after (embark consult)
-  :config
-  ;;(add-to-list 'embark-keymap-commands #'consult-line)
-  )
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
 
 ;; ── Recent files ───────────────────────────────────────────────────────
 
@@ -168,7 +164,9 @@
 
 (use-package magit
   ;; :bind (("C-c g" . magit-status))
-  )
+  :custom
+  (magit-status-show-untracked-files t)
+  (magit-process-apply-ansi-colors t))
 
 ;; ── Evil (Vim keybindings) ─────────────────────────────────────────────
 
@@ -184,15 +182,23 @@
         evil-respect-visual-line-mode t
         evil-want-C-u-scroll t
         evil-leader-key "SPC"
-        evil-localleader-key "m")
+        evil-localleader-key "m"
+        evil-vsplit-window-right t
+        evil-split-window-below t)
   (define-key evil-normal-state-map (kbd ";") #'evil-ex)
   (define-key evil-visual-state-map (kbd ";") #'evil-ex)
+  (define-key evil-motion-state-map [escape] #'keyboard-quit)
+  (define-key evil-normal-state-map (kbd "M-q") #'evil-window-delete)
+  (define-key evil-motion-state-map (kbd "M-q") #'evil-window-delete)
   (evil-set-initial-state 'minibuffer-local-map 'insert))
 
 (use-package evil-collection
   :ensure t
-  :init
   :after evil
+  :init
+  (setq evil-collection-mode-list
+        (cl-set-difference evil-collection-mode-list
+                           '(agent-shell shell-maker)))
   :config
   (evil-collection-init))
 
@@ -221,6 +227,10 @@
 ;; Taskwarrior GTD
 (use-package taskwarrior-gtd
   :load-path "~/.minimal-emacs.d/lisp/")
+
+(defun my/dotfiles ()
+  (interactive)
+  (find-file "~/dotfiles"))
 
 (use-package general
   :ensure t
@@ -263,6 +273,7 @@
    "ff" '(consult-find :which-key "find file")
    "fr" '(consult-recent-file :which-key "recent files")
    "fb" '(consult-buffer :which-key "buffer list")
+   "f." '(my/dotfiles :which-key "dotfiles")
 
    ;; --- Git bindings ---
    "gg" '(magit-status :which-key "magit status")
@@ -278,6 +289,11 @@
    "nl" '(org-roam-node-find :which-key "find node")
    "nc" '(org-roam-capture :which-key "capture")
    "ni" '(org-roam-node-insert :which-key "insert node")
+
+   ;; --- Apps bindings ---
+   "og" '(taskwarrior-gtd :which-key "GTD dashboard")
+   "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
+   "oj" '(my/open-todays-journal :which-key "today's journal")
 
    ;; --- Toggle bindings ---
    "tw" '(visual-line-mode :which-key "word wrap")
@@ -313,10 +329,13 @@
 (use-package avy
   :bind (("C-;" . avy-goto-char-2)
          :map evil-normal-state-map
-         ("s" . avy-goto-char-2))
+         ("s" . evil-avy-goto-char-2))
   :config
   (setq avy-style 'at-full
-        avy-background t))
+        avy-background t
+        avy-all-windows t
+        avy-highlight-first t
+        avy-timeout-seconds 0.3))
 
 ;; ── Which-key ──────────────────────────────────────────────────────────
 
@@ -330,7 +349,7 @@
 ;; ── Org + Org-roam ─────────────────────────────────────────────────────
 
 (use-package org
-  ;; :bind (("C-c a" . org-agenda))
+  :bind (("C-c a" . org-agenda))
   :config
   (setq org-directory (expand-file-name "~/notes/")
         org-id-link-to-frametree t
@@ -347,9 +366,82 @@
         org-log-into-drawer t
         org-startup-align-all-tables t
         org-use-speed-commands t
+        org-export-preserve-breaks nil
         org-todo-keywords
         '((sequence "TODO(t)" "NEXT(n)" "WAITING(w)" "PROJECT(p)"
-           "|" "DONE(d)" "CANCELLED(c)" "SOMEDAY(s)"))))
+           "|" "DONE(d)" "CANCELLED(c)" "SOMEDAY(s)"))
+        org-todo-keyword-faces
+        '(("TODO"      . (:foreground "yellow"       :weight bold))
+          ("NEXT"      . (:foreground "orange"       :weight bold))
+          ("WAITING"   . (:foreground "red"          :weight bold))
+          ("PROJECT"   . (:foreground "blue"         :weight bold))
+          ("DONE"      . (:foreground "forest green" :weight bold))
+          ("CANCELLED" . (:foreground "gray"         :weight bold))
+          ("SOMEDAY"   . (:foreground "goldenrod"    :weight bold))))
+  (setq org-capture-templates
+        '(("i" "Inbox" entry
+           (file ,(expand-file-name "inbox.org" org-directory))
+           "* TODO %?\n  %U\n  %a\n")
+          ("t" "Task" entry
+           (file ,(expand-file-name "tasks.org" org-directory))
+           "* TODO %?\n  %U\n  %a\n")
+          ("p" "Project" entry
+           (file ,(expand-file-name "projects.org" org-directory))
+           "* PROJECT %?")
+          ("s" "Someday" entry
+           (file ,(expand-file-name "someday.org" org-directory))
+           "* SOMEDAY %?")
+          ("n" "Idea" entry
+           (file ,(expand-file-name "ideas.org" org-directory))
+           "* IDEA %?")))
+  (setq org-refile-targets
+        '((nil :maxlevel . 3)
+          (org-agenda-files :maxlevel . 3)
+          ("~/notes/ideas.org" :maxlevel . 2)
+          ("~/notes/projects.org" :maxlevel . 2)
+          ("~/notes/tasks.org" :maxlevel . 2)
+          ("~/notes/someday.org" :maxlevel . 2))
+        org-refile-allow-creating-parent-nodes 'confirm)
+  (setq org-agenda-custom-commands
+        '(("g" "GTD Dashboard"
+           ((agenda "" ((org-agenda-span 3)
+                        (org-agenda-overriding-header "Calendar (Next 3 Days)")
+                        (org-agenda-start-day "+0d")))
+            (todo "NEXT"
+                  ((org-agenda-overriding-header "Next Actions")
+                   (org-agenda-sorting-strategy '(priority-down effort-up))))
+            (todo "WAITING"
+                  ((org-agenda-overriding-header "Waiting On")))
+            (todo "SOMEDAY"
+                  ((org-agenda-overriding-header "Someday / Maybe")
+                   (org-agenda-files '("~/notes/someday.org"))))
+            (todo "DONE"
+                  ((org-agenda-overriding-header "Recently Completed")
+                   (org-agenda-files '("~/notes/tasks.org" "~/notes/projects.org"))
+                   (org-agenda-skip-function
+                    '(org-agenda-skip-entry-if 'nottodo 'done))))))
+          ("w" "Weekly Review"
+           ((agenda "" ((org-agenda-span 7)
+                        (org-agenda-start-day "-1d")
+                        (org-agenda-overriding-header "Review Calendar")))
+            (todo "PROJECT" ((org-agenda-overriding-header "Active Projects")))
+            (todo "WAITING" ((org-agenda-overriding-header "Waiting For")))
+            (todo "SOMEDAY" ((org-agenda-overriding-header "Someday / Maybe")))
+            (tags "inbox"
+                  ((org-agenda-overriding-header "Inbox Items")
+                   (org-agenda-files '("~/notes/inbox.org"))))))
+          ("t" "Today Focus"
+           ((agenda "" ((org-agenda-span 1)
+                        (org-agenda-start-day "+0d")
+                        (org-agenda-overriding-header "Today")))
+            (todo "NEXT"
+                  ((org-agenda-overriding-header "Next Actions")
+                   (org-agenda-sorting-strategy '(priority-down effort-up))))))))
+  (setq org-agenda-prefix-format
+        '((agenda . " %i %-12:c%?-12t% s")
+          (todo   . " %i %-12:c")
+          (tags   . " %i %-12:c")
+          (search . " %i %-12:c"))))
 
 (use-package org-roam
   :ensure t
@@ -411,7 +503,10 @@
 ;; doom-modeline
 (use-package doom-modeline
   :ensure t
-  :init (doom-modeline-mode 1))
+  :init (doom-modeline-mode 1)
+  :config
+  (setq doom-modeline-modal-icon nil
+        doom-modeline-buffer-file-name-style 'file-name))
 
 ;; ── Evil goodies ───────────────────────────────────────────────────────
 
@@ -419,7 +514,15 @@
   :ensure t
   :after evil
   :config
-  (global-evil-surround-mode 1))
+  (global-evil-surround-mode 1)
+  (let ((orig (default-value 'evil-surround-pairs-alist)))
+    (setq-default evil-surround-pairs-alist
+                  (push '(?~ . ("``" . "``")) evil-surround-pairs-alist))
+    (setq-default evil-surround-pairs-alist
+                  (append orig
+                          '((?F . (lambda ()
+                                    (let ((name (read-from-minibuffer "Type name: ")))
+                                      (cons (concat name "[") "]")))))))))
 
 ;; (use-package evil-textobj-line
 ;;   :ensure t
@@ -518,7 +621,79 @@ With universal argument ARG, reverse the order."
 
 (use-package mu4e
   :ensure nil
-  :defer t)
+  :defer t
+  :config
+  (setq mu4e-maildir "/data/mbsync-mail/"
+        mu4e-maildir-shortcuts '((:maildir "/Inbox/" :key ?i))
+        mu4e-compose-context-policy 'ask-if-none
+        send-mail-function 'smtpmail-send-it
+        smtpmail-debug-info t
+        mu4e-sent-folder "/Sent"
+        mu4e-drafts-folder "/Drafts"
+        mu4e-trash-folder "/Trash"
+        mu4e-refile-folder "/Archive"
+        mu4e-attachment-dir "/home/rashid/Downloads/attachments"
+        mu4e-get-mail-command "mu index"
+        mu4e-update-interval 600
+        mu4e-headers-visible-columns 60
+        mu4e-split-view 'vertical
+        smtpmail-stream-type 'ssl)
+  (setq mu4e-contexts
+        `(,(make-mu4e-context
+            :name "personal"
+            :match-func (lambda (msg)
+                          (when msg
+                            (string-prefix-p "/personal" (mu4e-message-field msg :maildir))))
+            :vars '((user-mail-address . "rashid301@gmail.com")
+                    (mu4e-sent-folder   . "/personal/[Gmail]/Sent Mail")
+                    (mu4e-drafts-folder . "/personal/Drafts")
+                    (mu4e-trash-folder  . "/personal/[Gmail]/Trash")
+                    (mu4e-refile-folder . "/personal/Archive")
+                    (smtpmail-smtp-user . "rashid301@gmail.com")
+                    (smtpmail-smtp-server . "smtp.gmail.com")
+                    (smtpmail-smtp-service . 465)
+                    (user-full-name . "Rashid Shaikh")))
+          ,(make-mu4e-context
+            :name "sensai"
+            :match-func (lambda (msg)
+                          (when msg
+                            (string-prefix-p "/sensai" (mu4e-message-field msg :maildir))))
+            :vars '((user-mail-address . "rshaikh@coachsensai.com")
+                    (mu4e-drafts-folder . "/sensai/Drafts")
+                    (mu4e-sent-folder   . "/sensai/[Gmail]/Sent Mail")
+                    (mu4e-trash-folder  . "/sensai/[Gmail]/Trash")
+                    (mu4e-refile-folder . "/sensai/Archive")))
+          ,(make-mu4e-context
+            :name "yahoo"
+            :match-func (lambda (msg)
+                          (when msg
+                            (string-prefix-p "/yahoo" (mu4e-message-field msg :maildir))))
+            :vars '((user-mail-address . "rashidali.shaikh@yahoo.com")
+                    (mu4e-sent-folder   . "/yahoo/Sent")
+                    (mu4e-drafts-folder . "/yahoo/Drafts")
+                    (mu4e-trash-folder  . "/yahoo/Trash")
+                    (mu4e-refile-folder . "/yahoo/Archive")))
+          ,(make-mu4e-context
+            :name "zoho"
+            :match-func (lambda (msg)
+                          (when msg
+                            (string-prefix-p "/zoho" (mu4e-message-field msg :maildir))))
+            :vars '((user-mail-address . "rashid@bitbute.tech")
+                    (mu4e-sent-folder   . "/zoho/Sent")
+                    (mu4e-drafts-folder . "/zoho/Drafts")
+                    (mu4e-trash-folder  . "/zoho/Trash")
+                    (mu4e-refile-folder . "/zoho/Archive")
+                    (smtpmail-smtp-user . "rashid@bitbute.tech")
+                    (smtpmail-smtp-server . "smtppro.zoho.com")
+                    (smtpmail-smtp-service . 465)
+                    (user-full-name . "Rashid Shaikh")))))
+  (setq mu4e-headers-fields
+        '((:account-stripe . 1)
+          (:human-date . 12)
+          (:flags . 6)
+          (:from . 22)
+          (:subject . 50)
+          (:maildir . 50))))
 
 (use-package mu4e-org
   :ensure nil)
@@ -527,7 +702,12 @@ With universal argument ARG, reverse the order."
 
 (use-package eat
   :ensure t
-  :defer t)
+  :hook ((eshell-mode . eat-eshell-mode)
+         (eat-mode-hook . mode-line-invisible-mode))
+  :config
+  (evil-set-initial-state 'eat-term-mode 'emacs)
+  (setq eshell-visual-commands '()
+        eat-term-name "xterm-256color"))
 
 ;; ── diminish (hide minor modes from modeline) ───────────────────────
 
@@ -537,18 +717,29 @@ With universal argument ARG, reverse the order."
 ;; ── Tmux control mode ──────────────────────────────────────────────────
 
 (use-package tmux-control
-  :vc (:url "https://github.com/csheaff/tmux-control" :rev :newest))
+  :vc (:url "https://github.com/csheaff/tmux-control" :rev :newest)
+  :config
+  (setq tmux-control-default-host "desktop-pc"
+        tmux-control-default-socket-name "/tmp/tmux-1000/default"
+        tmux-control-default-session "main"))
 
 ;; ── rg (ripgrep integration) ───────────────────────────────────────────
 
 (use-package rg
-  :ensure t)
+  :ensure t
+  :config
+  (rg-enable-menu))
 
 ;; ── HTTP / API testing (verb) ──────────────────────────────────────────
 
 (use-package verb
   :ensure t
-  :defer t)
+  :defer t
+  :config
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((verb . t)))
+  (setq verb-suppress-load-unsecure-prelude-warning t))
 
 ;; ── Copy-as-format ─────────────────────────────────────────────────────
 
@@ -583,10 +774,18 @@ With universal argument ARG, reverse the order."
 
 (use-package agent-shell
   :ensure t
-  :defer t)
+  :defer t
+  :config
+  (setq agent-shell-anthropic-claude-environment
+        (agent-shell-make-environment-variables
+         "AWS_PROFILE" "hermes"))
+  (setq agent-shell-confirm-interrupt nil
+        agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp")))
 
 (use-package agent-shell-tramp
-  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest))
+  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
+  :config
+  (agent-shell-tramp-mode 1))
 
 (use-package agent-shell-bookmark
   :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev :newest))
@@ -599,7 +798,10 @@ With universal argument ARG, reverse the order."
 ;; ── capf-autosuggest (eshell completion hints) ─────────────────────────
 
 (use-package capf-autosuggest
-  :ensure t)
+  :ensure t
+  :hook (eshell-mode . capf-autosuggest-mode)
+  :config
+  (setq capf-autosuggest-backends '(capf-autosuggest-eshell-history)))
 
 ;; ── Quickrun ───────────────────────────────────────────────────────────
 
