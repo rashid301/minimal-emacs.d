@@ -22,6 +22,8 @@
   ;; Corrects (and improves) org-mode's native fontification.
   (doom-themes-org-config))
 
+(setq scroll-conservatively 101)
+
 (use-package catppuccin-theme
   :ensure t
   :config
@@ -278,11 +280,9 @@
    "ff" '(consult-find :which-key "find file")
    "fr" '(consult-recent-file :which-key "recent files")
    "fb" '(consult-buffer :which-key "buffer list")
-   "f." '(my/dotfiles :which-key "dotfiles")
 
    ;; --- Git bindings ---
    "gg" '(magit-status :which-key "magit status")
-   "ga" '(agent-shell-toggle :which-key "agent shell toggle")
 
    ;; --- Project bindings ---
    "p"  '(:keymap project-prefix-map :which-key "project")
@@ -295,12 +295,6 @@
    "nl" '(org-roam-node-find :which-key "find node")
    "nc" '(org-roam-capture :which-key "capture")
    "ni" '(org-roam-node-insert :which-key "insert node")
-
-   ;; --- Apps bindings ---
-   "og" '(taskwarrior-gtd :which-key "GTD dashboard")
-   "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
-   "oj" '(my/open-todays-journal :which-key "today's journal")
-   "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
 
    ;; --- Toggle bindings ---
    "tw" '(visual-line-mode :which-key "word wrap")
@@ -316,19 +310,7 @@
   :init
   (activities-mode 1)
   :config
-  (setq activities-always-persist t)
-  (general-define-key
-   :states '(normal visual motion)
-   :prefix "SPC"
-   "TAB"  '(nil :which-key "activities")
-   "TAB n" '(activities-new :which-key "new activity")
-   "TAB d" '(activities-define :which-key "define activity")
-   "TAB a" '(activities-resume :which-key "resume activity")
-   "TAB s" '(activities-suspend :which-key "suspend activity")
-   "TAB k" '(activities-kill :which-key "kill activity")
-   "TAB l" '(activities-list :which-key "list activities")
-   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
-   "TAB g" '(activities-revert :which-key "revert activity")))
+  (setq activities-always-persist t))
 
 ;; ── Navigation ─────────────────────────────────────────────────────────
 
@@ -812,6 +794,28 @@ With universal argument ARG, reverse the order."
    "d" #'agent-shell-delete-interaction-at-point
    "T" #'agent-shell-open-transcript
    "l" #'agent-shell-toggle-logging))
+  (general-define-key
+   :states 'normal
+   :keymap agent-shell-mode-map
+   :prefix "SPC"
+   "f"  '(nil :which-key "file")
+   "g"  '(nil :which-key "git")
+   "o"  '(nil :which-key "apps")
+   "TAB"  '(nil :which-key "activities")
+   "TAB n" '(activities-new :which-key "new activity")
+   "TAB d" '(activities-define :which-key "define activity")
+   "TAB a" '(activities-resume :which-key "resume activity")
+   "TAB s" '(activities-suspend :which-key "suspend activity")
+   "TAB k" '(activities-kill :which-key "kill activity")
+   "TAB l" '(activities-list :which-key "list activities")
+   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
+   "TAB g" '(activities-revert :which-key "revert activity")
+   "f." '(my/dotfiles :which-key "dotfiles")
+   "ga" '(agent-shell-toggle :which-key "agent shell toggle")
+   "og" '(taskwarrior-gtd :which-key "GTD dashboard")
+   "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
+   "oj" '(my/open-todays-journal :which-key "today's journal")
+    "os" '(agent-shell-manager-toggle :which-key "agent shell manager"))
 
 (use-package agent-shell-tramp
   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
