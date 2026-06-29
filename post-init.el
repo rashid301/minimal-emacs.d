@@ -63,7 +63,6 @@
 (add-to-list 'auto-mode-alist '("\\.tsx\\'" . typescript-ts-mode))
 (add-to-list 'auto-mode-alist '("\\.jsx\\'" . js-ts-mode))
 (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode))
-(add-to-list 'auto-mode-alist '("\\.el\\'" . elisp-ts-mode))
 (setq major-mode-remap-alist '((python-mode . python-ts-mode)))
 
 
@@ -199,6 +198,8 @@
 ;; Corfu — in-buffer completion
 (use-package corfu
   :custom
+  (corfu-auto t)
+  (corfu-auto-delay 0.2)
   (read-extended-command-predicate #'command-completion-default-include-p)
   (text-mode-ispell-word-completion nil)
   (tab-always-indent 'complete)
@@ -700,9 +701,11 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (setq display-line-numbers-width 4)
 (set-fringe-mode 0)
 
+(defun turn-off-line-numbers ()
+  (display-line-numbers-mode -1))
 ;; Hide line numbers in eshell buffers
-(add-hook 'eshell-mode-hook #'display-line-numbers-mode)
-(add-hook 'agent-shell-mode-hook #'display-line-numbers-mode)
+(add-hook 'eshell-mode-hook #'turn-off-line-numbers)
+(add-hook 'agent-shell-mode-hook #'turn-off-line-numbers)
 
 
 ;; Quick reload of this file
