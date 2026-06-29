@@ -18,6 +18,15 @@
   ;; (load-theme 'noctalia t)
   )
 
+(use-package doom-modeline
+  :ensure t
+  :init (doom-modeline-mode 1)
+  :config
+  ;; Optional: Customize layout tweaks here
+  (setq doom-modeline-height 25)     ; Sets modeline height
+  (setq doom-modeline-bar-width 4)   ; Sets right sidebar width
+  (setq doom-modeline-icon t))       ; Enables icons
+
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
 ;;(load-theme 'noctalia t)
@@ -25,8 +34,9 @@
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
 (defun my/set-font (&optional frame)
+  (my/load-theme 'noctalia)
   (set-face-attribute 'default frame
-                      :height 153
+                      :height 140
                       :weight 'normal))
 
 (defun my/load-theme (theme)
@@ -41,7 +51,7 @@
   (load-theme theme t))
 
 (my/set-font)
-(my/load-theme 'nano-light)
+(my/load-theme 'noctalia)
 (add-hook 'after-make-frame-functions #'my/set-font)
 (winner-mode)
 
@@ -114,14 +124,15 @@
 
   (general-define-key
    :keymaps 'vertico-map
+   :states '(insert normal)
    "C-n"   #'vertico-next
    "C-p"   #'vertico-previous
    "C-j"   #'vertico-next
    "C-k"   #'vertico-previous
    "C-h"   #'vertico-directory-up
    "C-l"   #'vertico-directory-enter
-   "C-SPC" #'vertico-exit-input
-   "DEL"   #'vertico-directory-delete-char)
+   "C-SPC" #'vertico-exit-input)
+  ;;"DEL"   #'vertico-directory-delete-char)
 
   ;; Give the minibuffer and echo area left margin padding
   (dolist (hook '(minibuffer-setup-hook
@@ -252,15 +263,130 @@
   ;;        ("C-c M-s" . consult-projectile-grep))
   :config
   (setq project-vc-extra-file-search-functions nil)
-  (project-remember-project (cons 'transient (expand-file-name "~/Dropbox/"))))
+  (project-remember-project (cons 'transient (expand-file-name "~/Dropbox/")))
+
+  (defun my-project-try-git (dir)
+    "Detect a Git project root by checking for a .git directory.
+Works over TRAMP without relying on `vc-handled-backends'."
+    (when-let ((root (locate-dominating-file dir ".git")))
+      (when (file-directory-p (expand-file-name ".git" root))
+        (cons 'vc root))))
+
+  ;;(add-hook 'project-find-functions #'my-project-try-git 'append)
+  )
+
+
 
 ;; ── Git ────────────────────────────────────────────────────────────────
 
 (use-package magit
-  ;; :bind (("C-c g" . magit-status))
+  :commands magit-file-delete
   :custom
   (magit-status-show-untracked-files t)
-  (magit-process-apply-ansi-colors t))
+  (magit-process-apply-ansi-colors t)
+  (magit-save-repository-buffers nil)
+  (magit-revision-insert-related-refs nil)
+  (magit-uniquify-buffer-names nil)
+  (magit-diff-refine-hunk t)
+  ;; (magit-git-executable (or (executable-find magit-git-executable) "git"))
+  :config
+  ;; Turn ref links into clickable buttons
+  ;;(add-hook 'magit-process-mode-hook #'goto-address-mode)
+  )
+
+(use-package transient
+  :ensure nil
+  :config
+  (setq transient-default-level 5
+        transient-display-buffer-action
+        '(display-buffer-below-selected
+          (dedicated . t)
+          (inhibit-same-window . t))
+        transient-show-during-minibuffer-read t)
+  (define-key transient-map [escape] #'transient-quit-one))
+
+(use-package general
+  :ensure t
+  :after evil
+  :config
+  (general-evil-setup t)
+
+  ;; Automatically clear out conflicting keys (like evil's default SPC)
+  (general-auto-unbind-keys)
+
+  ;; 1. Initialize your custom global prefix map
+  (general-create-definer my-local-leader
+    :states '(normal motion visual)
+    :prefix "SPC m") ; Binds globally to SPC m and sets up structural inheritance
+
+  (general-define-key
+   :states '(normal visual motion)
+   :prefix "SPC"
+
+   ;; --- Named Prefix Groups for which-key ---
+   "f"  '(nil :which-key "file")
+   "g"  '(nil :which-key "git")
+   "s"  '(nil :which-key "search")
+   "n"  '(nil :which-key "notes/roam")
+   "b"  '(nil :which-key "buffer")
+   "o"  '(nil :which-key "apps")
+   "h"  '(nil :which-key "help")
+   "t"  '(nil :which-key "toggle")
+
+   ;; --- help ---
+   "hm" '(describe-mode :which-key "describe mode")
+   "hv" '(describe-variable :which-key "describe variable")
+   "hf" '(describe-function :which-key "describe function")
+   "hF" '(describe-face :which-key "describe face")
+   "hk" '(describe-key :which-key "describe key")
+
+   "hR" '(my/config-reload :which-key "reload config")
+
+   "ht" '(my/load-theme :which-key "Load theme")
+
+   ;; --- Buffer bindings ---
+   "bb" '(consult-buffer :which-key "switch buffer")
+   "br" '(revert-buffer :which-key "revert buffer")
+   "b[" '(previous-buffer :which-key "previous buffer")
+   "b]" '(next-buffer :which-key "next buffer")
+
+   ;; --- File bindings ---
+   "ff" '(find-file :which-key "find file")
+   "fr" '(consult-recent-file :which-key "recent files")
+   "fb" '(consult-buffer :which-key "buffer list")
+
+   ;; --- Git bindings ---
+   "gg" '(magit-status :which-key "magit status")
+
+   ;; --- Project bindings ---
+   "p"  '(:keymap project-prefix-map :which-key "project")
+
+   ;; --- Search bindings ---
+   "sg" '(consult-grep :which-key "grep search")
+   "sd" '(consult-ripgrep :which-key "search directory")
+   "sb" '(consult-line :which-key "search directory")
+
+   ;; --- Org-roam bindings ---
+   "nl" '(org-roam-node-find :which-key "find node")
+   "nc" '(org-roam-capture :which-key "capture")
+   "ni" '(org-roam-node-insert :which-key "insert node")
+
+   ;; --- Toggle bindings ---
+   "tw" '(visual-line-mode :which-key "word wrap")
+
+   ;; --- Mode / local leader ---
+   ;; --- Activities ---
+   "TAB"  '(nil :which-key "activities")
+   "TAB n" '(activities-new :which-key "new activity")
+   "TAB d" '(activities-define :which-key "define activity")
+   "TAB a" '(activities-resume :which-key "resume activity")
+   "TAB s" '(activities-suspend :which-key "suspend activity")
+   "TAB k" '(activities-kill :which-key "kill activity")
+   "TAB l" '(activities-list :which-key "list activities")
+   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
+   "TAB g" '(activities-revert :which-key "revert activity"))
+
+  )
 
 ;; ── Evil (Vim keybindings) ─────────────────────────────────────────────
 
@@ -268,17 +394,19 @@
   :ensure t
   :init
   (setq evil-want-keybinding nil)
+  (setq evil-want-minibuffer nil)
   (setq evil-want-integration t)
   (setq evil-want-C-u-scroll t)
   (setq evil-symbol-word-search t)
   (setq evil-undo-system 'undo-redo)
   :config
+  (setq evil-want-minibuffer nil)
+  (add-to-list 'evil-emacs-state-modes 'minibuffer-mode)
+  (add-to-list 'evil-emacs-state-modes 'minibuffer-inactive-mode)
   (evil-mode 1)
   (setq evil-search-module 'isearch
         evil-respect-visual-line-mode t
         evil-want-C-u-scroll t
-        evil-leader-key "SPC"
-        evil-localleader-key "m"
         evil-vsplit-window-right t
         evil-split-window-below t)
   (define-key evil-normal-state-map (kbd ";") #'evil-ex)
@@ -288,16 +416,24 @@
   (define-key evil-motion-state-map (kbd "M-q") #'evil-window-delete)
 
   ;; Doom-style enhancements
-  (define-key evil-normal-state-map (kbd "TAB") #'evil-jump-item)
   (define-key evil-normal-state-map (kbd "*") #'evil-search-word-forward)
   (define-key evil-normal-state-map (kbd "#") #'evil-search-word-backward)
 
-  (evil-set-initial-state 'minibuffer-local-map 'insert))
+  (define-key local-function-key-map [tab] nil)
+
+  (general-def
+    :states 'normal
+    "C-i"   #'evil-jump-forward
+    ;; "<tab>" #'evil-jump-item
+    ) 
+  (evil-set-initial-state 'minibuffer-local-map 'emacs)
+  )
 
 (use-package evil-collection
   :ensure t
   :after evil
-  ;; :init
+  :init
+  (setq evil-collection-setup-minibuffer nil)
   :config
   (setq evil-collection-mode-list
         (cl-set-difference evil-collection-mode-list
@@ -338,104 +474,6 @@
 
 (defvar my-local-leader-alist ()
   "Alist of (major-mode . keymap) for local leader (SPC m) bindings.")
-
-(defun my-local-leader ()
-  "Read next key and dispatch to the current mode's local leader map."
-  (interactive)
-  (let* ((key (read-key-sequence-vector nil))
-         (map (cdr (assq major-mode my-local-leader-alist))))
-    (if (and map (lookup-key map key))
-        (lookup-key map key)
-      (user-error "No local leader binding for %s in %s" key major-mode))))
-
-(use-package general
-  :ensure t
-  :after evil
-  :config
-  (general-evil-setup t)
-
-  ;; Automatically clear out conflicting keys (like evil's default SPC)
-  (general-auto-unbind-keys)
-
-  (general-define-key
-   :states '(normal visual motion)
-   :prefix "SPC"
-
-   ;; --- Named Prefix Groups for which-key ---
-   "f"  '(nil :which-key "file")
-   "g"  '(nil :which-key "git")
-   "s"  '(nil :which-key "search")
-   "n"  '(nil :which-key "notes/roam")
-   "b"  '(nil :which-key "buffer")
-   "o"  '(nil :which-key "apps")
-   "h"  '(nil :which-key "help")
-   "t"  '(nil :which-key "toggle")
-
-   ;; --- help ---
-   "hm" '(describe-mode :which-key "describe mode")
-   "hv" '(describe-variable :which-key "describe variable")
-   "hf" '(describe-function :which-key "describe function")
-   "hF" '(describe-face :which-key "describe face")
-   "hk" '(describe-key :which-key "describe key")
-   "ht" '(my/load-theme :which-key "load theme")
-   "hR" '(my/config-reload :which-key "reload config")
-
-   ;; --- Buffer bindings ---
-   "bb" '(consult-buffer :which-key "switch buffer")
-   "br" '(revert-buffer :which-key "revert buffer")
-   "b[" '(previous-buffer :which-key "previous buffer")
-   "b]" '(next-buffer :which-key "next buffer")
-
-   ;; --- File bindings ---
-   "ff" '(find-file :which-key "find file")
-   "fr" '(consult-recent-file :which-key "recent files")
-   "fb" '(consult-buffer :which-key "buffer list")
-
-   ;; --- Git bindings ---
-   "gg" '(magit-status :which-key "magit status")
-
-   ;; --- Project bindings ---
-   "p"  '(:keymap project-prefix-map :which-key "project")
-
-   ;; --- Search bindings ---
-   "sg" '(consult-grep :which-key "grep search")
-   "sd" '(consult-ripgrep :which-key "search directory")
-
-   ;; --- Org-roam bindings ---
-   "nl" '(org-roam-node-find :which-key "find node")
-   "nc" '(org-roam-capture :which-key "capture")
-   "ni" '(org-roam-node-insert :which-key "insert node")
-
-   ;; --- Toggle bindings ---
-   "tw" '(visual-line-mode :which-key "word wrap")
-
-   ;; --- Mode / local leader ---
-   "m"  '(my-local-leader :which-key "mode")
-
-   ;; --- Activities ---
-   "TAB"  '(nil :which-key "activities")
-   "TAB n" '(activities-new :which-key "new activity")
-   "TAB d" '(activities-define :which-key "define activity")
-   "TAB a" '(activities-resume :which-key "resume activity")
-   "TAB s" '(activities-suspend :which-key "suspend activity")
-   "TAB k" '(activities-kill :which-key "kill activity")
-   "TAB l" '(activities-list :which-key "list activities")
-   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
-   "TAB g" '(activities-revert :which-key "revert activity"))
-
-
-
-  ;; 1. Initialize your custom global prefix map
-  (general-create-definer my-local-leader
-    :states '(normal motion visual)
-    :prefix "SPC m") ; Binds globally to SPC m and sets up structural inheritance
-
-  ;; 2. Easily attach commands directly to major modes
-  (my-local-leader
-    :keymaps 'agent-shell-mode-map
-    "R" #'agent-shell-restart
-    "f" #'agent-shell-fork)
-  )
 
 ;; ── Agent shell / app shortcuts (in global leader) ──────────────────────
 
@@ -769,10 +807,11 @@
   (popper-reference-buffers
    '("\\*Messages\\*"
      "\\*Warnings\\*"
-     "\\*compilation\\*" ; Fixed to match standard Emacs compilation buffer lowercase
+     "\\*compilation\\*"
      "\\*Completions\\*"
      "\\*Help\\*"
      "\\*tramp\\*"
+     "\\*magit-process\\*"
      "\\*eldoc\\*"
      "\\*prodigy\\*"
      "\\*Flycheck errors\\*"
@@ -1163,12 +1202,6 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
     (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
   (load-file (expand-file-name "lisp/config-i3.el" user-emacs-directory)))
 
-
-;; dotfiles
-(general-define-key
- :states 'normal
- "f ." #'my/dotfiles
- )
 
 ;; server edit
 (defun my/evil-save-modified-and-close (orig &rest args)
