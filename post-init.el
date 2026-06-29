@@ -111,6 +111,17 @@
 
 ;; ── Completion (Doom-style) ────────────────────────────────────────────
 
+(use-package mini-frame
+  :config
+  (setq
+   mini-frame-show-parameters
+   '((top . 0)
+     (parent-frame . nil)
+     (width . 1.0)
+     (left . 0.5)
+     (height . 15)))
+  )
+
 ;; Vertico — vertical completion UI
 (use-package vertico
   :ensure t
@@ -120,7 +131,7 @@
   (vertico-cycle t)
   (vertico-scroll-margin 2)
   :config
-  (vertico-buffer 1)
+  ;;(vertico-buffer 1)
   (setq completion-in-region-function
         #'consult-completion-in-region)
 
@@ -310,15 +321,21 @@ Works over TRAMP without relying on `vc-handled-backends'."
   ;; Turn ref links into clickable buttons
   ;;(add-hook 'magit-process-mode-hook #'goto-address-mode)
 
+  (require 'evil-collection-magit)
+
   (general-define-key
    :states 'normal
    :keymaps 'magit-mode-map
+
+   "]" #'magit-section-forward-sibling
+   "[" #'magit-section-backward-sibling
 
    "]c" #'magit-section-forward
    "[c" #'magit-section-backward
 
    "]]" #'magit-section-forward-sibling
    "[[" #'magit-section-backward-sibling)
+  (add-hook 'git-commit-setup-hook #'evil-insert-state)
   )
 
 (use-package transient
@@ -1099,14 +1116,57 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
 
 ;; ── Eat (terminal emulator) ────────────────────────────────────────────
 
+
+(use-package eshell
+  :config
+  (setq eshell-scroll-to-bottom-on-input t)
+  (setq-local tab-always-indent 'complete)
+  (setq eshell-history-size 10000)
+  (setq eshell-save-history-on-exit t) ;; Enable history saving on exit
+  (setq eshell-hist-ignoredups t) ;; Ignore duplicates
+
+  (general-def
+    :keymaps 'eshell-prompt-mode-map
+    :states 'insert
+    "C-p" #'eshell-previous-matching-input-from-input
+    "C-n" #'eshell-next-matching-input-from-input)
+  )
+
 (use-package eat
   :ensure t
   :hook ((eshell-mode . eat-eshell-mode)
-         ;; (eat-mode-hook . mode-line-invisible-mode)
+         (eat-mode-hook . mode-line-invisible-mode)
          )
   :config
-  ;;(evil-set-initial-state 'eat-term-mode 'emacs)
+  (evil-set-initial-state 'eat-term-mode 'emacs)
   )
+
+(with-eval-after-load 'eshell
+  (require 'em-hist)
+
+  (add-to-list 'eshell-modules-list 'eshell-rebind)
+  ;; (add-to-list 'eshell-modules-list 'eshell-smart)
+
+  (setq eshell-history-size 10000)
+
+  (add-hook 'eshell-expand-input-functions
+            #'eshell-expand-history-references)
+
+  (setq eshell-command-aliases-list
+        (append
+         '(("st" "systemctl $*")
+           ("stu" "systemctl --user $*")
+           ("f" "find-file $1")
+           ("ff" "find-alternate-file $1")
+           ("doom" "$HOME/.config/emacs/bin/doom $*")
+           ("zshconfig" "ff ~/.zshrc")
+           ("i3config" "ff ~/.config/i3/config")
+           ("niriconfig" "ff ~/.config/niri/config.kdl")
+           ("swayconfig" "ff ~/.config/sway/config")
+           ("ewmconfig" "ff ~/.config/doom/config-ewm.el")
+           ("ohmyzsh" "ff ~/.oh-my-zsh")
+           ("rewaybar" "killall waybar; nohup waybar >/dev/null 2>&1 &"))
+         eshell-command-aliases-list)))
 
 (with-eval-after-load 'evil-collection
   (with-eval-after-load 'eshell
@@ -1204,6 +1264,10 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
    "q"   #'agent-shell-toggle
    "c"   #'agent-shell-prompt-compose
    "x"   #'agent-shell-interrupt)
+
+  (add-hook 'agent-shell-mode-hook
+            (lambda ()
+              (evil-collection-unimpaired-mode -1)))
 
   (general-def
     :states '(motion normal)          ; Dired defaults to 'motion state in Evil
