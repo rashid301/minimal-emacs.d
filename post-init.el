@@ -14,6 +14,10 @@
 (use-package nano-theme
   :ensure t
   :config
+  (setq nano-font-size 14)
+  (set-fontset-font t '(#xe000 . #xffdd) (font-spec :family "RobotoMono Nerd Font Mono"))
+  ;;(nano-mode)
+  ;;(nano-light)
   ;; (load-theme 'nano-dark t))
   ;; (load-theme 'noctalia t)
   )
@@ -50,7 +54,7 @@
   (load-theme theme t))
 
 (my/set-font)
-(my/load-theme 'noctalia)
+;;(my/load-theme 'noctalia)
 (add-hook 'after-make-frame-functions #'my/set-font)
 (winner-mode)
 
@@ -116,7 +120,9 @@
   (vertico-cycle t)
   (vertico-scroll-margin 2)
   :config
-  (vertico-mode 1)
+  (vertico-buffer 1)
+  (setq completion-in-region-function
+        #'consult-completion-in-region)
 
   ;; Clean up shadowed path syntax (e.g. ~/foo/bar/// → /)
   (add-hook 'rfn-eshadow-update-overlay-hook #'vertico-directory-tidy)
@@ -212,8 +218,8 @@
 (use-package expreg
   :ensure t
   :bind (:map evil-visual-state-map
-              ("v" . expreg-expand)   ;; Press 'v' in visual mode to expand
-              ("V" . expreg-contract) ;; Press capital 'V' to contract selection
+              ("RET" . expreg-expand)   ;; Press 'v' in visual mode to expand
+              ("-" . expreg-contract) ;; Press capital 'V' to contract selection
               :map global-map
               ("C-=" . expreg-expand))) ;; Global key fallback
 
@@ -281,9 +287,9 @@
 Works over TRAMP without relying on `vc-handled-backends'."
     (when-let ((root (locate-dominating-file dir ".git")))
       (when (file-directory-p (expand-file-name ".git" root))
-        (cons 'vc root))))
+        (list 'vc 'Git root))))
 
-  ;;(add-hook 'project-find-functions #'my-project-try-git 'append)
+  (add-hook 'project-find-functions #'my-project-try-git 'append)
   )
 
 
@@ -303,6 +309,16 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :config
   ;; Turn ref links into clickable buttons
   ;;(add-hook 'magit-process-mode-hook #'goto-address-mode)
+
+  (general-define-key
+   :states 'normal
+   :keymaps 'magit-mode-map
+
+   "]c" #'magit-section-forward
+   "[c" #'magit-section-backward
+
+   "]]" #'magit-section-forward-sibling
+   "[[" #'magit-section-backward-sibling)
   )
 
 (use-package transient
@@ -857,7 +873,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 (define-key evil-normal-state-map (kbd "K")
             (lambda () (interactive)
-              (if (eq major-mode 'emacs-lisp-mode)
+              (if (or (eq major-mode 'help-mode) (eq major-mode 'emacs-lisp-mode))
                   (describe-symbol (intern (thing-at-point 'symbol)))
                 (eglot-help-at-point))))
 
@@ -1188,12 +1204,6 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
    "q"   #'agent-shell-toggle
    "c"   #'agent-shell-prompt-compose
    "x"   #'agent-shell-interrupt)
-  ;; RET works in all three states
-  (general-define-key
-   :states '(normal visual insert)
-   :keymaps 'agent-shell-mode-map
-   "RET" #'agent-shell-submit)
-
 
   (general-def
     :states '(motion normal)          ; Dired defaults to 'motion state in Evil
