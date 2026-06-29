@@ -123,11 +123,17 @@
    "C-SPC" #'vertico-exit-input
    "DEL"   #'vertico-directory-delete-char)
 
-  ;; Give the minibuffer left margin padding
-  (add-hook 'minibuffer-setup-hook
-            (lambda ()
-              (setq left-margin-width 1)
-              (set-window-buffer (selected-window) (current-buffer))))
+  ;; Give the minibuffer and echo area left margin padding
+  (dolist (hook '(minibuffer-setup-hook
+                  minibuffer-inactive-mode-hook
+                  which-key-init-buffer-hook
+                  ))
+    (add-hook hook
+              (lambda ()
+                (let ((win (minibuffer-window)))
+                  (with-current-buffer (window-buffer win)
+                    (setq-local left-margin-width 1))
+                  (set-window-buffer win (window-buffer win))))))
 
   ;; Highlight directories and enabled modes (Doom-style)
   (require 'vertico-multiform)
