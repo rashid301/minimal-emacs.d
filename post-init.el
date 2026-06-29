@@ -29,7 +29,6 @@
 
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
-;;(load-theme 'noctalia t)
 
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
@@ -333,6 +332,12 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
   (general-define-key
    :states '(normal visual motion)
+   :prefix "g"
+   "R" '(eval-region :which-key "Eval region")
+   )
+  
+  (general-define-key
+   :states '(normal visual motion)
    :prefix "SPC"
 
    ;; --- Named Prefix Groups for which-key ---
@@ -397,9 +402,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
    "TAB k" '(activities-kill :which-key "kill activity")
    "TAB l" '(activities-list :which-key "list activities")
    "TAB b" '(activities-switch-buffer :which-key "switch buffer")
-   "TAB g" '(activities-revert :which-key "revert activity"))
-
-  )
+   "TAB g" '(activities-revert :which-key "revert activity")))
 
 ;; ── Evil (Vim keybindings) ─────────────────────────────────────────────
 
@@ -465,16 +468,13 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 ;; Full config reload (like Doom's `SPC h R`)
 (defun my/config-reload ()
-  "Byte-compile and load the user's full Emacs configuration."
+  "Reload post-init.el without restarting Emacs."
   (interactive)
   (let* ((config-dir (expand-file-name "~/.config/emacs/"))
-         (init-el (expand-file-name "post-init.el" config-dir))
-         (early-init (expand-file-name "early-init.el" config-dir)))
+         (post-init (expand-file-name "post-init.el" config-dir)))
     (message "Reloading configuration...")
-    (when (file-exists-p init-el)
-      (load-file init-el))
-    (when (file-exists-p early-init)
-      (load-file early-init))
+    (when (file-exists-p post-init)
+      (load-file post-init))
     (message "Configuration reloaded.")))
 
 ;; Journal directory
@@ -1277,7 +1277,7 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   (setq tramp-use-ssh-controlmaster-options nil)
   (setq tramp-inline-compress-start-size 10000)
   (setq tramp-copy-size-limit 100000)
-  (setq vc-handled-backends nil)
+  (setq vc-handled-backends '(git))
   (setq remote-file-name-inhibit-cache nil)
   (setq tramp-verbose 3))
 
