@@ -63,6 +63,7 @@
 (add-to-list 'auto-mode-alist '("\\.tsx\\'" . typescript-ts-mode))
 (add-to-list 'auto-mode-alist '("\\.jsx\\'" . js-ts-mode))
 (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.el\\'" . elisp-ts-mode))
 (setq major-mode-remap-alist '((python-mode . python-ts-mode)))
 
 
@@ -76,6 +77,7 @@
         (json "https://github.com/tree-sitter/tree-sitter-json")
         (yaml "https://github.com/ikatyang/tree-sitter-yaml")
         (toml "https://github.com/tree-sitter/tree-sitter-toml")
+        (elisp "https://github.com/Wilfred/tree-sitter-elisp")
         (markdown "https://github.com/tree-sitter/tree-sitter-markdown")))
 
 (use-package eglot
@@ -207,6 +209,15 @@
   :config
   (global-corfu-mode))
 
+(use-package expreg
+  :ensure t
+  :bind (:map evil-visual-state-map
+              ("v" . expreg-expand)   ;; Press 'v' in visual mode to expand
+              ("V" . expreg-contract) ;; Press capital 'V' to contract selection
+              :map global-map
+              ("C-=" . expreg-expand))) ;; Global key fallback
+
+
 ;; ── Search (Doom-style) ────────────────────────────────────────────────
 
 ;; Consult — efficient searching and previewing
@@ -332,6 +343,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
    "o"  '(nil :which-key "apps")
    "h"  '(nil :which-key "help")
    "t"  '(nil :which-key "toggle")
+   "u"  #'universal-argument
 
    ;; --- help ---
    "hm" '(describe-mode :which-key "describe mode")
@@ -419,15 +431,10 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (define-key evil-normal-state-map (kbd "*") #'evil-search-word-forward)
   (define-key evil-normal-state-map (kbd "#") #'evil-search-word-backward)
 
-  (define-key local-function-key-map [tab] nil)
-
-  (general-def
-    :states 'normal
-    "C-i"   #'evil-jump-forward
-    ;; "<tab>" #'evil-jump-item
-    ) 
+  (define-key evil-normal-state-map (kbd "C-i") #'evil-jump-forward) 
   (evil-set-initial-state 'minibuffer-local-map 'emacs)
   )
+
 
 (use-package evil-collection
   :ensure t
@@ -439,6 +446,19 @@ Works over TRAMP without relying on `vc-handled-backends'."
         (cl-set-difference evil-collection-mode-list
                            '(comint eshell agent-shell shell-maker)))
   (evil-collection-init))
+
+(use-package evil-textobj-tree-sitter
+  :ensure t
+  :after evil
+  :config
+  (add-to-list 'evil-textobj-tree-sitter-major-mode-language-alist
+               '(emacs-lisp-mode . "elisp"))
+  ;; Bind "f" key for function text objects
+  (define-key evil-outer-text-objects-map "f" 
+              (evil-textobj-tree-sitter-get-textobj "function.outer"))
+  (define-key evil-inner-text-objects-map "f" 
+              (evil-textobj-tree-sitter-get-textobj "function.inner")))
+
 
 ;; ── Leader key (Doom-style) ────────────────────────────────────────────
 
@@ -477,6 +497,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 ;; ── Agent shell / app shortcuts (in global leader) ──────────────────────
 
+
 (general-define-key
  :states '(normal visual motion)
  :prefix "SPC"
@@ -486,6 +507,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
  "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
  "oj" '(my/open-todays-journal :which-key "today's journal")
  "o-" #'dired-jump
+ "om" #'my/mu4e
  ;; "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
  )
 
@@ -859,6 +881,29 @@ Works over TRAMP without relying on `vc-handled-backends'."
 ;; ── mu4e + org email ───────────────────────────────────────────────────
 
 (require 'mu4e)
+
+(defun my/mu4e()
+  (interactive)
+  (when-let ((homea (map-elt activities-activities "mu4e")))
+    (activities-resume homea)
+    )
+  )
+
+;; for activities el
+(defun my/mu4e-bookmark-handler (_bookmark)
+  "Restore a mu4e bookmark."
+  (mu4e)
+  (get-buffer "*mu4e-main*"))
+
+(defun my/mu4e-bookmark-make-record ()
+  `("mu4e"
+    (handler . my/mu4e-bookmark-handler)))
+
+(add-hook 'mu4e-main-mode-hook
+          (lambda ()
+            (setq-local bookmark-make-record-function
+                        #'my/mu4e-bookmark-make-record)))
+
 (use-package mu4e
   :ensure nil
   :defer t
@@ -873,7 +918,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
         mu4e-trash-folder "/Trash"
         mu4e-refile-folder "/Archive"
         mu4e-attachment-dir "/home/rashid/Downloads/attachments"
-        mu4e-get-mail-command "mu index"
+        mu4e-get-mail-command "mu index --nocolor"
         mu4e-update-interval 600
         mu4e-headers-visible-columns 60
         mu4e-split-view 'vertical
