@@ -11,13 +11,16 @@
 ;;   (doom-themes-visual-bell-config)
 ;;   (doom-themes-org-config))
 
-(use-package nano-theme
-  :ensure t
-  :config
-  (load-theme 'nano-dark t))
+;; (use-package nano-theme
+;;   :ensure t
+;;   :config
+;;   ;; (load-theme 'nano-dark t))
+;;   ;; (load-theme 'noctalia t)
+;;   )
 
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
+;;(load-theme 'noctalia t)
 
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
@@ -53,13 +56,6 @@
         (toml "https://github.com/tree-sitter/tree-sitter-toml")
         (markdown "https://github.com/tree-sitter/tree-sitter-markdown")))
 
-;; (use-package eglot
-;;   :demand t
-;;   :config
-;;   (add-to-list 'eglot-server-programs '(typescript-ts-mode . ["typescript-language-server" "--stdio"]))
-;;   (add-to-list 'eglot-server-programs '(js-mode . ["typescript-language-server" "--stdio"]))
-;;   (add-to-list 'eglot-server-programs '(python-mode . ["pyright"])))
-
 (use-package eglot
   :demand t
   :hook
@@ -76,6 +72,15 @@
        (assq-delete-all 'python-mode 
                         (assq-delete-all 'js-mode
                                          (assq-delete-all 'typescript-ts-mode eglot-server-programs)))))
+(use-package apheleia
+  :ensure t
+  :init
+  (apheleia-global-mode +1))
+
+;; Tell Eglot NEVER to attempt formatting so it won't conflict with Apheleia
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-ignored-server-capabilities :documentFormattingProvider))
+
 
 
 ;; ── Completion ──────────────────────────────────────────────────────────
@@ -180,6 +185,7 @@
   (setq evil-want-integration t)
   (setq evil-want-C-u-scroll t)
   (setq evil-symbol-word-search t)
+  (setq evil-undo-system 'undo-redo)
   :config
   (evil-mode 1)
   (setq evil-search-module 'isearch
@@ -209,7 +215,7 @@
   :config
   (setq evil-collection-mode-list
         (cl-set-difference evil-collection-mode-list
-                           '(agent-shell shell-maker)))
+                           '(comint eshell agent-shell shell-maker)))
   (evil-collection-init))
 
 ;; ── Leader key (Doom-style) ────────────────────────────────────────────
@@ -280,6 +286,7 @@
    "t"  '(nil :which-key "toggle")
 
    ;; --- help ---
+   "hm" '(describe-mode :which-key "describe mode")
    "hv" '(describe-variable :which-key "describe variable")
    "hf" '(describe-function :which-key "describe function")
    "hF" '(describe-face :which-key "describe face")
@@ -294,7 +301,7 @@
    "b]" '(next-buffer :which-key "next buffer")
 
    ;; --- File bindings ---
-   "ff" '(consult-find :which-key "find file")
+   "ff" '(find-file :which-key "find file")
    "fr" '(consult-recent-file :which-key "recent files")
    "fb" '(consult-buffer :which-key "buffer list")
 
@@ -341,7 +348,7 @@
  "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
  "oj" '(my/open-todays-journal :which-key "today's journal")
  "o-" #'dired-jump
-;; "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
+ ;; "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
  )
 
 
@@ -368,10 +375,23 @@
         avy-highlight-first t
         avy-timeout-seconds 0.3))
 
+
 (with-eval-after-load 'dired
+  ;; dired binds SPC and ; by default — unbind so evil/general can handle them
+  (define-key dired-mode-map " " nil)
+  (define-key dired-mode-map ";" nil)
+
+  (general-def
+    :states '(motion normal)          ; Dired defaults to 'motion state in Evil
+    :keymaps 'dired-mode-map
+    "SPC" nil                ; Reclaims SPC globally or for your leader key
+    ";"   nil                ; Reclaims semicolon
+    "h"   'dired-up-directory
+    "l"   'dired-find-alternate-file)
   (evil-define-key 'normal dired-mode-map
     (kbd "h") 'dired-up-directory
-    (kbd "l") 'dired-find-alternate-file))
+    (kbd "l") 'dired-find-alternate-file)
+  )
 
 
 ;; ── Which-key ──────────────────────────────────────────────────────────
@@ -406,7 +426,7 @@
         org-export-preserve-breaks nil
         org-todo-keywords
         '((sequence "TODO(t)" "NEXT(n)" "WAITING(w)" "PROJECT(p)"
-           "|" "DONE(d)" "CANCELLED(c)" "SOMEDAY(s)"))
+                    "|" "DONE(d)" "CANCELLED(c)" "SOMEDAY(s)"))
         org-todo-keyword-faces
         '(("TODO"      . (:foreground "yellow"       :weight bold))
           ("NEXT"      . (:foreground "orange"       :weight bold))
@@ -622,7 +642,8 @@
 
 (use-package popper
   :ensure t
-  :bind (("C-`" . popper-toggle-latest)
+  :demand t  ; <--- CRITICAL FIX: Forces immediate loading, bypassing :bind lazy-loading
+  :bind (("C-`" . popper-toggle)
          ("M-`" . popper-cycle)
          ("C-M-`" . popper-toggle-type))
   :custom
@@ -630,8 +651,7 @@
   (popper-reference-buffers
    '("\\*Messages\\*"
      "\\*Warnings\\*"
-     "\\*Compilations\\*"
-     "\\*compilation\\*"
+     "\\*compilation\\*" ; Fixed to match standard Emacs compilation buffer lowercase
      "\\*Completions\\*"
      "\\*Help\\*"
      "\\*tramp\\*"
@@ -640,37 +660,24 @@
      "\\*Flycheck errors\\*"
      "^\\*eglot"
      "^\\*tree-view\\*"
-     ;; "^\\*eat\\*"
      "^\\*v?term.*"
-     ;; "^\\*eshell.*"
      "\\*Buffer List\\*"
      "\\*Ibuffer\\*"
      "\\*Apropos\\*"
      "\\*Quick Help\\*"
      "\\*Calendar\\*"
-     "\\*Messages*"
-     "\\*Warnings*"
-     ;;"magit"
      "#"))
   :config
   (popper-mode +1)
-  (popper--set-reference-vars)
-  (popper-echo-mode +1))
+  (popper-echo-mode +1)) ; Shows popup status cleanly in the minibuffer
 
 ;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
 
-(defun my/help-or-xref (&optional arg)
-  "Try describe-symbol first, fall back to xref-find-definitions.
-With universal argument ARG, reverse the order."
-  (interactive "P")
-  (evil-set-jump)
-  (if arg
-      (xref-find-definitions (thing-at-point 'symbol t))
-    (condition-case nil
-        (describe-symbol (thing-at-point 'symbol))
-      (user-error (xref-find-definitions (thing-at-point 'symbol t))))))
-
-(define-key evil-normal-state-map (kbd "K") #'my/help-or-xref)
+(define-key evil-normal-state-map (kbd "K")
+            (lambda () (interactive)
+              (if (eq major-mode 'emacs-lisp-mode)
+                  (describe-symbol (intern (thing-at-point 'symbol)))
+                (eglot-help-at-point))))
 
 ;; ── Icons (nerd-icons) ────────────────────────────────────────────────
 
@@ -694,6 +701,7 @@ With universal argument ARG, reverse the order."
 
 ;; ── mu4e + org email ───────────────────────────────────────────────────
 
+(require 'mu4e)
 (use-package mu4e
   :ensure nil
   :defer t
@@ -763,31 +771,128 @@ With universal argument ARG, reverse the order."
                     (smtpmail-smtp-service . 465)
                     (user-full-name . "Rashid Shaikh")))))
   (setq mu4e-headers-fields
-        '((:account-stripe . 1)
+        '(
+          ;; (:account-stripe . 1)
           (:human-date . 12)
           (:flags . 6)
           (:from . 22)
           (:subject . 50)
-          (:maildir . 50))))
+          (:maildir . 50)))
+
+  (defvar +mu4e-gmail-accounts 
+    (setq +mu4e-gmail-accounts
+          '(
+            ("rashid301@gmail.com" . "personal")
+            ("rshaikh@coachsensai.com" . "sensai")
+            ))
+    "Gmail accounts that do not contain \"gmail\" in address and maildir.
+
+An alist of Gmail addresses of the format \((\"username@domain.com\" . \"account-maildir\"))
+to which Gmail integrations (behind the `+gmail' flag of the `mu4e' module) should be applied.
+
+See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
+
+  ;; don't save message to Sent Messages, Gmail/IMAP takes care of this
+  (setq mu4e-sent-messages-behavior
+        (lambda () ;; TODO: make use +mu4e-msg-gmail-p
+          (if (or (string-match-p "@gmail.com\\'" (message-sendmail-envelope-from))
+                  (member (message-sendmail-envelope-from)
+                          (mapcar #'car +mu4e-gmail-accounts)))
+              'delete 'sent)))
+
+  (defun +mu4e-msg-gmail-p (msg)
+    (let ((root-maildir
+           (replace-regexp-in-string "/.*" ""
+                                     (substring (mu4e-message-field msg :maildir) 1))))
+      (or (string-match-p "gmail" root-maildir)
+          (member root-maildir (mapcar #'cdr +mu4e-gmail-accounts)))))
+
+  ;; In my workflow, emails won't be moved at all. Only their flags/labels are
+  ;; changed. Se we redefine the trash and refile marks not to do any moving.
+  ;; However, the real magic happens in `+mu4e-gmail-fix-flags-h'.
+  ;;
+  ;; Gmail will handle the rest.
+  (defun +mu4e--mark-seen (docid _msg target)
+    (mu4e--server-move docid (mu4e--mark-check-target target) "+S-u-N"))
+
+  (defvar +mu4e--last-invalid-gmail-action 0)
+
+  (setf (alist-get 'delete mu4e-marks)
+        (list
+         :char '("D" . "✘")
+         :prompt "Delete"
+         :show-target (lambda (_target) "delete")
+         :action (lambda (docid msg target)
+                   (if (+mu4e-msg-gmail-p msg)
+                       (progn (message "The delete operation is invalid for Gmail accounts. Trashing instead.")
+                              (+mu4e--mark-seen docid msg target)
+                              (when (< 2 (- (float-time) +mu4e--last-invalid-gmail-action))
+                                (sit-for 1))
+                              (setq +mu4e--last-invalid-gmail-action (float-time)))
+                     (mu4e--server-remove docid))))
+        (alist-get 'trash mu4e-marks)
+        (list :char '("d" . "▼")
+              :prompt "dtrash"
+              :dyn-target (lambda (_target msg) (mu4e-get-trash-folder msg))
+              :action (lambda (docid msg target)
+                        (if (+mu4e-msg-gmail-p msg)
+                            (+mu4e--mark-seen docid msg target)
+                          (mu4e--server-move docid (mu4e--mark-check-target target) "+T-N"))))
+        ;; Refile will be my "archive" function.
+        (alist-get 'refile mu4e-marks)
+        (list :char '("r" . "▼")
+              :prompt "rrefile"
+              :dyn-target (lambda (_target msg) (mu4e-get-refile-folder msg))
+              :action (lambda (docid msg target)
+                        (if (+mu4e-msg-gmail-p msg)
+                            (+mu4e--mark-seen docid msg target)
+                          (mu4e--server-move docid (mu4e--mark-check-target target) "-N")))
+              #'+mu4e--mark-seen))
+
+  ;; This hook correctly modifies gmail flags on emails when they are marked.
+  ;; Without it, refiling (archiving), trashing, and flagging (starring) email
+  ;; won't properly result in the corresponding gmail action, since the marks
+  ;; are ineffectual otherwise.
+  (add-hook 'mu4e-mark-execute-pre-hook
+            (defun +mu4e-gmail-fix-flags-h (mark msg)
+              (when (+mu4e-msg-gmail-p msg)
+                (pcase mark
+                  (`trash  (mu4e-action-retag-message msg "-\\Inbox,+\\Trash,-\\Draft"))
+                  (`delete (mu4e-action-retag-message msg "-\\Inbox,+\\Trash,-\\Draft"))
+                  (`refile (mu4e-action-retag-message msg "-\\Inbox"))
+                  (`flag   (mu4e-action-retag-message msg "+\\Starred"))
+                  (`unflag (mu4e-action-retag-message msg "-\\Starred"))))))
+
+  )
 
 (use-package mu4e-org
   :ensure nil)
+
+(use-package auth-source-pass
+  :config
+  (auth-source-pass-enable))
+
+(setq auth-source-debug nil
+      auth-source-do-cache nil
+      auth-sources '(password-store))
 
 ;; ── Eat (terminal emulator) ────────────────────────────────────────────
 
 (use-package eat
   :ensure t
   :hook ((eshell-mode . eat-eshell-mode)
-        ;; (eat-mode-hook . mode-line-invisible-mode)
+         ;; (eat-mode-hook . mode-line-invisible-mode)
          )
   :config
   ;;(evil-set-initial-state 'eat-term-mode 'emacs)
-  (setq eshell-visual-commands '()
-        eat-term-name "xterm-256color")
-  (general-define-key
-   :states 'insert
-   :keymaps 'eshell-mode-map
-   "RET" #'eshell-send-input))
+  )
+
+(with-eval-after-load 'evil-collection
+  (with-eval-after-load 'eshell
+    (setq eshell-visual-commands '()
+          eat-term-name "xterm-256color")
+    (define-key eshell-mode-map (kbd "RET") #'eshell-send-input)))
+
 
 ;; ── diminish (hide minor modes from modeline) ───────────────────────
 
@@ -839,11 +944,11 @@ With universal argument ARG, reverse the order."
 
 ;; ── agent-shell ecosystem ─────────────────────────────────────────────
 
- (use-package exec-path-from-shell
-   :ensure t
-   :config
-   (exec-path-from-shell-initialize)
-   )
+(use-package exec-path-from-shell
+  :ensure t
+  :config
+  (exec-path-from-shell-initialize)
+  )
 
 ;; (use-package pinentry
 ;;   :ensure t)
@@ -872,17 +977,24 @@ With universal argument ARG, reverse the order."
   (general-define-key
    :states 'normal
    :keymaps 'agent-shell-mode-map
-   "RET" #'agent-shell-submit
    "["   #'agent-shell-previous-item
    "]"   #'agent-shell-next-item
    "TAB" #'agent-shell-ui-toggle-fragment
    "q"   #'agent-shell-toggle
    "c"   #'agent-shell-prompt-compose
    "x"   #'agent-shell-interrupt)
+  ;; RET works in all three states
   (general-define-key
-   :states 'insert
+   :states '(normal visual insert)
    :keymaps 'agent-shell-mode-map
    "RET" #'agent-shell-submit)
+
+
+  (general-def
+    :states '(motion normal)          ; Dired defaults to 'motion state in Evil
+    :keymaps 'agent-shell-mode-map
+    "RET" #'agent-shell-submit)
+
   ;; Local leader bindings — SPC m R, SPC m f, etc.
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "R") #'agent-shell-restart)
@@ -905,7 +1017,14 @@ With universal argument ARG, reverse the order."
 ;; ── shell-maker (create custom shells in eshell) ──────────────────────
 
 (use-package shell-maker
-  :ensure t)
+  :ensure t
+  :config
+  (advice-add 'shell-maker-submit :after
+              (lambda (&rest _)
+                (goto-char (point-max))))
+  (with-eval-after-load 'agent-shell
+    (with-eval-after-load 'evil-collection
+      (define-key agent-shell-mode-map (kbd "RET") #'agent-shell-submit))))
 
 ;; ── capf-autosuggest (eshell completion hints) ─────────────────────────
 
@@ -925,7 +1044,36 @@ With universal argument ARG, reverse the order."
 ;; ── EWM (Wayland compositor) integration ───────────────────────────────
 
 (if (getenv "EWM_MODULE_PATH")
-  (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
+    (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
   (load-file (expand-file-name "lisp/config-i3.el" user-emacs-directory)))
+
+
+;; dotfiles
+(defun my/dotfiles()
+  (interactive)
+  (consult-find "~/dotfiles")
+  )
+
+(general-define-key
+ :states 'normal
+ "f ." #'my/dotfiles
+ )
+
+;; server edit
+(defun my/evil-save-modified-and-close (orig &rest args)
+  (if server-buffer-clients
+      (progn
+        (save-buffer)
+        (server-edit))
+    (apply orig args)))
+
+(advice-add #'evil-save-modified-and-close
+            :around #'my/evil-save-modified-and-close)
+
+(add-hook 'server-visit-hook
+          (lambda ()
+            (when server-buffer-clients
+              (evil-insert-state))))
+
 
 (provide 'post-init)
