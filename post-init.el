@@ -2,21 +2,21 @@
 
 ;; ── Themes ──────────────────────────────────────────────────────────────
 
-;; (use-package doom-themes
-;;   :ensure t
-;;   :custom
-;;   (doom-themes-enable-bold t)
-;;   (doom-themes-enable-italic t)
-;;   :config
-;;   (doom-themes-visual-bell-config)
-;;   (doom-themes-org-config))
+(use-package doom-themes
+  :ensure t
+  :custom
+  (doom-themes-enable-bold t)
+  (doom-themes-enable-italic t)
+  :config
+  (doom-themes-visual-bell-config)
+  (doom-themes-org-config))
 
-;; (use-package nano-theme
-;;   :ensure t
-;;   :config
-;;   ;; (load-theme 'nano-dark t))
-;;   ;; (load-theme 'noctalia t)
-;;   )
+(use-package nano-theme
+  :ensure t
+  :config
+  ;; (load-theme 'nano-dark t))
+  ;; (load-theme 'noctalia t)
+  )
 
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
@@ -29,7 +29,19 @@
                       :height 153
                       :weight 'normal))
 
+(defun my/load-theme (theme)
+  "Completely disable all active themes before loading THEME safely."
+  (interactive
+   (list (intern (completing-read "Load theme: "
+                                  (mapcar #'symbol-name (custom-available-themes))))))
+  ;; 1. Loop through and forcefully turn off every currently active theme
+  (dolist (active-theme custom-enabled-themes)
+    (disable-theme active-theme))
+  ;; 2. Load the fresh theme cleanly without layering onto old faces
+  (load-theme theme t))
+
 (my/set-font)
+(my/load-theme 'nano-light)
 (add-hook 'after-make-frame-functions #'my/set-font)
 (winner-mode)
 
@@ -83,34 +95,87 @@
 
 
 
-;; ── Completion ──────────────────────────────────────────────────────────
+;; ── Completion (Doom-style) ────────────────────────────────────────────
 
-;; Vertico — vertical completion in minibuffer
+;; Vertico — vertical completion UI
 (use-package vertico
+  :ensure t
   :custom
-  (vertico-count 15)
-  (vertico-resize 'fixed)
+  (vertico-count 17)
+  (vertico-resize nil)
+  (vertico-cycle t)
+  (vertico-scroll-margin 2)
   :config
-  (vertico-mode)
+  (vertico-mode 1)
+
+  ;; Clean up shadowed path syntax (e.g. ~/foo/bar/// → /)
+  (add-hook 'rfn-eshadow-update-overlay-hook #'vertico-directory-tidy)
+  (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
+
   (general-define-key
    :keymaps 'vertico-map
-   :states 'insert
-   "C-n" #'vertico-next
-   "C-p" #'vertico-previous))
+   "C-n"   #'vertico-next
+   "C-p"   #'vertico-previous
+   "C-j"   #'vertico-next
+   "C-k"   #'vertico-previous
+   "C-h"   #'vertico-directory-up
+   "C-l"   #'vertico-directory-enter
+   "C-SPC" #'vertico-exit-input
+   "DEL"   #'vertico-directory-delete-char)
+
+  ;; Give the minibuffer left margin padding
+  (add-hook 'minibuffer-setup-hook
+            (lambda ()
+              (setq left-margin-width 1)
+              (set-window-buffer (selected-window) (current-buffer))))
+
+  ;; Highlight directories and enabled modes (Doom-style)
+  (require 'vertico-multiform)
+  (vertico-multiform-mode 1)
+  (defun +vertico-highlight-directory (f)
+    (when (string-suffix-p "/" f)
+      (add-face-text-property 0 (length f) 'marginalia-file-priv-dir 'append f))
+    f)
+  (defun +vertico-highlight-enabled-mode (cmd)
+    (let ((sym (intern cmd)))
+      (with-current-buffer (nth 1 (buffer-list))
+        (when (or (eq sym major-mode)
+                  (and (memq sym minor-mode-list)
+                       (boundp sym) (symbol-value sym)))
+          (add-face-text-property 0 (length cmd) 'font-lock-constant-face 'append cmd))))
+    cmd)
+  (add-to-list 'vertico-multiform-categories
+               '(file (+vertico-transform-functions . +vertico-highlight-directory)))
+  (add-to-list 'vertico-multiform-commands
+               '(execute-extended-command
+                 (+vertico-transform-functions . +vertico-highlight-enabled-mode))))
+
+;; Marginalia — rich annotations
+(use-package marginalia
+  :ensure t
+  :after vertico
+  :config
+  (marginalia-mode 1)
+  (general-define-key
+   :keymaps 'minibuffer-local-map
+   "M-A" #'marginalia-cycle))
 
 ;; Orderless — flexible completion style
 (use-package orderless
+  :ensure t
   :custom
   (completion-styles '(orderless basic))
   (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles partial-completion)))))
-
-;; Marginalia — rich annotations for completions
-(use-package marginalia
-  :bind (:map minibuffer-local-map
-              ("M-A" . marginalia-cycle))
-  :config
-  (marginalia-mode))
+  (completion-category-overrides '((file (styles orderless partial-completion))))
+  (orderless-component-separator #'orderless-escapable-split-on-space)
+  (orderless-affix-dispatch-alist
+   '((?! . orderless-without-literal)
+     (?& . orderless-annotation)
+     (?% . char-fold-to-regexp)
+     (?` . orderless-initialism)
+     (?= . orderless-literal)
+     (?^ . orderless-literal-prefix)
+     (?~ . orderless-flex))))
 
 ;; Corfu — in-buffer completion
 (use-package corfu
@@ -125,28 +190,43 @@
   :config
   (global-corfu-mode))
 
-;; ── Search ─────────────────────────────────────────────────────────────
+;; ── Search (Doom-style) ────────────────────────────────────────────────
 
 ;; Consult — efficient searching and previewing
 (use-package consult
+  :ensure t
   :bind (("C-x b" . consult-buffer)
          ("M-y" . consult-yank-pop)
          ("M-g g" . consult-goto-line)
          ("M-g i" . consult-imenu)
          ("M-g M-g" . consult-goto-line))
   :config
+  (setq consult-narrow-key "<"
+        consult-line-numbers-widen t
+        consult-async-min-input 2
+        consult-async-refresh-delay 0.15
+        consult-async-input-throttle 0.2
+        consult-async-input-debounce 0.1
+        register-preview-delay 0.3
+        register-preview-function #'consult-register-format)
+
   (consult-customize
-   consult-theme :preview-key 'C-z)
-  (setq register-preview-delay 0.3
-        register-preview-function #'consult-register-format
-        consult-line-start-from-top nil))
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file consult-theme
+   :preview-key "C-SPC"))
 
 ;; Embark — context-sensitive actions
 (use-package embark
-  :bind (("C-." . embark-act)))
+  :ensure t
+  :bind (("C-." . embark-act)
+         :map minibuffer-local-map
+         ("C-." . embark-act))
+  :config
+  (setq prefix-help-command #'embark-prefix-help-command))
 
 ;; Embark-consult — integration
 (use-package embark-consult
+  :ensure t
   :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
@@ -291,7 +371,7 @@
    "hf" '(describe-function :which-key "describe function")
    "hF" '(describe-face :which-key "describe face")
    "hk" '(describe-key :which-key "describe key")
-   "ht" '(load-theme :which-key "load theme")
+   "ht" '(my/load-theme :which-key "load theme")
    "hR" '(my/config-reload :which-key "reload config")
 
    ;; --- Buffer bindings ---
@@ -335,7 +415,21 @@
    "TAB k" '(activities-kill :which-key "kill activity")
    "TAB l" '(activities-list :which-key "list activities")
    "TAB b" '(activities-switch-buffer :which-key "switch buffer")
-   "TAB g" '(activities-revert :which-key "revert activity")))
+   "TAB g" '(activities-revert :which-key "revert activity"))
+
+
+
+  ;; 1. Initialize your custom global prefix map
+  (general-create-definer my-local-leader
+    :states '(normal motion visual)
+    :prefix "SPC m") ; Binds globally to SPC m and sets up structural inheritance
+
+  ;; 2. Easily attach commands directly to major modes
+  (my-local-leader
+    :keymaps 'agent-shell-mode-map
+    "R" #'agent-shell-restart
+    "f" #'agent-shell-fork)
+  )
 
 ;; ── Agent shell / app shortcuts (in global leader) ──────────────────────
 
@@ -391,6 +485,20 @@
   (evil-define-key 'normal dired-mode-map
     (kbd "h") 'dired-up-directory
     (kbd "l") 'dired-find-alternate-file)
+
+  (require 'tramp-sshfs)
+  (defun my/tramp-aware-dired-open-advice (orig-fun &rest args)
+    (let* ((files (dired-get-marked-files nil (car args)))
+           (is-remote (file-remote-p default-directory))
+           (method (if is-remote (file-remote-p default-directory 'method) nil)))
+      (if (string-equal method "sshfs")
+          (dolist (file files)
+            (let ((local-fuse-path (tramp-fuse-local-file-name (expand-file-name file))))
+              (if (and local-fuse-path (file-exists-p local-fuse-path))
+                  (start-process "dired-tramp-external-open" nil "xdg-open" local-fuse-path)
+                (message "Error: Unable to resolve local FUSE mount path for %s" file))))
+        (apply orig-fun args))))
+  (advice-add 'dired-do-open :around #'my/tramp-aware-dired-open-advice)
   )
 
 
@@ -525,6 +633,10 @@
 (global-display-line-numbers-mode 1)
 (setq display-line-numbers-width 4)
 (set-fringe-mode 0)
+
+;; Hide line numbers in eshell buffers
+(add-hook 'eshell-mode-hook #'display-line-numbers-mode)
+(add-hook 'agent-shell-mode-hook #'display-line-numbers-mode)
 
 
 ;; Quick reload of this file
@@ -995,16 +1107,14 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
     :keymaps 'agent-shell-mode-map
     "RET" #'agent-shell-submit)
 
-  ;; Local leader bindings — SPC m R, SPC m f, etc.
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "R") #'agent-shell-restart)
-    (define-key map (kbd "f") #'agent-shell-fork)
-    (define-key map (kbd "m") #'agent-shell-set-session-mode)
-    (define-key map (kbd "M") #'agent-shell-set-session-model)
-    (define-key map (kbd "d") #'agent-shell-delete-interaction-at-point)
-    (define-key map (kbd "T") #'agent-shell-open-transcript)
-    (define-key map (kbd "l") #'agent-shell-toggle-logging)
-    (push (cons 'agent-shell-mode map) my-local-leader-alist)))
+  (my-local-leader
+    :keymaps 'agent-shell-mode-map
+    "R" #'agent-shell-restart
+    "f" #'agent-shell-fork
+    "m" #'agent-shell-set-session-mode
+    "M" #'agent-shell-set-session-model
+    )
+  )
 
 (use-package agent-shell-tramp
   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
@@ -1049,11 +1159,6 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
 
 
 ;; dotfiles
-(defun my/dotfiles()
-  (interactive)
-  (consult-find "~/dotfiles")
-  )
-
 (general-define-key
  :states 'normal
  "f ." #'my/dotfiles
@@ -1075,5 +1180,18 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
             (when server-buffer-clients
               (evil-insert-state))))
 
+
+;; ── TRAMP ─────────────────────────────────────────────────────────────
+
+(use-package tramp
+  :ensure nil
+  :config
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path)
+  (setq tramp-use-ssh-controlmaster-options nil)
+  (setq tramp-inline-compress-start-size 10000)
+  (setq tramp-copy-size-limit 100000)
+  (setq vc-handled-backends nil)
+  (setq remote-file-name-inhibit-cache nil)
+  (setq tramp-verbose 3))
 
 (provide 'post-init)
