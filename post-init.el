@@ -4,6 +4,7 @@
 
 (use-package doom-themes
   :ensure t
+  :hook (doom-load-theme . doom-themes-org-config)
   :custom
   (doom-themes-enable-bold t)
   (doom-themes-enable-italic t)
@@ -11,25 +12,16 @@
   (doom-themes-visual-bell-config)
   (doom-themes-org-config))
 
-(use-package nano-theme
-  :ensure t
-  :config
-  (setq nano-font-size 14)
-  (set-fontset-font t '(#xe000 . #xffdd) (font-spec :family "RobotoMono Nerd Font Mono"))
-  ;;(nano-mode)
-  ;;(nano-light)
-  ;; (load-theme 'nano-dark t))
-  ;; (load-theme 'noctalia t)
-  )
-
 (use-package doom-modeline
   :ensure t
   :init (doom-modeline-mode 1)
-  :config
   ;; Optional: Customize layout tweaks here
-  (setq doom-modeline-height 25)     ; Sets modeline height
-  (setq doom-modeline-bar-width 4)   ; Sets right sidebar width
-  (setq doom-modeline-icon t))       ; Enables icons
+  :hook (doom-load-theme . doom-themes-org-config)
+  :config
+  ;; (setq doom-modeline-height 25)     ; Sets modeline height
+  ;; (setq doom-modeline-bar-width 4)   ; Sets right sidebar width
+  (setq doom-modeline-icon t)
+  )       ; Enables icons
 
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
@@ -40,13 +32,14 @@
 (defun my/set-font (&optional frame)
   (my/load-theme 'noctalia)
   (set-face-attribute 'default frame
+                      :family "RobotoMono Nerd Font"
                       :height 140
                       :weight 'normal))
 
-(defun my/load-nano-theme (&optional frame)
-  (nano-mode)
-  (my/load-theme nano-light)
-  )
+;; (defun my/load-nano-theme (&optional frame)
+;;   (nano-mode)
+;;   (my/load-theme nano-light)
+;;   )
 
 (defun my/load-theme (theme)
   "Completely disable all active themes before loading THEME safely."
@@ -138,19 +131,11 @@
   (add-to-list 'eglot-ignored-server-capabilities :documentFormattingProvider))
 
 
+(use-package ace-link
+  :ensure t)
+
 
 ;; ── Completion (Doom-style) ────────────────────────────────────────────
-
-(use-package mini-frame
-  :config
-  (setq
-   mini-frame-show-parameters
-   '((top . 0)
-     (parent-frame . nil)
-     (width . 1.0)
-     (left . 0.5)
-     (height . 15)))
-  )
 
 ;; Vertico — vertical completion UI
 (use-package vertico
@@ -493,6 +478,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
    "sg" '(consult-grep :which-key "grep search")
    "sd" '(consult-ripgrep :which-key "search directory")
    "sb" '(consult-line :which-key "search directory")
+   "sl" '(ace-link :which-key "search links")
 
    ;; --- Org-roam bindings ---
    "nl" '(org-roam-node-find :which-key "find node")
@@ -600,6 +586,10 @@ Works over TRAMP without relying on `vc-handled-backends'."
               ("C-c e" . macrostep-expand)))
 
 
+(use-package markdown-mode
+  :mode ("\\.md\\'" . markdown-mode)
+  :config
+  (setq markdown-command "multimarkdown")) 
 ;; ── Leader key (Doom-style) ────────────────────────────────────────────
 
 ;; Full config reload (like Doom's `SPC h R`)
@@ -837,8 +827,9 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (global-display-line-numbers-mode 1)
 (setq display-line-numbers-width 2)
 (set-fringe-mode 0)
-(setq-default left-margin-width 2)
-(setq-default right-margin-width 2)
+(setq-default top-margin-width 2)
+(setq-default left-margin-width 1)
+(setq-default right-margin-width 1)
 
 
 (defun turn-off-line-numbers ()
@@ -847,6 +838,12 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (add-hook 'eshell-mode-hook #'turn-off-line-numbers)
 (add-hook 'agent-shell-mode-hook #'turn-off-line-numbers)
 (add-hook 'ewm-mode-hook #'turn-off-line-numbers)
+(add-hook 'helpful-mode-hook #'turn-off-line-numbers)
+(add-hook 'helpful-mode-hook #'turn-off-line-numbers)
+(add-hook 'mu4e-main-mode-hook #'turn-off-line-numbers)
+(add-hook 'mu4e-headers-mode-hook #'turn-off-line-numbers)
+(add-hook 'mu4e:view #'turn-off-line-numbers)
+(add-hook 'eww-mode-hook #'turn-off-line-numbers)
 
 ;;(setq 'ewm-mode-hook '())
 ;;(add-hook 'ewm-mode-hook #'mode-line-invisible-mode)
@@ -920,30 +917,17 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :after evil
   :config
   (global-evil-surround-mode 1)
-  (let ((orig (default-value 'evil-surround-pairs-alist)))
-    (setq-default evil-surround-pairs-alist
-                  (push '(?~ . ("``" . "``")) evil-surround-pairs-alist))
-    (setq-default evil-surround-pairs-alist
-                  (append orig
-                          '((?F . (lambda ()
+  
+  ;; Directly prepend all your custom rules to the default list safely
+  (setq-default evil-surround-pairs-alist
+                (append '((?~   . ("``" . "``"))
+                          (?F   . (lambda ()
                                     (let ((name (read-from-minibuffer "Type name: ")))
-                                      (cons (concat name "[") "]")))))))))
-
-;; (use-package evil-textobj-line
-;;   :ensure t
-;;   :after evil)
-
-;; (use-package evil-textobj-sentence
-;;   :ensure t
-;;   :after evil)
-
-;; (use-package evil-textobj-outerword
-;;   :ensure t
-;;   :after evil)
-
-;; (use-package evil-indent-plus
-;;   :ensure t
-;;   :after evil)
+                                      (cons (concat name "[") "]"))))
+                          (?\C-f . (lambda ()
+                                     (let ((name (read-from-minibuffer "Function name: ")))
+                                       (cons (concat "(" name " ") ")")))))
+                        (default-value 'evil-surround-pairs-alist))))
 
 ;; ── Evil-commentary (gc / gcc to comment) ──────────────────────────────
 
@@ -1080,6 +1064,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :defer t
   :config
   (setq mu4e-maildir "/data/mbsync-mail/"
+        mu4e-context-policy 'pick-first
         mu4e-completing-read-function #'completing-read ;; vertico
         mu4e-maildir-shortcuts '((:maildir "/Inbox/" :key ?i))
         mu4e-compose-context-policy 'ask-if-none
@@ -1237,6 +1222,15 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
                   (`flag   (mu4e-action-retag-message msg "+\\Starred"))
                   (`unflag (mu4e-action-retag-message msg "-\\Starred"))))))
 
+
+  ;; Call EWW to display HTML messages
+  (defun jcs-view-in-eww (msg)
+    (let ((browse-url-browser-function 'eww-browse-url))
+      (mu4e-action-view-in-browser msg)))
+
+  
+  ;; Arrange to view messages in either the default browser or EWW
+  (add-to-list 'mu4e-view-actions '("Eww view" . jcs-view-in-eww) t)
   )
 
 (use-package mu4e-org
@@ -1261,17 +1255,21 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   (setq eshell-save-history-on-exit t) ;; Enable history saving on exit
   (setq eshell-hist-ignoredups t) ;; Ignore duplicates
 
-  (general-def
-    :keymaps 'eshell-prompt-mode-map
-    :states 'insert
-    "C-p" #'eshell-previous-matching-input-from-input
-    "C-n" #'eshell-next-matching-input-from-input)
+  (setenv "EDITOR" "emacsclient")
+  (setenv "VISUAL" "emacsclient")
+
+  ;; (general-def
+  ;;   :keymaps 'eshell-prompt-mode-map
+  ;;   :states 'insert
+  ;;   "C-p" #'eshell-previous-matching-input-from-input
+  ;;   "C-n" #'eshell-next-matching-input-from-input
+  ;; )
   )
 
 (use-package eat
   :ensure t
   :hook ((eshell-mode . eat-eshell-mode)
-         (eat-mode-hook . mode-line-invisible-mode)
+         ;;(eat-mode-hook . mode-line-invisible-mode)
          )
   :config
   (evil-set-initial-state 'eat-term-mode 'emacs)
@@ -1489,5 +1487,92 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   (setq vc-handled-backends '(git))
   (setq remote-file-name-inhibit-cache nil)
   (setq tramp-verbose 3))
+
+;; --- mini solaire
+(require 'color)
+
+(defun my-remap-background (&optional amount)
+  "Remap the current buffer's background.
+
+AMOUNT is the percentage to lighten/darken (default 4).  Dark
+themes are lightened slightly; light themes are darkened."
+  (unless (my-real-buffer-p)
+    (turn-off-line-numbers)
+    (let* ((amount (or amount 4))
+           (bg (face-background 'default nil t))
+           (fg (face-foreground 'default nil t))
+           (new-bg (if (color-dark-p (color-name-to-rgb bg))
+                       (color-lighten-name bg amount)
+                     (color-darken-name bg amount))))
+      (face-remap-add-relative
+       'default
+       `(:background ,new-bg)))))
+
+(defun my-real-buffer-p ()
+  "Return non-nil if the current buffer is visiting a real file."
+  (and buffer-file-name
+       (not (minibufferp))
+       (not (string-prefix-p " " (buffer-name)))))
+
+(add-hook 'after-change-major-mode-hook #'my-remap-background)
+
+(defun thanos/wtype-text (text)
+  "Process TEXT for wtype, handling newlines properly."
+  (let* ((has-final-newline (string-match-p "\n$" text))
+         (lines (split-string text "\n"))
+         (last-idx (1- (length lines))))
+    (string-join
+     (cl-loop for line in lines
+              for i from 0
+              collect (cond
+                       ;; Last line without final newline
+                       ((and (= i last-idx) (not has-final-newline))
+                        (format "wtype -s 350 \"%s\""
+                                (replace-regexp-in-string "\"" "\\\\\"" line)))
+                       ;; Any other line
+                       (t
+                        (format "wtype -s 350 \"%s\" && wtype -k Return"
+                                (replace-regexp-in-string "\"" "\\\\\"" line)))))
+     " && ")))
+
+(defun thanos/type ()
+  "Launch a temporary frame with a clean buffer for typing."
+  (interactive)
+  (let ((buf (get-buffer-create "emacs-float")))
+    (switch-to-buffer buf)
+    (erase-buffer)
+    (org-mode)
+    (evil-insert 1)
+    (setq-local header-line-format
+                (format " %s to insert text or %s to cancel."
+                        (propertize "C-c C-c" 'face 'help-key-binding)
+                        (propertize "C-c C-k" 'face 'help-key-binding)))
+    (local-set-key (kbd "C-c C-k")
+                   (lambda () (interactive)
+                     (kill-new (buffer-string))
+                     (kill-buffer buf)
+                     ))
+    (local-set-key (kbd "C-c C-c")
+                   (lambda () (interactive)
+                     (let ((value (buffer-string)))
+                       (kill-buffer buf)
+                       (start-process-shell-command
+                        "wtype" nil
+                        (thanos/wtype-text value)))
+                     ))))
+
+(with-eval-after-load 'eww
+  (define-key eww-mode-map (kbd "=") #'text-scale-increase)
+  (define-key eww-mode-map (kbd "-") #'text-scale-decrease)
+  (define-key eww-mode-map (kbd "0") #'text-scale-adjust))
+
+(setq shr-width 100)
+(setq shr-max-width 120)
+(setq shr-indentation 4)
+
+(setq shr-use-fonts nil)
+(setq shr-max-image-size '(800 . 600))
+(setq shr-image-animate t)
+(setq eww-search-prefix "https://html.duckduckgo.com/html/q=")
 
 (provide 'post-init)

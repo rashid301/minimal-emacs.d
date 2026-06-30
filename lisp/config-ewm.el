@@ -95,6 +95,8 @@
   (define-key ewm-mode-map (kbd "s-n") #'next-buffer)
   (define-key ewm-mode-map (kbd "s-Q") #'my/session-noc)
   (define-key ewm-mode-map (kbd "s-d") #'ewm-launch-app)
+  (define-key ewm-mode-map (kbd "M-q") #'evil-window-delete)
+  (define-key ewm-mode-map (kbd "s-i") #'thanos/type)
 
   (defun my/session-noc ()
     (interactive)
@@ -139,11 +141,11 @@
 
 (defvar consult-source-xdg-apps
   `(:name "Apps"
-    :narrow ?a
-    :category app
-    :items ,(lambda ()
-              (mapcar #'car (ewm-list-xdg-apps)))
-    :action ,#'ewm-launch-xdg-command))
+          :narrow ?a
+          :category app
+          :items ,(lambda ()
+                    (mapcar #'car (ewm-list-xdg-apps)))
+          :action ,#'ewm-launch-xdg-command))
 
 (with-eval-after-load 'consult
   (add-to-list 'consult-buffer-sources consult-source-xdg-apps t))
