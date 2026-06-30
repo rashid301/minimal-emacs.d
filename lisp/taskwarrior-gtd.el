@@ -30,7 +30,7 @@
 (defcustom taskwarrior-gtd-taskrc nil
   "Path to .taskrc file, or nil to use default."
   :type '(choice (const :tag "Default" nil)
-          (string :tag "Path"))
+                 (string :tag "Path"))
   :group 'taskwarrior-gtd)
 
 (defcustom taskwarrior-gtd-buckets
@@ -506,34 +506,31 @@ Tasks without dates go last."
 ;; ---------------------------------------------------------------------------
 
 (defvar gtd-list-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "1") (lambda () (interactive) (taskwarrior-gtd-list "in")))
-    (define-key map (kbd "2") (lambda () (interactive) (taskwarrior-gtd-list "next")))
-    (define-key map (kbd "3") (lambda () (interactive) (taskwarrior-gtd-list "waiting")))
-    (define-key map (kbd "4") (lambda () (interactive) (taskwarrior-gtd-list "someday")))
-    (define-key map (kbd "5") (lambda () (interactive) (taskwarrior-gtd-list "cal")))
-    (define-key map (kbd "6") (lambda () (interactive) (taskwarrior-gtd-list "all")))
-    (define-key map (kbd "RET") #'taskwarrior-gtd-action-detail)
-    (define-key map (kbd "d") #'taskwarrior-gtd-action-complete)
-    (define-key map (kbd "x") #'taskwarrior-gtd-action-delete)
-    (define-key map (kbd "m") #'taskwarrior-gtd-action-move)
-    (define-key map (kbd "e") #'taskwarrior-gtd-action-edit)
-    (define-key map (kbd "a") #'taskwarrior-gtd-action-add)
-    (define-key map (kbd "c") #'taskwarrior-gtd-action-add)
-    (define-key map (kbd "gt") #'taskwarrior-gtd-action-jump)
-    (define-key map (kbd "r") #'taskwarrior-gtd-list-refresh)
-    (define-key map (kbd "q") #'taskwarrior-gtd-list-quit)
-    (define-key map (kbd "u") #'taskwarrior-gtd-action-undo)
-    (define-key map (kbd "s") #'taskwarrior-gtd-action-toggle-start)
-    (define-key map (kbd "h") #'taskwarrior-gtd-dashboard)
-    map)
+  (make-sparse-keymap)
   "Keymap for `gtd-list-mode'.")
 
 (with-eval-after-load 'evil
-  (evil-make-overriding-map gtd-list-mode-map 'normal)
-  (add-hook 'gtd-list-mode-hook #'evil-normalize-keymaps)
-  (evil-define-key 'normal gtd-list-mode-map
-    (kbd "q") #'taskwarrior-gtd-list-quit))
+  (evil-define-key '(normal motion) gtd-list-mode-map
+    "1" (lambda () (interactive) (taskwarrior-gtd-list "in"))
+    "2" (lambda () (interactive) (taskwarrior-gtd-list "next"))
+    "3" (lambda () (interactive) (taskwarrior-gtd-list "waiting"))
+    "4" (lambda () (interactive) (taskwarrior-gtd-list "someday"))
+    "5" (lambda () (interactive) (taskwarrior-gtd-list "cal"))
+    "6" (lambda () (interactive) (taskwarrior-gtd-list "all"))
+    (kbd "RET") #'taskwarrior-gtd-action-detail
+    "d" #'taskwarrior-gtd-action-complete
+    "x" #'taskwarrior-gtd-action-delete
+    "m" #'taskwarrior-gtd-action-move
+    "e" #'taskwarrior-gtd-action-edit
+    "a" #'taskwarrior-gtd-action-add
+    "c" #'taskwarrior-gtd-action-add
+    "g t" #'taskwarrior-gtd-action-jump
+    "r" #'taskwarrior-gtd-list-refresh
+    "q" #'taskwarrior-gtd-list-quit
+    "u" #'taskwarrior-gtd-action-undo
+    "s" #'taskwarrior-gtd-action-toggle-start
+    "h" #'taskwarrior-gtd-dashboard
+    "q" #'taskwarrior-gtd-list-quit))
 
 (define-derived-mode gtd-list-mode tabulated-list-mode "GTD-List"
   "List view for a Taskwarrior GTD report."

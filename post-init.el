@@ -64,9 +64,32 @@
 (add-hook 'after-make-frame-functions #'my/set-font)
 (winner-mode)
 
+(defun my/escape ()
+  (interactive)
+  (cond
+   ((minibufferp)
+    (keyboard-escape-quit))
+   ((evil-insert-state-p)
+    (evil-force-normal-state))
+   ((evil-visual-state-p)
+    (evil-exit-visual-state))
+   (evil-ex-search-persistent-highlight
+    (evil-ex-nohighlight))
+   (t
+    (keyboard-escape-quit))))
+
+(general-define-key
+ :states '(normal visual insert emacs motion)
+ "<escape>" #'my/escape)
+
 ;; ── Tree-sitter (built-in) + LSP (built-in) ────────────────────────────
 
 (require 'treesit)
+(setq treesit-enabled-modes t)
+
+;; At 3 (the default), too many users think syntax highlighting is broken or
+;; simply "looks off."
+(setq treesit-font-lock-level 4)
 
 ;; Associate .tsx files with typescript-ts-mode
 (add-to-list 'auto-mode-alist '("\\.tsx\\'" . typescript-ts-mode))
@@ -86,6 +109,7 @@
         (yaml "https://github.com/ikatyang/tree-sitter-yaml")
         (toml "https://github.com/tree-sitter/tree-sitter-toml")
         (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+        (commonlisp "https://github.com/tree-sitter-grammars/tree-sitter-commonlisp")
         (markdown "https://github.com/tree-sitter/tree-sitter-markdown")))
 
 (use-package eglot
@@ -249,6 +273,7 @@
 
 (use-package expreg
   :ensure t
+  :after evil
   :bind (:map evil-visual-state-map
               ("RET" . expreg-expand)   ;; Press 'v' in visual mode to expand
               ("-" . expreg-contract) ;; Press capital 'V' to contract selection
@@ -291,6 +316,8 @@ This only works with orderless and for the first component of the search."
       (let ((pattern (car consult--line-history)))
         (add-to-history 'evil-ex-search-history pattern)
         (setq evil-ex-search-pattern (list pattern t t))
+        ;;(evil-push-search-history pattern t)
+        (add-to-history 'regexp-search-ring pattern)
         (setq evil-ex-search-direction 'forward)
         (when evil-ex-search-persistent-highlight
           (evil-ex-search-activate-highlight evil-ex-search-pattern)))))
@@ -299,6 +326,13 @@ This only works with orderless and for the first component of the search."
 
   (evil-define-key 'normal 'global "/" #'consult-line)
   )
+
+(use-package consult-dir
+  :ensure t
+  :bind (("C-x C-d" . consult-dir)
+         :map minibuffer-local-completion-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file)))
 
 ;; Embark — context-sensitive actions
 (use-package embark
@@ -320,7 +354,10 @@ This only works with orderless and for the first component of the search."
 (use-package recentf
   :config
   (recentf-mode 1)
-  (setq recentf-max-saved-items 200))
+  (setq recentf-max-saved-items 200)
+  ;; exclude tridactly buffers
+  (add-to-list 'recentf-exclude "/tmp/tmp_[^/]*$") 
+  )
 
 ;; ── Project (built-in) ─────────────────────────────────────────────────
 
@@ -433,7 +470,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
    "hR" '(my/config-reload :which-key "reload config")
 
-   "ht" '(my/load-theme :which-key "Load theme")
+   "ht" '(consult-theme :which-key "Load theme")
 
    ;; --- Buffer bindings ---
    "bb" '(consult-buffer :which-key "switch buffer")
@@ -493,7 +530,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (add-to-list 'evil-emacs-state-modes 'minibuffer-mode)
   (add-to-list 'evil-emacs-state-modes 'minibuffer-inactive-mode)
   (evil-mode 1)
-  (setq evil-search-module 'isearch
+  (setq evil-search-module 'evil-search
         evil-respect-visual-line-mode t
         evil-want-C-u-scroll t
         evil-vsplit-window-right t
@@ -528,13 +565,39 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :ensure t
   :after evil
   :config
+
   (add-to-list 'evil-textobj-tree-sitter-major-mode-language-alist
-               '(emacs-lisp-mode . "elisp"))
-  ;; Bind "f" key for function text objects
-  (define-key evil-outer-text-objects-map "f" 
-              (evil-textobj-tree-sitter-get-textobj "function.outer"))
-  (define-key evil-inner-text-objects-map "f" 
-              (evil-textobj-tree-sitter-get-textobj "function.inner")))
+               '(emacs-lisp-mode . "common-lisp"))
+  ;; --- PARAMETERS (Overwriting paragraph 'p') ---
+  (define-key evil-inner-text-objects-map "p" (evil-textobj-tree-sitter-get-textobj "parameter.inner"))
+  (define-key evil-outer-text-objects-map "p" (evil-textobj-tree-sitter-get-textobj "parameter.outer"))
+
+  ;; --- CONDITIONALS (Using 'i' for if/conditional to keep your 'o' symbol binding) ---
+  (define-key evil-inner-text-objects-map "i" (evil-textobj-tree-sitter-get-textobj "conditional.inner"))
+  (define-key evil-outer-text-objects-map "i" (evil-textobj-tree-sitter-get-textobj "conditional.outer"))
+  
+  ;; --- FUNCTIONS & CLASSES ---
+  (define-key evil-inner-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.inner"))
+  (define-key evil-outer-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.outer"))
+  (define-key evil-inner-text-objects-map "c" (evil-textobj-tree-sitter-get-textobj "class.inner"))
+  (define-key evil-outer-text-objects-map "c" (evil-textobj-tree-sitter-get-textobj "class.outer")))
+
+(use-package helpful
+  :ensure t
+  :bind (;; Replace standard commands globally
+         ([remap describe-function] . helpful-function)
+         ([remap describe-command]  . helpful-command)
+         ([remap describe-variable] . helpful-variable)
+         ([remap describe-key]      . helpful-key)))
+
+(use-package elisp-def
+  :ensure t
+  :hook (emacs-lisp-mode . elisp-def-mode))
+
+(use-package macrostep
+  :ensure t
+  :bind (:map emacs-lisp-mode-map
+              ("C-c e" . macrostep-expand)))
 
 
 ;; ── Leader key (Doom-style) ────────────────────────────────────────────
@@ -593,7 +656,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :init
   (activities-mode 1)
   :config
-  (setq activities-always-persist t))
+  (setq activities-always-persist t)
+  )
 
 ;; ── Navigation ─────────────────────────────────────────────────────────
 
@@ -623,8 +687,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
     "h"   'dired-up-directory
     "l"   'dired-find-alternate-file)
   (evil-define-key 'normal dired-mode-map
-                   (kbd "h") 'dired-up-directory
-                   (kbd "l") 'dired-find-alternate-file)
+    (kbd "h") 'dired-up-directory
+    (kbd "l") 'dired-find-alternate-file)
 
   (require 'tramp-sshfs)
   (defun my/tramp-aware-dired-open-advice (orig-fun &rest args)
@@ -771,15 +835,21 @@ Works over TRAMP without relying on `vc-handled-backends'."
 ;; ── Line numbers ───────────────────────────────────────────────────────
 
 (global-display-line-numbers-mode 1)
-(setq display-line-numbers-width 4)
-(set-fringe-mode 4)
+(setq display-line-numbers-width 2)
+(set-fringe-mode 0)
+(setq-default left-margin-width 2)
+(setq-default right-margin-width 2)
+
 
 (defun turn-off-line-numbers ()
   (display-line-numbers-mode -1))
 ;; Hide line numbers in eshell buffers
 (add-hook 'eshell-mode-hook #'turn-off-line-numbers)
 (add-hook 'agent-shell-mode-hook #'turn-off-line-numbers)
+(add-hook 'ewm-mode-hook #'turn-off-line-numbers)
 
+;;(setq 'ewm-mode-hook '())
+;;(add-hook 'ewm-mode-hook #'mode-line-invisible-mode)
 
 ;; Quick reload of this file
 (defun reload-post-init ()
@@ -819,6 +889,29 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :config
   (setq doom-modeline-modal-icon nil
         doom-modeline-buffer-file-name-style 'file-name))
+
+(use-package hide-mode-line
+  :ensure t
+  :init
+  ;; 1. Define the list of major modes where you want to hide the modeline
+  (defvar my-hidden-modeline-modes
+    '(vterm-mode
+      neotree-mode
+      treemacs-mode
+      speedbar-mode
+      ewm-surface-mode
+      eshell-mode
+      eat-mode
+      dashboard-mode
+      completion-list-mode)
+    "List of major modes where the mode-line should be completely hidden.")
+
+  :config
+  ;; 2. Loop through the list and automatically bind the hide function to their hooks
+  (dolist (mode my-hidden-modeline-modes)
+    (let ((hook (intern (concat (symbol-name mode) "-hook"))))
+      (add-hook hook #'hide-mode-line-mode))))
+
 
 ;; ── Evil goodies ───────────────────────────────────────────────────────
 
@@ -908,6 +1001,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
      "\\*compilation\\*"
      "\\*Completions\\*"
      "\\*Help\\*"
+     helpful-mode
+     "\\*helpful.*\\*"
      "\\*tramp\\*"
      "\\*magit-process\\*"
      "\\*eldoc\\*"
@@ -930,8 +1025,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 (define-key evil-normal-state-map (kbd "K")
             (lambda () (interactive)
-              (if (or (eq major-mode 'help-mode) (eq major-mode 'emacs-lisp-mode))
-                  (describe-symbol (intern (thing-at-point 'symbol)))
+              (if (or (eq major-mode 'helpful-mode) (eq major-mode 'help-mode) (eq major-mode 'emacs-lisp-mode))
+                  (helpful-at-point)
                 (eglot-help-at-point))))
 
 ;; ── Icons (nerd-icons) ────────────────────────────────────────────────
@@ -1315,12 +1410,12 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
     "RET" #'agent-shell-submit)
 
   (my-local-leader
-   :keymaps 'agent-shell-mode-map
-   "R" #'agent-shell-restart
-   "f" #'agent-shell-fork
-   "m" #'agent-shell-set-session-mode
-   "M" #'agent-shell-set-session-model
-   )
+    :keymaps 'agent-shell-mode-map
+    "R" #'agent-shell-restart
+    "f" #'agent-shell-fork
+    "m" #'agent-shell-set-session-mode
+    "M" #'agent-shell-set-session-model
+    )
   )
 
 (use-package agent-shell-tramp
