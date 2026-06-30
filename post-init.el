@@ -33,6 +33,7 @@
 
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
+(global-subword-mode 1)
 
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
@@ -41,6 +42,11 @@
   (set-face-attribute 'default frame
                       :height 140
                       :weight 'normal))
+
+(defun my/load-nano-theme (&optional frame)
+  (nano-mode)
+  (my/load-theme nano-light)
+  )
 
 (defun my/load-theme (theme)
   "Completely disable all active themes before loading THEME safely."
@@ -131,7 +137,7 @@
   (vertico-cycle t)
   (vertico-scroll-margin 2)
   :config
-  ;;(vertico-buffer 1)
+  (vertico-mode 1)
   (setq completion-in-region-function
         #'consult-completion-in-region)
 
@@ -160,7 +166,7 @@
               (lambda ()
                 (let ((win (minibuffer-window)))
                   (with-current-buffer (window-buffer win)
-                    (setq-local left-margin-width 1))
+                    (setq-local left-margin-width 4))
                   (set-window-buffer win (window-buffer win))))))
 
   ;; Highlight directories and enabled modes (Doom-style)
@@ -224,7 +230,22 @@
               ("TAB" . corfu-next)
               ("BACKTAB" . corfu-previous))
   :config
-  (global-corfu-mode))
+  (global-corfu-mode)
+  (setq
+   corfu-preselect 'prompt
+   corfu-count 16
+   corfu-max-width 120
+   corfu-on-exact-match nil
+   corfu-quit-at-boundary (if (or (modulep! :completion vertico)
+                                  (modulep! +orderless))
+                              'separator t)
+   corfu-quit-no-match corfu-quit-at-boundary)
+  
+  (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
+  (add-to-list 'corfu-continue-commands #'+corfu/move-to-minibuffer)
+  (add-to-list 'corfu-continue-commands #'+corfu/smart-sep-toggle-escape)
+  (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
+  )
 
 (use-package expreg
   :ensure t
@@ -258,7 +279,26 @@
   (consult-customize
    consult-ripgrep consult-git-grep consult-grep
    consult-bookmark consult-recent-file consult-theme
-   :preview-key "C-SPC"))
+   :preview-key "C-SPC")
+
+  (setq consult-line-start-from-top nil)
+
+  (defun noct-consult-line-evil-history (&rest _)
+    "Add latest `consult-line' search pattern to the evil search history ring.
+This only works with orderless and for the first component of the search."
+    (when (and (bound-and-true-p evil-mode)
+               (eq evil-search-module 'evil-search))
+      (let ((pattern (car consult--line-history)))
+        (add-to-history 'evil-ex-search-history pattern)
+        (setq evil-ex-search-pattern (list pattern t t))
+        (setq evil-ex-search-direction 'forward)
+        (when evil-ex-search-persistent-highlight
+          (evil-ex-search-activate-highlight evil-ex-search-pattern)))))
+
+  (advice-add #'consult-line :after #'noct-consult-line-evil-history)
+
+  (evil-define-key 'normal 'global "/" #'consult-line)
+  )
 
 ;; Embark — context-sensitive actions
 (use-package embark
@@ -583,8 +623,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
     "h"   'dired-up-directory
     "l"   'dired-find-alternate-file)
   (evil-define-key 'normal dired-mode-map
-    (kbd "h") 'dired-up-directory
-    (kbd "l") 'dired-find-alternate-file)
+                   (kbd "h") 'dired-up-directory
+                   (kbd "l") 'dired-find-alternate-file)
 
   (require 'tramp-sshfs)
   (defun my/tramp-aware-dired-open-advice (orig-fun &rest args)
@@ -732,7 +772,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 (global-display-line-numbers-mode 1)
 (setq display-line-numbers-width 4)
-(set-fringe-mode 0)
+(set-fringe-mode 4)
 
 (defun turn-off-line-numbers ()
   (display-line-numbers-mode -1))
@@ -945,6 +985,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :defer t
   :config
   (setq mu4e-maildir "/data/mbsync-mail/"
+        mu4e-completing-read-function #'completing-read ;; vertico
         mu4e-maildir-shortcuts '((:maildir "/Inbox/" :key ?i))
         mu4e-compose-context-policy 'ask-if-none
         send-mail-function 'smtpmail-send-it
@@ -1153,20 +1194,19 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
             #'eshell-expand-history-references)
 
   (setq eshell-command-aliases-list
-        (append
-         '(("st" "systemctl $*")
-           ("stu" "systemctl --user $*")
-           ("f" "find-file $1")
-           ("ff" "find-alternate-file $1")
-           ("doom" "$HOME/.config/emacs/bin/doom $*")
-           ("zshconfig" "ff ~/.zshrc")
-           ("i3config" "ff ~/.config/i3/config")
-           ("niriconfig" "ff ~/.config/niri/config.kdl")
-           ("swayconfig" "ff ~/.config/sway/config")
-           ("ewmconfig" "ff ~/.config/doom/config-ewm.el")
-           ("ohmyzsh" "ff ~/.oh-my-zsh")
-           ("rewaybar" "killall waybar; nohup waybar >/dev/null 2>&1 &"))
-         eshell-command-aliases-list)))
+        '(("st" "systemctl $*")
+          ("stu" "systemctl --user $*")
+          ("f" "find-file $1")
+          ("ff" "find-alternate-file $1")
+          ("doom" "$HOME/.config/emacs/bin/doom $*")
+          ("zshconfig" "ff ~/.zshrc")
+          ("i3config" "ff ~/.config/i3/config")
+          ("niriconfig" "ff ~/.config/niri/config.kdl")
+          ("swayconfig" "ff ~/.config/sway/config")
+          ("ewmconfig" "ff ~/.config/doom/config-ewm.el")
+          ("ohmyzsh" "ff ~/.oh-my-zsh")
+          ("rewaybar" "killall waybar; nohup waybar >/dev/null 2>&1 &"))
+        ))
 
 (with-eval-after-load 'evil-collection
   (with-eval-after-load 'eshell
@@ -1275,12 +1315,12 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
     "RET" #'agent-shell-submit)
 
   (my-local-leader
-    :keymaps 'agent-shell-mode-map
-    "R" #'agent-shell-restart
-    "f" #'agent-shell-fork
-    "m" #'agent-shell-set-session-mode
-    "M" #'agent-shell-set-session-model
-    )
+   :keymaps 'agent-shell-mode-map
+   "R" #'agent-shell-restart
+   "f" #'agent-shell-fork
+   "m" #'agent-shell-set-session-mode
+   "M" #'agent-shell-set-session-model
+   )
   )
 
 (use-package agent-shell-tramp
