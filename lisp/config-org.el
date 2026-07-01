@@ -111,6 +111,12 @@
            "%?"
            :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
                               "#+title: ${title}\n#+startup: shrink\n"))))
+  (setq org-roam-dailies-capture-templates
+        '(("d" "default" entry
+           "* %?"
+           :target (file+head "%<%Y-%m-%d>.org"
+                              "#+title: %<%Y-%m-%d>\n#+startup: shrink\n"))))
+  (org-roam-dailies-setup)
   (org-roam-setup)
   ;; Global keybindings
   ;; (global-set-key (kbd "C-c n l") #'org-roam-node-find)

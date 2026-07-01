@@ -109,8 +109,8 @@
                                     (let ((name (read-from-minibuffer "Type name: ")))
                                       (cons (concat name "[") "]"))))
                           (?\C-f . (lambda ()
-                                    (let ((name (read-from-minibuffer "Function name: ")))
-                                      (cons (concat "(" name " ") ")")))))
+                                     (let ((name (read-from-minibuffer "Function name: ")))
+                                       (cons (concat "(" name " ") ")")))))
                         (default-value 'evil-surround-pairs-alist))))
 
 ;; ── Evil-commentary (gc / gcc to comment) ──────────────────────────────
@@ -202,12 +202,14 @@
     "br" '(revert-buffer :which-key "revert buffer")
     "b[" '(previous-buffer :which-key "previous buffer")
     "b]" '(next-buffer :which-key "next buffer")
+    "bd" '(kill-this-buffer :which-key "kill buffer")
 
     ;; --- File bindings ---
     "ff" '(find-file :which-key "find file")
     "fr" '(consult-recent-file :which-key "recent files")
     "fb" '(consult-buffer :which-key "buffer list")
     "fy" '(my/copy-file-path :which-key "copy file path")
+    "fs" '(save-buffer :which-key "save buffer")
 
     ;; --- Git bindings ---
     "gg" '(magit-status :which-key "magit status")
@@ -223,19 +225,13 @@
 
     ;; --- Org-roam bindings ---
     "nf" '(org-roam-node-find :which-key "find node")
-    "nl" '(org-roam-node-find :which-key "find node")
     "nc" '(org-roam-capture :which-key "capture")
-    "ni" '(org-roam-node-insert :which-key "insert node")
-    "nr" '(org-roam-ref-find :which-key "find ref")
-    "ng" '(org-roam-graph :which-key "graph")
-    "nR" '(org-roam-random-node :which-key "random node")
-    "nb" '(org-roam-buffer-toggle :which-key "roam buffer")
-    "nt" '(org-roam-tag-add :which-key "add tag")
     "nd" '(org-roam-dailies-find-today :which-key "daily")
 
     ;; --- Toggle bindings ---
     "tw" '(visual-line-mode :which-key "word wrap")
     "tc" '(visual-fill-column-mode :which-key "center text")
+    "tn" '(display-line-numbers-mode :which-key "line numbers")
 
     ;; --- Window management ---
     "wh" '(evil-window-left :which-key "window left")
@@ -414,30 +410,23 @@
     "Ps" '(org-publish-sitemap :which-key "sitemap")
     "r"  '(nil :which-key "roam")
     "rf" '(org-roam-node-find :which-key "find node")
-    "ri" '(org-roam-node-insert :which-key "insert node")
     "rc" '(org-roam-capture :which-key "capture")
-    "rl" '(org-roam-buffer-toggle :which-key "toggle buffer")
-    "rr" '(org-roam-ref-find :which-key "find ref")
-    "rg" '(org-roam-graph :which-key "graph")
-    "rR" '(org-roam-random-node :which-key "random node")
-    "rt" '(org-roam-tag-add :which-key "add tag")
-    "rd" '(org-roam-dailies-find-today :which-key "goto daily")
-    "rD" '(org-roam-dailies-capture-today :which-key "capture daily")))
+    "rd" '(org-roam-dailies-find-today :which-key "daily")))
 
 ;; ── Agent shell / app shortcuts (in global leader) ──────────────────────
 
 (with-eval-after-load 'general
   (my-leader-def
-  "f." '(my/dotfiles :which-key "dotfiles")
-  "ga" '(agent-shell-toggle :which-key "agent shell toggle")
-  "og" '(taskwarrior-gtd :which-key "GTD dashboard")
-  "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
-  "oj" '(my/open-todays-journal :which-key "today's journal")
-  "o-" '(dired-jump :which-key "dired")
-  "om" '(my/mu4e :which-key "mu4e")
-  "on" '(elfeed :which-key "elfeed")
-  "ob" '(eww :which-key "eww")
-  ))
+    "f." '(my/dotfiles :which-key "dotfiles")
+    "ga" '(agent-shell-toggle :which-key "agent shell toggle")
+    "og" '(taskwarrior-gtd :which-key "GTD dashboard")
+    "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
+    "oj" '(my/open-todays-journal :which-key "today's journal")
+    "o-" '(dired-jump :which-key "dired")
+    "om" '(my/mu4e :which-key "mu4e")
+    "on" '(elfeed :which-key "elfeed")
+    "ob" '(eww :which-key "eww")
+    ))
 
 ;; ── Activities (workspace management) ──────────────────────────────────
 
