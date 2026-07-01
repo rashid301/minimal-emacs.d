@@ -12,17 +12,6 @@
   (doom-themes-visual-bell-config)
   (doom-themes-org-config))
 
-(use-package doom-modeline
-  :ensure t
-  :init (doom-modeline-mode 1)
-  ;; Optional: Customize layout tweaks here
-  :hook (doom-load-theme . doom-themes-org-config)
-  :config
-  ;; (setq doom-modeline-height 25)     ; Sets modeline height
-  ;; (setq doom-modeline-bar-width 4)   ; Sets right sidebar width
-  (setq doom-modeline-icon t)
-  )       ; Enables icons
-
 (setq scroll-conservatively 101)
 (global-superword-mode 1)
 (global-subword-mode 1)
@@ -453,6 +442,12 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
   ;; Automatically clear out conflicting keys (like evil's default SPC)
   (general-auto-unbind-keys)
+  (general-override-mode 1)
+  (general-create-definer my-leader-def
+    :states '(normal visual motion)
+    :keymaps 'override
+    :prefix "SPC"
+    :non-normal-prefix "s-SPC")
 
   ;; 1. Initialize your custom global prefix map
   (general-create-definer my-local-leader
@@ -465,75 +460,73 @@ Works over TRAMP without relying on `vc-handled-backends'."
    "R" '(eval-region :which-key "Eval region")
    )
   
-  (general-define-key
-   :states '(normal visual motion)
-   :prefix "SPC"
+  (my-leader-def
+    ;; --- Named Prefix Groups for which-key ---
+    "f"  '(nil :which-key "file")
+    "g"  '(nil :which-key "git")
+    "s"  '(nil :which-key "search")
+    "n"  '(nil :which-key "notes/roam")
+    "b"  '(nil :which-key "buffer")
+    "o"  '(nil :which-key "apps")
 
-   ;; --- Named Prefix Groups for which-key ---
-   "f"  '(nil :which-key "file")
-   "g"  '(nil :which-key "git")
-   "s"  '(nil :which-key "search")
-   "n"  '(nil :which-key "notes/roam")
-   "b"  '(nil :which-key "buffer")
-   "o"  '(nil :which-key "apps")
+    "h"  '(nil :which-key "help")
+    "t"  '(nil :which-key "toggle")
+    "u"  #'universal-argument
 
-   "h"  '(nil :which-key "help")
-   "t"  '(nil :which-key "toggle")
-   "u"  #'universal-argument
+    ;; --- help ---
+    "hm" '(describe-mode :which-key "describe mode")
+    "hM" '(consult-minor-mode-menu :which-key "describe minor modes")
+    "hv" '(describe-variable :which-key "describe variable")
+    "hf" '(describe-function :which-key "describe function")
+    "hF" '(describe-face :which-key "describe face")
+    "hk" '(describe-key :which-key "describe key")
 
-   ;; --- help ---
-   "hm" '(describe-mode :which-key "describe mode")
-   "hv" '(describe-variable :which-key "describe variable")
-   "hf" '(describe-function :which-key "describe function")
-   "hF" '(describe-face :which-key "describe face")
-   "hk" '(describe-key :which-key "describe key")
+    "hR" '(my/config-reload :which-key "reload config")
 
-   "hR" '(my/config-reload :which-key "reload config")
+    "ht" '(consult-theme :which-key "Load theme")
 
-   "ht" '(consult-theme :which-key "Load theme")
+    ;; --- Buffer bindings ---
+    "bb" '(consult-buffer :which-key "switch buffer")
+    "br" '(revert-buffer :which-key "revert buffer")
+    "b[" '(previous-buffer :which-key "previous buffer")
+    "b]" '(next-buffer :which-key "next buffer")
 
-   ;; --- Buffer bindings ---
-   "bb" '(consult-buffer :which-key "switch buffer")
-   "br" '(revert-buffer :which-key "revert buffer")
-   "b[" '(previous-buffer :which-key "previous buffer")
-   "b]" '(next-buffer :which-key "next buffer")
+    ;; --- File bindings ---
+    "ff" '(find-file :which-key "find file")
+    "fr" '(consult-recent-file :which-key "recent files")
+    "fb" '(consult-buffer :which-key "buffer list")
 
-   ;; --- File bindings ---
-   "ff" '(find-file :which-key "find file")
-   "fr" '(consult-recent-file :which-key "recent files")
-   "fb" '(consult-buffer :which-key "buffer list")
+    ;; --- Git bindings ---
+    "gg" '(magit-status :which-key "magit status")
 
-   ;; --- Git bindings ---
-   "gg" '(magit-status :which-key "magit status")
+    ;; --- Project bindings ---
+    "p"  '(:keymap project-prefix-map :which-key "project")
 
-   ;; --- Project bindings ---
-   "p"  '(:keymap project-prefix-map :which-key "project")
+    ;; --- Search bindings ---
+    "sg" '(consult-grep :which-key "grep search")
+    "sd" '(consult-ripgrep :which-key "search directory")
+    "sb" '(consult-line :which-key "search directory")
+    "sl" '(ace-link :which-key "search links")
 
-   ;; --- Search bindings ---
-   "sg" '(consult-grep :which-key "grep search")
-   "sd" '(consult-ripgrep :which-key "search directory")
-   "sb" '(consult-line :which-key "search directory")
-   "sl" '(ace-link :which-key "search links")
+    ;; --- Org-roam bindings ---
+    "nl" '(org-roam-node-find :which-key "find node")
+    "nc" '(org-roam-capture :which-key "capture")
+    "ni" '(org-roam-node-insert :which-key "insert node")
 
-   ;; --- Org-roam bindings ---
-   "nl" '(org-roam-node-find :which-key "find node")
-   "nc" '(org-roam-capture :which-key "capture")
-   "ni" '(org-roam-node-insert :which-key "insert node")
+    ;; --- Toggle bindings ---
+    "tw" '(visual-line-mode :which-key "word wrap")
 
-   ;; --- Toggle bindings ---
-   "tw" '(visual-line-mode :which-key "word wrap")
-
-   ;; --- Mode / local leader ---
-   ;; --- Activities ---
-   "TAB"  '(nil :which-key "activities")
-   "TAB n" '(activities-new :which-key "new activity")
-   "TAB d" '(activities-define :which-key "define activity")
-   "TAB a" '(activities-resume :which-key "resume activity")
-   "TAB s" '(activities-suspend :which-key "suspend activity")
-   "TAB k" '(activities-kill :which-key "kill activity")
-   "TAB l" '(activities-list :which-key "list activities")
-   "TAB b" '(activities-switch-buffer :which-key "switch buffer")
-   "TAB g" '(activities-revert :which-key "revert activity")))
+    ;; --- Mode / local leader ---
+    ;; --- Activities ---
+    "TAB"  '(nil :which-key "activities")
+    "TAB n" '(activities-new :which-key "new activity")
+    "TAB d" '(activities-define :which-key "define activity")
+    "TAB a" '(activities-resume :which-key "resume activity")
+    "TAB s" '(activities-suspend :which-key "suspend activity")
+    "TAB k" '(activities-kill :which-key "kill activity")
+    "TAB l" '(activities-list :which-key "list activities")
+    "TAB b" '(activities-switch-buffer :which-key "switch buffer")
+    "TAB g" '(activities-revert :which-key "revert activity")))
 
 ;; ── Evil (Vim keybindings) ─────────────────────────────────────────────
 
@@ -575,7 +568,10 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :ensure t
   :after evil
   :init
-  (setq evil-collection-setup-minibuffer nil)
+  (setq
+   evil-collection-setup-minibuffer nil
+   evil-collection-repl-submit-state 'insert
+   )
   :config
   ;; (setq evil-collection-mode-list
   ;;       (cl-set-difference evil-collection-mode-list
@@ -659,19 +655,16 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 ;; ── Agent shell / app shortcuts (in global leader) ──────────────────────
 
-
-(general-define-key
- :states '(normal visual motion)
- :prefix "SPC"
- "f." '(my/dotfiles :which-key "dotfiles")
- "ga" '(agent-shell-toggle :which-key "agent shell toggle")
- "og" '(taskwarrior-gtd :which-key "GTD dashboard")
- "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
- "oj" '(my/open-todays-journal :which-key "today's journal")
- "o-" '(dired-jump :which-key "dired")
- "om" '(my/mu4e :which-key "mu4e")
- "on" '(elfeed :which-key "elfeed")
- )
+(my-leader-def
+  "f." '(my/dotfiles :which-key "dotfiles")
+  "ga" '(agent-shell-toggle :which-key "agent shell toggle")
+  "og" '(taskwarrior-gtd :which-key "GTD dashboard")
+  "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
+  "oj" '(my/open-todays-journal :which-key "today's journal")
+  "o-" '(dired-jump :which-key "dired")
+  "om" '(my/mu4e :which-key "mu4e")
+  "on" '(elfeed :which-key "elfeed")
+  )
 
 
 ;; ── Activities (workspace management) ──────────────────────────────────
@@ -871,9 +864,9 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (display-line-numbers-mode -1))
 ;; Hide line numbers in eshell buffers
 (add-hook 'eshell-mode-hook #'turn-off-line-numbers)
+(add-hook 'eww-mode-hook #'turn-off-line-numbers)
 (add-hook 'agent-shell-mode-hook #'turn-off-line-numbers)
 (add-hook 'ewm-mode-hook #'turn-off-line-numbers)
-(add-hook 'helpful-mode-hook #'turn-off-line-numbers)
 (add-hook 'helpful-mode-hook #'turn-off-line-numbers)
 (add-hook 'mu4e-main-mode-hook #'turn-off-line-numbers)
 (add-hook 'mu4e-headers-mode-hook #'turn-off-line-numbers)
@@ -1075,12 +1068,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :after elfeed
   :ensure t
   :config
-  (elfeed-org)
-  )
-
-(use-package elfeed-org
-  :ensure t
-  :after elfeed)
+  (elfeed-org))
 
 ;; ── mu4e + org email ───────────────────────────────────────────────────
 
@@ -1429,40 +1417,47 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   :config
   (setq agent-shell-anthropic-claude-environment
         (agent-shell-make-environment-variables
-         "AWS_PROFILE" "hermes"))
+         "AWS_PROFILE" "hermes"
+         "OPENCODE_ENABLE_EXA" "1"
+         )
+
+        )
   (setq agent-shell-confirm-interrupt nil
         agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
-  (add-hook 'diff-mode-hook
-            (lambda ()
-              (when (string-match-p "\\*agent-shell-diff\\*" (buffer-name))
-                (evil-emacs-state))))
+  ;; (add-hook 'diff-mode-hook
+  ;;           (lambda ()
+  ;;             (when (string-match-p "\\*agent-shell-diff\\*" (buffer-name))
+  ;;               (evil-emacs-state))))
   ;; Mode-specific keys — only active in agent-shell-mode buffers
-  (general-define-key
-   :states 'normal
-   :keymaps 'agent-shell-mode-map
-   "["   #'agent-shell-previous-item
-   "]"   #'agent-shell-next-item
-   "TAB" #'agent-shell-ui-toggle-fragment
-   "q"   #'agent-shell-toggle
-   "c"   #'agent-shell-prompt-compose
-   "x"   #'agent-shell-interrupt)
-
+  ;; (general-define-key
+  ;;  :states 'normal
+  ;;  :keymaps 'agent-shell-mode-map
+  ;;  "["   #'agent-shell-previous-item
+  ;;  "]"   #'agent-shell-next-item
+  ;;  "TAB" #'agent-shell-ui-toggle-fragment
+  ;;  "q"   #'agent-shell-toggle
+  ;;  "c"   #'agent-shell-prompt-compose
+  ;;  "x"   #'agent-shell-interrupt)
+  ;; 
   (add-hook 'agent-shell-mode-hook
-            (lambda ()
-              (evil-collection-unimpaired-mode -1)))
-
-  (general-def
-    :states '(motion normal)          ; Dired defaults to 'motion state in Evil
-    :keymaps 'agent-shell-mode-map
-    "RET" #'agent-shell-submit)
-
-  (my-local-leader
-    :keymaps 'agent-shell-mode-map
-    "R" #'agent-shell-restart
-    "f" #'agent-shell-fork
-    "m" #'agent-shell-set-session-mode
-    "M" #'agent-shell-set-session-model
-    )
+            (defun agent-shell/turn-off-minor-mode-overrides()
+              (evil-collection-unimpaired-mode -1)
+              (evil-commentary-mode -1)
+              (evil-define-key '(normal insert) agent-shell-mode-map (kbd "RET") #'agent-shell-submit)
+              ))
+  ;; 
+  ;; (general-def
+  ;;   :states '(motion normal)          ; Dired defaults to 'motion state in Evil
+  ;;   :keymaps 'agent-shell-mode-map
+  ;;   "RET" #'agent-shell-submit)
+  ;; 
+  ;; (my-local-leader
+  ;;   :keymaps 'agent-shell-mode-map
+  ;;   "R" #'agent-shell-restart
+  ;;   "f" #'agent-shell-fork
+  ;;   "m" #'agent-shell-set-session-mode
+  ;;   "M" #'agent-shell-set-session-model
+  ;;   )
   )
 
 (use-package agent-shell-tramp
@@ -1481,9 +1476,13 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   (advice-add 'shell-maker-submit :after
               (lambda (&rest _)
                 (goto-char (point-max))))
-  (with-eval-after-load 'agent-shell
-    (with-eval-after-load 'evil-collection
-      (define-key agent-shell-mode-map (kbd "RET") #'agent-shell-submit))))
+  ;; (with-eval-after-load 'agent-shell
+  ;;   (with-eval-after-load 'evil-collection
+  ;;     (evil-define-key 'insert 'agent-shell-mode-map "RET" #'agent-shell-submit)
+  ;;     (evil-define-key 'normal 'agent-shell-mode-map (kbd "RET") #'agent-shell-submit)
+  ;;     )
+  ;;   )
+  )
 
 ;; ── capf-autosuggest (eshell completion hints) ─────────────────────────
 
@@ -1578,7 +1577,7 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
                      (let ((value (buffer-string)))
                        (kill-buffer buf)
                        (start-process-shell-command
-                        "wtype" nil
+                        "wtype " nil
                         (thanos/wtype-text value)))
                      ))))
 
@@ -1594,6 +1593,6 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
 (setq shr-use-fonts nil)
 (setq shr-max-image-size '(800 . 600))
 (setq shr-image-animate t)
-(setq eww-search-prefix "https://html.duckduckgo.com/html/q=")
+(setq eww-search-prefix "https://html.duckduckgo.com/html/?q=")
 
 (provide 'post-init)
