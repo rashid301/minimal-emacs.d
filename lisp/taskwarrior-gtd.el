@@ -1,4 +1,4 @@
-;;; taskwarrior-gtd.el --- Mu4e-style GTD interface for Taskwarrior -*- lexical-binding: t; -*-
+;; taskwarrior-gtd.el --- Mu4e-style GTD interface for Taskwarrior -*- lexical-binding: t; -*-
 ;;
 ;; Keywords: taskwarrior, gtd, productivity
 ;; Package-Requires: ((emacs "27.1"))
@@ -40,11 +40,11 @@
   :group 'taskwarrior-gtd)
 
 (defcustom taskwarrior-gtd-reports
-  '(("in"      . "type:inbox status:pending")
-    ("next"    . "type:next status:pending")
-    ("waiting" . "type:waiting status:pending")
-    ("someday" . "type:someday status:pending")
-    ("cal"     . "type:cal status:pending")
+  '(("in"      . "status:pending type:inbox")
+    ("next"    . "status:pending type:next")
+    ("waiting" . "status:pending type:waiting")
+    ("someday" . "status:pending type:someday")
+    ("cal"     . "status:pending type:cal")
     ("all"     . "status:pending"))
   "Alist of report names and their Taskwarrior filters."
   :type '(alist :key-type string :value-type string)
@@ -83,7 +83,7 @@
   "Overdue dates in the list view.")
 
 (defface taskwarrior-gtd-due-soon
-  '((t :inherit font-lock-doc-face :weight bold))
+  '((t :inherit font-lock-keyword-face :weight bold))
   "Due dates within a week in the list view.")
 
 (defface taskwarrior-gtd-id
@@ -141,6 +141,8 @@
 (defvar taskwarrior-gtd--detail-window nil)
 (defvar taskwarrior-gtd--list-buffer nil
   "The most recent gtd-list-mode buffer.")
+(defvar taskwarrior-gtd--search-filter nil
+  "Buffer-local: custom search filter string, or nil to use report.")
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
@@ -161,6 +163,13 @@
                 (with-current-buffer standard-output
                   (apply #'call-process (car cmd) nil t nil (cdr cmd))))))
     out))
+
+(defun taskwarrior-gtd--run-async (args &optional sentinel)
+  (make-process
+   :name "taskwarrior"
+   :command (append (taskwarrior-gtd--base-command) args)
+   :sentinel sentinel
+   :buffer "*taskwarrior*"))
 
 (defun taskwarrior-gtd--run-json (args)
   "Run task with ARGS and return parsed JSON."
@@ -235,36 +244,47 @@ Works from list and detail buffers."
     (if entry (taskwarrior-gtd--format-age entry) "")))
 
 (defun taskwarrior-gtd--format-date (date-str)
-  "Format a Taskwarrior ISO date string to a human-readable form."
+  "Format a Taskwarrior ISO date string to a human-readable form.
+
+Compares calendar dates (YYYY-MM-DD) rather than absolute timestamps,
+so a task due tomorrow at 18:30 shows as \"tomorrow\" even when checked
+in the evening."
   (when (and date-str (stringp date-str) (length> date-str 7))
-    (let* ((s (if (string-match-p "T" date-str)
-                  (substring date-str 0 8)
-                (substring date-str 0 10)))
+    (let* ((s (substring date-str 0 10))
+           ;; Normalize to "YYYY-MM-DD" regardless of input format
            (date (condition-case nil
-                     (if (length= s 8)
-                         (format "%s-%s-%s"
-                                 (substring s 0 4)
-                                 (substring s 4 6)
-                                 (substring s 6 8))
-                       s)
+                     (if (string-match-p "-" s)
+                         ;; "2026-06-18" or "2026-06-18T..." or "2026-06-18 ..."
+                         s
+                       ;; "20260618T..." or "20260618 ..." — compact, insert dashes
+                       (format "%s-%s-%s"
+                               (substring s 0 4)
+                               (substring s 4 6)
+                               (substring s 6 8)))
                    (error nil)))
-           (days (when date
+           (task-dt (when date (parse-time-string date)))
+           (days (when task-dt
                    (condition-case nil
-                       (truncate
-                        (float-time
-                         (time-subtract
-                          (encode-time (decoded-time-set-defaults
-                                        (parse-time-string date)))
-                          (current-time))))
+                       (let* ((now-dt (decode-time))
+                              (task-day (encode-time 12 0 0
+                                                     (nth 3 task-dt)
+                                                     (nth 4 task-dt)
+                                                     (nth 5 task-dt)))
+                              (now-day (encode-time 12 0 0
+                                                    (nth 3 now-dt)
+                                                    (nth 4 now-dt)
+                                                    (nth 5 now-dt))))
+                         (truncate (/ (float-time (time-subtract task-day now-day))
+                                      86400.0)))
                      (error nil)))))
       (cond
-       ((not date) date-str)
+       ((or (not date) (not days)) date-str)
        ((= days 0) "today")
        ((= days 1) "tomorrow")
        ((and days (> days 0) (<= days 7)) (format "in %dd" days))
        ((and days (> days 7)) date)
        ((= days -1) "1d ago")
-       ((and days (< days 0) (>= days -7)) (format "%dd ago" (- days)))
+       ((and days (< days 0)) (format "%dd ago" (- days)))
        (t date)))))
 
 (defun taskwarrior-gtd--format-age (date-str)
@@ -272,12 +292,12 @@ Works from list and detail buffers."
   (let* ((date (taskwarrior-gtd--format-date date-str))
          (days (when date
                  (condition-case nil
-                     (truncate
-                      (float-time
-                       (time-subtract
-                        (current-time)
-                        (encode-time (decoded-time-set-defaults
-                                      (parse-time-string date))))))
+                     (truncate (/ (float-time
+                                   (time-subtract
+                                    (current-time)
+                                    (encode-time (decoded-time-set-defaults
+                                                  (parse-time-string date)))))
+                                  86400.0))
                    (error nil)))))
     (cond
      ((not days) "")
@@ -480,9 +500,28 @@ Tasks without dates go last."
         (insert (propertize "  Shortcuts\n" 'face 'taskwarrior-gtd-section-header))
         (insert (propertize "  1-6  Open view    a  Add task    e  Edit task    r  Refresh    u  Undo    q  Quit\n"
                             'face 'taskwarrior-gtd-hint))
-        (insert "\n")
-        (goto-char (point-min)))
-      (switch-to-buffer buf))))
+        ;; Overdue tasks
+        (let ((overdue (taskwarrior-gtd--run-json '("status:pending" "due.before:now" "export"))))
+          (when (and overdue (sequencep overdue) (> (length overdue) 0))
+            (let* ((sorted (sort (copy-sequence overdue)
+                                 (lambda (a b)
+                                   (string< (or (cdr (assoc 'due a)) "9999")
+                                            (or (cdr (assoc 'due b)) "9999")))))
+                   (limited (if (> (length sorted) 10) (seq-take sorted 10) sorted)))
+              (insert "\n")
+              (insert (propertize "  Overdue Tasks\n" 'face 'taskwarrior-gtd-section-header))
+              (dolist (task limited)
+                (let* ((id (cdr (assoc 'id task)))
+                       (desc (or (cdr (assoc 'description task)) "?"))
+                       (due (taskwarrior-gtd--task-due task))
+                       (line (format "    [%s] %s  (due: %s)\n" id desc due)))
+                  (insert (propertize line 'face 'taskwarrior-gtd-overdue))))
+              (when (> (length sorted) 10)
+                (insert (propertize (format "    ... and %d more\n" (- (length sorted) 10))
+                                    'face 'taskwarrior-gtd-hint)))))
+          (insert "\n")
+          (goto-char (point-min)))
+        (switch-to-buffer buf)))))
 
 (defun taskwarrior-gtd--dashboard-report-at-point ()
   "Return the report name at point, or nil."
@@ -506,31 +545,35 @@ Tasks without dates go last."
 ;; ---------------------------------------------------------------------------
 
 (defvar gtd-list-mode-map
-  (make-sparse-keymap)
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "1") (lambda () (interactive) (taskwarrior-gtd-list "in")))
+    (define-key map (kbd "2") (lambda () (interactive) (taskwarrior-gtd-list "next")))
+    (define-key map (kbd "3") (lambda () (interactive) (taskwarrior-gtd-list "waiting")))
+    (define-key map (kbd "4") (lambda () (interactive) (taskwarrior-gtd-list "someday")))
+    (define-key map (kbd "5") (lambda () (interactive) (taskwarrior-gtd-list "cal")))
+    (define-key map (kbd "6") (lambda () (interactive) (taskwarrior-gtd-list "all")))
+    (define-key map (kbd "RET") #'taskwarrior-gtd-action-detail)
+    (define-key map (kbd "d") #'taskwarrior-gtd-action-complete)
+    (define-key map (kbd "x") #'taskwarrior-gtd-action-delete)
+    (define-key map (kbd "m") #'taskwarrior-gtd-action-move)
+    (define-key map (kbd "e") #'taskwarrior-gtd-action-edit)
+    (define-key map (kbd "a") #'taskwarrior-gtd-action-add)
+    (define-key map (kbd "c") #'taskwarrior-gtd-action-add)
+    (define-key map (kbd "gt") #'taskwarrior-gtd-action-jump)
+    (define-key map (kbd "r") #'taskwarrior-gtd-list-refresh)
+    (define-key map (kbd "q") #'taskwarrior-gtd-list-quit)
+    (define-key map (kbd "u") #'taskwarrior-gtd-action-undo)
+    (define-key map (kbd "t") #'taskwarrior-gtd-action-toggle-start)
+    (define-key map (kbd "h") #'taskwarrior-gtd-dashboard)
+    (define-key map (kbd "s") #'taskwarrior-gtd-action-search)
+    map)
   "Keymap for `gtd-list-mode'.")
 
 (with-eval-after-load 'evil
-  (evil-define-key '(normal motion) gtd-list-mode-map
-    "1" (lambda () (interactive) (taskwarrior-gtd-list "in"))
-    "2" (lambda () (interactive) (taskwarrior-gtd-list "next"))
-    "3" (lambda () (interactive) (taskwarrior-gtd-list "waiting"))
-    "4" (lambda () (interactive) (taskwarrior-gtd-list "someday"))
-    "5" (lambda () (interactive) (taskwarrior-gtd-list "cal"))
-    "6" (lambda () (interactive) (taskwarrior-gtd-list "all"))
-    (kbd "RET") #'taskwarrior-gtd-action-detail
-    "d" #'taskwarrior-gtd-action-complete
-    "x" #'taskwarrior-gtd-action-delete
-    "m" #'taskwarrior-gtd-action-move
-    "e" #'taskwarrior-gtd-action-edit
-    "a" #'taskwarrior-gtd-action-add
-    "c" #'taskwarrior-gtd-action-add
-    "g t" #'taskwarrior-gtd-action-jump
-    "r" #'taskwarrior-gtd-list-refresh
-    "q" #'taskwarrior-gtd-list-quit
-    "u" #'taskwarrior-gtd-action-undo
-    "s" #'taskwarrior-gtd-action-toggle-start
-    "h" #'taskwarrior-gtd-dashboard
-    "q" #'taskwarrior-gtd-list-quit))
+  (evil-make-overriding-map gtd-list-mode-map 'normal)
+  (add-hook 'gtd-list-mode-hook #'evil-normalize-keymaps)
+  (evil-define-key 'normal gtd-list-mode-map
+    (kbd "q") #'taskwarrior-gtd-list-quit))
 
 (define-derived-mode gtd-list-mode tabulated-list-mode "GTD-List"
   "List view for a Taskwarrior GTD report."
@@ -546,15 +589,26 @@ Tasks without dates go last."
       (gtd-list-mode)
       (make-local-variable 'taskwarrior-gtd--current-report)
       (setq taskwarrior-gtd--current-report report)
+      (make-local-variable 'taskwarrior-gtd--search-filter)
+      (setq taskwarrior-gtd--search-filter nil)
       (taskwarrior-gtd--list-populate)
       (tabulated-list-print t))
     (setq taskwarrior-gtd--list-buffer buf)
     (switch-to-buffer buf)))
 
-(defun taskwarrior-gtd--list-populate ()
-  "Populate the current list buffer with tasks."
+(defun taskwarrior-gtd--search-tasks (filter)
+  "Return tasks matching a raw Taskwarrior FILTER string."
+  (let ((data (taskwarrior-gtd--run-json
+               (append (split-string filter) (list "export")))))
+    (if (and data (sequencep data)) data nil)))
+
+(defun taskwarrior-gtd--list-populate (&optional search-filter)
+  "Populate the current list buffer with tasks.
+When SEARCH-FILTER is non-nil, use it instead of the report filter."
   (let* ((report taskwarrior-gtd--current-report)
-         (tasks (taskwarrior-gtd--report-tasks report))
+         (tasks (if search-filter
+                    (taskwarrior-gtd--search-tasks search-filter)
+                  (taskwarrior-gtd--report-tasks report)))
          (tasks (if (string= report "cal")
                     (taskwarrior-gtd--sort-by-due tasks)
                   tasks))
@@ -588,7 +642,7 @@ Works from list or detail buffers."
     (when (and buf (buffer-live-p buf))
       (with-current-buffer buf
         (when (derived-mode-p 'gtd-list-mode)
-          (taskwarrior-gtd--list-populate)
+          (taskwarrior-gtd--list-populate taskwarrior-gtd--search-filter)
           (tabulated-list-print t)
           (goto-char (point-min))
           (when (get-buffer-window buf)
@@ -600,6 +654,24 @@ Works from list or detail buffers."
   (interactive)
   (taskwarrior-gtd-dashboard))
 
+(defun taskwarrior-gtd-action-search ()
+  "Search tasks using a Taskwarrior filter expression.
+E.g: project:Home due:today +urgent \"buy milk\""
+  (interactive)
+  (let ((filter (read-string "Search (taskwarrior filter): ")))
+    (when (length> filter 0)
+      (let ((buf (get-buffer-create "*gtd-list:search*")))
+        (with-current-buffer buf
+          (gtd-list-mode)
+          (make-local-variable 'taskwarrior-gtd--current-report)
+          (setq taskwarrior-gtd--current-report "all")
+          (make-local-variable 'taskwarrior-gtd--search-filter)
+          (setq taskwarrior-gtd--search-filter filter)
+          (taskwarrior-gtd--list-populate filter)
+          (tabulated-list-print t))
+        (setq taskwarrior-gtd--list-buffer buf)
+        (switch-to-buffer buf)))))
+
 ;; ---------------------------------------------------------------------------
 ;; Detail view
 ;; ---------------------------------------------------------------------------
@@ -610,7 +682,7 @@ Works from list or detail buffers."
     (define-key map (kbd "c") #'taskwarrior-gtd-action-complete)
     (define-key map (kbd "x") #'taskwarrior-gtd-action-delete)
     (define-key map (kbd "m") #'taskwarrior-gtd-action-move)
-    (define-key map (kbd "s") #'taskwarrior-gtd-action-toggle-start)
+    (define-key map (kbd "t") #'taskwarrior-gtd-action-toggle-start)
     map)
   "Keymap for `gtd-detail-mode'.")
 
@@ -721,10 +793,11 @@ Works from list or detail buffers."
           (message "Task %s moved to type:%s" id bucket)
           (taskwarrior-gtd-list-refresh))))))
 
-(defun taskwarrior-gtd-action-add ()
+(defun taskwarrior-gtd-action-add (&optional initial-input)
   "Add a new task, supporting native project, tag, and date syntax."
   (interactive)
-  (let ((raw-input (read-string "Task input (supports project:X, +tag, due:Y): ")))
+  (message "%s" initial-input)
+  (let ((raw-input (read-string "Task input (supports project:X, +tag, due:Y): " initial-input)))
     (when (length> raw-input 0)
       (let* ((bucket (completing-read "Bucket (default inbox): "
                                       taskwarrior-gtd-buckets
@@ -757,21 +830,72 @@ Works from list or detail buffers."
           (message "Last change reverted")
           (taskwarrior-gtd-list-refresh))))))
 
+(defun taskwarrior-gtd--build-modify-string (task)
+  "Build a default modify string from TASK's current attributes."
+  (let ((parts '()))
+    ;; Description (quoted if it contains spaces)
+    (let ((desc (cdr (assoc 'description task))))
+      (when desc
+        (push (if (string-match-p " " desc)
+                  (format "description:\"%s\"" desc)
+                (format "description:%s" desc))
+              parts)))
+    ;; Project
+    (let ((proj (cdr (assoc 'project task))))
+      (when proj (push (format "project:%s" proj) parts)))
+    ;; Due
+    (let ((due (cdr (assoc 'due task))))
+      (when due (push (format "due:%s" due) parts)))
+    ;; Scheduled
+    (let ((sched (cdr (assoc 'scheduled task))))
+      (when sched (push (format "scheduled:%s" sched) parts)))
+    ;; Wait
+    (let ((wait (cdr (assoc 'wait task))))
+      (when wait (push (format "wait:%s" wait) parts)))
+    ;; Priority
+    (let ((pri (cdr (assoc 'priority task))))
+      (when pri (push (format "priority:%s" pri) parts)))
+    ;; Recurrence
+    (let ((recur (cdr (assoc 'recur task))))
+      (when recur (push (format "recur:%s" recur) parts)))
+    ;; Type (GTD bucket)
+    (let ((type (cdr (assoc 'type task))))
+      (when type (push (format "type:%s" type) parts)))
+    ;; Difficulty
+    (let ((diff (cdr (assoc 'difficulty task))))
+      (when diff (push (format "difficulty:%s" diff) parts)))
+    ;; Tags (+tag format)
+    (let ((tags (cdr (assoc 'tags task))))
+      (dolist (tag tags)
+        (push (format "+%s" tag) parts)))
+    ;; Reverse to get logical order: description first, tags last
+    (string-join (nreverse parts) " ")))
+
 (defun taskwarrior-gtd-action-edit ()
-  "Modify the task at point. Prompts for taskwarrior modify string.
-E.g: project:Home due:tomorrow +urgent priority:H"
+  "Modify the task at point. Prompts with current values pre-filled.
+Edit what you need and press RET."
   (interactive)
   (let ((task (taskwarrior-gtd--get-task-at-point)))
     (if (not task)
         (message "No task at point")
       (let* ((id (taskwarrior-gtd--task-id task))
-             (desc (taskwarrior-gtd--task-description task))
-             (mods (read-string (format "Modify task %s [%s]: " id desc))))
-        (when (length> mods 0)
-          (let ((args (append (list id "modify") (split-string mods))))
-            (taskwarrior-gtd--run args)
-            (message "Task %s modified" id)
-            (taskwarrior-gtd-list-refresh)))))))
+             ;; (desc (taskwarrior-gtd--task-description task))
+             ;; (default-str (taskwarrior-gtd--build-modify-string task))
+             ;; (mods (read-string (format "Modify task %s [%s]: " id desc) default-str))
+             )
+        (taskwarrior-gtd--run-async
+         (list id "edit")
+         (lambda(proc event)
+           (message "Task %s modified" id)
+           (taskwarrior-gtd-list-refresh)
+           )
+         )
+        ;; (when (length> mods 0)
+        ;;   (let ((args (append (list id "modify") (split-string-and-unquote mods))))
+        ;;     (taskwarrior-gtd--run-async '(,id "edit"))
+        ;;     (message "Task %s modified" id)
+        ;;     (taskwarrior-gtd-list-refresh)))
+        ))))
 
 (defun taskwarrior-gtd-action-jump ()
   "Jump to a task by ID, searching across all views if needed."
@@ -812,10 +936,11 @@ E.g: project:Home due:tomorrow +urgent priority:H"
     (define-key map (kbd "a") #'taskwarrior-gtd-action-add)
     (define-key map (kbd "j") #'taskwarrior-gtd-action-jump)
     (define-key map (kbd "d") #'taskwarrior-gtd-action-detail)
-    (define-key map (kbd "s") #'taskwarrior-gtd-action-toggle-start)
+    (define-key map (kbd "t") #'taskwarrior-gtd-action-toggle-start)
     (define-key map (kbd "r") #'taskwarrior-gtd-list-refresh)
     (define-key map (kbd "u") #'taskwarrior-gtd-action-undo)
     (define-key map (kbd "h") #'taskwarrior-gtd-dashboard)
+    (define-key map (kbd "s") #'taskwarrior-gtd-action-search)
     map)
   "Keymap for `gtd-action-minor-mode'.")
 
@@ -843,7 +968,8 @@ Provides a which-key-friendly prefix for task operations."
   (dolist (buf (buffer-list))
     (when (string-match-p "^\\*gtd-" (buffer-name buf))
       (kill-buffer buf)))
-  )
+  (when (> (length (window-list)) 1)
+    (delete-other-windows)))
 
 ;; ---------------------------------------------------------------------------
 ;; Evil integration helpers
@@ -857,14 +983,14 @@ Provides a which-key-friendly prefix for task operations."
     (kbd "x") #'taskwarrior-gtd-action-delete
     (kbd "m") #'taskwarrior-gtd-action-move
     (kbd "e") #'taskwarrior-gtd-action-edit
-    (kbd "s") #'taskwarrior-gtd-action-toggle-start)
+    (kbd "t") #'taskwarrior-gtd-action-toggle-start)
 
   (evil-define-key 'normal gtd-list-mode-map
     (kbd "gg") #'beginning-of-buffer
     (kbd "G") #'end-of-buffer
     (kbd "gt") #'taskwarrior-gtd-action-jump
     (kbd "e") #'taskwarrior-gtd-action-edit
-    (kbd "s") #'taskwarrior-gtd-action-toggle-start)
+    (kbd "t") #'taskwarrior-gtd-action-toggle-start)
 
   (evil-define-key 'normal gtd-dashboard-mode-map
     (kbd "gg") #'beginning-of-buffer
@@ -884,7 +1010,6 @@ Provides a which-key-friendly prefix for task operations."
                     "")))
 
     (taskwarrior-gtd-action-add prefill)))
-
 
 ;; ---------------------------------------------------------------------------
 ;; Provide
