@@ -157,6 +157,9 @@ themes are lightened slightly; light themes are darkened."
 (use-package ace-link
   :ensure t)
 
+(use-package pdf-tools
+  :ensure t)
+
 
 ;; ── Completion (Doom-style) ────────────────────────────────────────────
 
@@ -1507,7 +1510,7 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   :ensure t
   :hook (agent-shell-mode . agent-recall-track-sessions)
   :config
-   (setq agent-recall-search-paths '("~/.config/emacs" "~/projects" "~/work")
+  (setq agent-recall-search-paths '("~/Dropbox", "~/.config/emacs" "~/projects" "~/work")
         agent-recall-search-function 'consult-ripgrep
         agent-recall-browse-sort 'modified-desc))
 
