@@ -165,6 +165,20 @@
    :keymaps 'minibuffer-local-map
    "M-A" #'marginalia-cycle))
 
+;; Solaire — dual-background mode for side windows and minibuffer
+(use-package solaire-mode
+  :ensure t
+  :demand t
+  :custom
+  (solaire-mode-supported-themes :all)
+  :config
+  (add-hook 'vertico-mode-hook #'solaire-mode)
+  (add-hook 'marginalia-mode-hook #'solaire-mode)
+  (add-hook 'embark-collect-mode-hook #'solaire-mode)
+  (add-hook 'consult-src-mode-hook #'solaire-mode)
+  (add-hook 'consult--process-filter-hook #'solaire-mode)
+  (solaire-global-mode +1))
+
 ;; Orderless — flexible completion style
 (use-package orderless
   :ensure t

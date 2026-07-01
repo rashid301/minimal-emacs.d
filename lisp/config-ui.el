@@ -25,53 +25,14 @@
   :config
   (ultra-scroll-mode 1))
 
-;; --- mini solaire
-(require 'color)
-
-(defun my-remap-background (&optional amount)
-  "Remap the current buffer's background.
-
-AMOUNT is the percentage to lighten/darken (default 4).  Dark
-themes are lightened slightly; light themes are darkened."
-  (unless (my-real-buffer-p)
-    (turn-off-line-numbers)
-    (let* ((amount (or amount 4))
-           (bg (face-background 'default nil t))
-           (fg (face-foreground 'default nil t))
-           (new-bg (if (color-dark-p (color-name-to-rgb bg))
-                       (color-lighten-name bg amount)
-                     (color-darken-name bg amount))))
-      (face-remap-add-relative
-       'default
-       `(:background ,new-bg))
-      (face-remap-add-relative
-       'fringe
-       `(:background ,new-bg))
-      (face-remap-add-relative
-       'line-number
-       `(:background ,new-bg)))))
-
-(defun my-real-buffer-p ()
-  "Return non-nil if the current buffer is visiting a real file."
-  (and buffer-file-name
-       (not (minibufferp))
-       (not (string-prefix-p " " (buffer-name)))))
-
-
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
 (defun my/set-font (&optional frame)
-  (my/load-theme 'noctalia)
-  (add-hook 'after-change-major-mode-hook #'my-remap-background)
+  (my/load-theme 'doom-gruvbox-light)
   (set-face-attribute 'default frame
                       :family "RobotoMono Nerd Font"
                       :height 140
                       :weight 'normal))
-
-;; (defun my/load-nano-theme (&optional frame)
-;;   (nano-mode)
-;;   (my/load-theme nano-light)
-;;   )
 
 (defun my/load-theme (theme)
   "Completely disable all active themes before loading THEME safely."

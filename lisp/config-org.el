@@ -116,7 +116,7 @@
            "* %?"
            :target (file+head "%<%Y-%m-%d>.org"
                               "#+title: %<%Y-%m-%d>\n#+startup: shrink\n"))))
-  (org-roam-dailies-setup)
+  ;;(org-roam-dailies-setup)
   (org-roam-setup)
   ;; Global keybindings
   ;; (global-set-key (kbd "C-c n l") #'org-roam-node-find)
