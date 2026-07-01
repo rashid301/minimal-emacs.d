@@ -182,6 +182,7 @@
 
     "h"  '(nil :which-key "help")
     "t"  '(nil :which-key "toggle")
+    "w"  '(nil :which-key "window")
     "u"  #'universal-argument
 
     ;; --- help ---
@@ -227,6 +228,15 @@
 
     ;; --- Toggle bindings ---
     "tw" '(visual-line-mode :which-key "word wrap")
+    "tc" '(visual-fill-column-mode :which-key "center text")
+
+    ;; --- Window management ---
+    "wh" '(evil-window-left :which-key "window left")
+    "wj" '(evil-window-down :which-key "window down")
+    "wk" '(evil-window-up :which-key "window up")
+    "wl" '(evil-window-right :which-key "window right")
+    "wC-u" '(winner-undo :which-key "winner undo")
+    "wC-r" '(winner-redo :which-key "winner redo")
 
     ;; --- Mode / local leader ---
     ;; --- Activities ---

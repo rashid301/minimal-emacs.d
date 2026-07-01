@@ -145,6 +145,20 @@ themes are lightened slightly; light themes are darkened."
     (let ((hook (intern (concat (symbol-name mode) "-hook"))))
       (add-hook hook #'hide-mode-line-mode))))
 
+;; ── Visual line wrap ──────────────────────────────────────────────────
+
+(global-visual-line-mode 1)
+(global-visual-wrap-prefix-mode 1)
+
+;; ── Visual-fill-column (SPC t c to toggle) ────────────────────────────
+
+(use-package visual-fill-column
+  :ensure t
+  :hook ((elfeed-search-mode elfeed-show-mode eww-mode) . visual-fill-column-mode)
+  :config
+  (setq-default visual-fill-column-width 120)
+  (setq-default visual-fill-column-center-text t))
+
 ;; ── Icons (nerd-icons) ────────────────────────────────────────────────
 
 (use-package nerd-icons

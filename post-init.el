@@ -6,25 +6,25 @@
 ;; ── Load modules ─────────────────────────────────────────────────────────
 
 ;; UI: themes, font, line numbers, modeline, icons
-(require 'config-ui)
+(load "config-ui")
 
 ;; Keybindings: evil, general, leader keys, navigation, activities
-(require 'config-keybindings)
+(load "config-keybindings")
 
 ;; Email: mu4e + org email (loads org first)
-(require 'config-email)
+(load "config-email")
 
 ;; Org + Org-roam
-(require 'config-org)
+(load "config-org")
 
 ;; EWM integration
-(require 'config-ewm)
+(load "config-ewm")
 
 ;; i3 integration
-(require 'config-i3)
+(load "config-i3")
 
 ;; Activities EWM bridge
-(require 'activities-ewm)
+(load "activities-ewm")
 
 ;; ── Remaining configuration (not yet extracted) ─────────────────────────
 
@@ -446,6 +446,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :config
   (setopt rmh-elfeed-org-files '("~/notes/elfeed.org"))
   (setopt elfeed-search-filter "@3days +unread")
+  (add-hook 'elfeed-search-mode-hook #'elfeed-update)
   )
 
 (use-package elfeed-org
