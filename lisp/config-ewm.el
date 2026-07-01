@@ -177,3 +177,6 @@
 (defun my/activity-name ()
   (interactive)
   (message (activities-name-for (activities-current))))
+
+(provide 'config-ewm)
+;; config-ewm.el ends here
