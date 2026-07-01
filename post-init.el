@@ -316,21 +316,7 @@ themes are lightened slightly; light themes are darkened."
 
   (setq consult-line-start-from-top nil)
 
-  (defun my/consult-buffer-list--activity ()
-    "Return buffers from the current activity's frame, or all buffers if none active."
-    (condition-case nil
-        (if-let ((activity (activities-current))
-                 (frame (activities--frame activity))
-                 ((frame-live-p frame)))
-            (cl-loop for buf in (frame-parameter frame 'buffer-list)
-                     collect (if (consp buf) (cdr buf) buf))
-          (buffer-list))
-      (error (buffer-list))))
-
-  (advice-add #'consult-buffer :around
-              (lambda (fn &rest args)
-                (let ((consult-buffer-list-function #'my/consult-buffer-list--activity))
-                  (apply fn args))))
+  
 
   (defun noct-consult-line-evil-history (&rest _)
     "Add latest `consult-line' search pattern to the evil search history ring.
@@ -690,6 +676,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   "o-" '(dired-jump :which-key "dired")
   "om" '(my/mu4e :which-key "mu4e")
   "on" '(elfeed :which-key "elfeed")
+  "ob" '(eww :which-key "eww")
   )
 
 
@@ -701,6 +688,19 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (activities-mode 1)
   :config
   (setq activities-always-persist t)
+
+  (defun my/consult-buffer-list--activity ()
+    "Return buffers from the current activity's frame, or all buffers if none active."
+    (condition-case nil
+        (if-let ((activity (activities-current))
+                 (frame (activities--frame activity))
+                 ((frame-live-p frame)))
+            (cl-loop for buf in (frame-parameter frame 'buffer-list)
+                     collect (if (consp buf) (cdr buf) buf))
+          (buffer-list))
+      (error (buffer-list))))
+
+  (setq consult-buffer-list-function #'my/consult-buffer-list--activity)
   )
 
 ;; ── Navigation ─────────────────────────────────────────────────────────
@@ -1054,7 +1054,9 @@ Works over TRAMP without relying on `vc-handled-backends'."
      "\\*Apropos\\*"
      "\\*Quick Help\\*"
      "\\*Calendar\\*"
-     "#"))
+     "\\*eww buffers\\*"
+     "\\*eww history\\*"
+     ))
   :config
   (popper-mode +1)
   (popper-echo-mode +1)) ; Shows popup status cleanly in the minibuffer
@@ -1499,6 +1501,16 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
 (use-package agent-shell-bookmark
   :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev :newest))
 
+;; ── agent-recall (search/browse agent-shell transcripts) ───────────────
+
+(use-package agent-recall
+  :ensure t
+  :hook (agent-shell-mode . agent-recall-track-sessions)
+  :config
+   (setq agent-recall-search-paths '("~/.config/emacs" "~/projects" "~/work")
+        agent-recall-search-function 'consult-ripgrep
+        agent-recall-browse-sort 'modified-desc))
+
 ;; ── shell-maker (create custom shells in eshell) ──────────────────────
 
 (use-package shell-maker
@@ -1625,5 +1637,6 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
 (setq shr-max-image-size '(800 . 600))
 (setq shr-image-animate t)
 (setq eww-search-prefix "https://html.duckduckgo.com/html/?q=")
+(setq eww-auto-rename-buffer t)
 
 (provide 'post-init)

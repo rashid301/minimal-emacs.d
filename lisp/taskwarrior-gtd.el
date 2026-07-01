@@ -843,8 +843,7 @@ Provides a which-key-friendly prefix for task operations."
   (dolist (buf (buffer-list))
     (when (string-match-p "^\\*gtd-" (buffer-name buf))
       (kill-buffer buf)))
-  (when (> (length (window-list)) 1)
-    (delete-other-windows)))
+  )
 
 ;; ---------------------------------------------------------------------------
 ;; Evil integration helpers
