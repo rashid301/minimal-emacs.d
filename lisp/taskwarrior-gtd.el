@@ -872,6 +872,20 @@ Provides a which-key-friendly prefix for task operations."
     (kbd "G") #'end-of-buffer
     (kbd "e") #'taskwarrior-gtd-action-edit))
 
+(defun taskwarrior-gtd-capture ()
+  (interactive)
+  (require 'org)
+
+  ;; Store a context-aware link
+  ;; (ignore-errors (call-interactively #'org-store-link))
+
+  (let* ((link (org-store-link nil))
+         (prefill (if link
+                      (format " %s" link)
+                    "")))
+
+    (taskwarrior-gtd-action-add prefill)))
+
 
 ;; ---------------------------------------------------------------------------
 ;; Provide

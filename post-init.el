@@ -27,10 +27,44 @@
 (global-superword-mode 1)
 (global-subword-mode 1)
 
+;; --- mini solaire
+(require 'color)
+
+(defun my-remap-background (&optional amount)
+  "Remap the current buffer's background.
+
+AMOUNT is the percentage to lighten/darken (default 4).  Dark
+themes are lightened slightly; light themes are darkened."
+  (unless (my-real-buffer-p)
+    (turn-off-line-numbers)
+    (let* ((amount (or amount 4))
+           (bg (face-background 'default nil t))
+           (fg (face-foreground 'default nil t))
+           (new-bg (if (color-dark-p (color-name-to-rgb bg))
+                       (color-lighten-name bg amount)
+                     (color-darken-name bg amount))))
+      (face-remap-add-relative
+       'default
+       `(:background ,new-bg))
+      (face-remap-add-relative
+       'fringe
+       `(:background ,new-bg))
+      (face-remap-add-relative
+       'line-number
+       `(:background ,new-bg)))))
+
+(defun my-real-buffer-p ()
+  "Return non-nil if the current buffer is visiting a real file."
+  (and buffer-file-name
+       (not (minibufferp))
+       (not (string-prefix-p " " (buffer-name)))))
+
+
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
 (defun my/set-font (&optional frame)
   (my/load-theme 'noctalia)
+  (add-hook 'after-change-major-mode-hook #'my-remap-background)
   (set-face-attribute 'default frame
                       :family "RobotoMono Nerd Font"
                       :height 140
@@ -442,6 +476,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
    "n"  '(nil :which-key "notes/roam")
    "b"  '(nil :which-key "buffer")
    "o"  '(nil :which-key "apps")
+
    "h"  '(nil :which-key "help")
    "t"  '(nil :which-key "toggle")
    "u"  #'universal-argument
@@ -542,9 +577,9 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :init
   (setq evil-collection-setup-minibuffer nil)
   :config
-  (setq evil-collection-mode-list
-        (cl-set-difference evil-collection-mode-list
-                           '(comint eshell agent-shell shell-maker)))
+  ;; (setq evil-collection-mode-list
+  ;;       (cl-set-difference evil-collection-mode-list
+  ;;                          '(comint eshell agent-shell shell-maker)))
   (evil-collection-init))
 
 (use-package evil-textobj-tree-sitter
@@ -633,9 +668,9 @@ Works over TRAMP without relying on `vc-handled-backends'."
  "og" '(taskwarrior-gtd :which-key "GTD dashboard")
  "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
  "oj" '(my/open-todays-journal :which-key "today's journal")
- "o-" #'dired-jump
- "om" #'my/mu4e
- ;; "os" '(agent-shell-manager-toggle :which-key "agent shell manager")
+ "o-" '(dired-jump :which-key "dired")
+ "om" '(my/mu4e :which-key "mu4e")
+ "on" '(elfeed :which-key "elfeed")
  )
 
 
@@ -1028,10 +1063,24 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :defer t)
 
 ;; ── Elfeed (RSS reader) ────────────────────────────────────────────────
-
 (use-package elfeed
   :ensure t
-  :defer t)
+  :defer t
+  :config
+  (setopt rmh-elfeed-org-files '("~/notes/elfeed.org"))
+  (setopt elfeed-search-filter "@3days +unread")
+  )
+
+(use-package elfeed-org
+  :after elfeed
+  :ensure t
+  :config
+  (elfeed-org)
+  )
+
+(use-package elfeed-org
+  :ensure t
+  :after elfeed)
 
 ;; ── mu4e + org email ───────────────────────────────────────────────────
 
@@ -1039,8 +1088,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 (defun my/mu4e()
   (interactive)
-  (when-let ((homea (map-elt activities-activities "mu4e")))
-    (activities-resume homea)
+  (when-let ((emaila (map-elt activities-activities "mu4e")))
+    (activities-resume emaila)
     )
   )
 
@@ -1487,34 +1536,6 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   (setq vc-handled-backends '(git))
   (setq remote-file-name-inhibit-cache nil)
   (setq tramp-verbose 3))
-
-;; --- mini solaire
-(require 'color)
-
-(defun my-remap-background (&optional amount)
-  "Remap the current buffer's background.
-
-AMOUNT is the percentage to lighten/darken (default 4).  Dark
-themes are lightened slightly; light themes are darkened."
-  (unless (my-real-buffer-p)
-    (turn-off-line-numbers)
-    (let* ((amount (or amount 4))
-           (bg (face-background 'default nil t))
-           (fg (face-foreground 'default nil t))
-           (new-bg (if (color-dark-p (color-name-to-rgb bg))
-                       (color-lighten-name bg amount)
-                     (color-darken-name bg amount))))
-      (face-remap-add-relative
-       'default
-       `(:background ,new-bg)))))
-
-(defun my-real-buffer-p ()
-  "Return non-nil if the current buffer is visiting a real file."
-  (and buffer-file-name
-       (not (minibufferp))
-       (not (string-prefix-p " " (buffer-name)))))
-
-(add-hook 'after-change-major-mode-hook #'my-remap-background)
 
 (defun thanos/wtype-text (text)
   "Process TEXT for wtype, handling newlines properly."
