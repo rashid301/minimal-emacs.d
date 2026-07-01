@@ -154,7 +154,7 @@ themes are lightened slightly; light themes are darkened."
   (add-to-list 'eglot-ignored-server-capabilities :documentFormattingProvider))
 
 
-(use-package ace-link
+(use-package link-hint
   :ensure t)
 
 (use-package pdf-tools
@@ -448,11 +448,13 @@ Works over TRAMP without relying on `vc-handled-backends'."
   ;; Automatically clear out conflicting keys (like evil's default SPC)
   (general-auto-unbind-keys)
   (general-override-mode 1)
+  
   (general-create-definer my-leader-def
     :states '(normal visual motion)
     :keymaps 'override
     :prefix "SPC"
-    :non-normal-prefix "s-SPC")
+    :prefix-command 'my-leader
+    :prefix-map 'my-leader-map)
 
   ;; 1. Initialize your custom global prefix map
   (general-create-definer my-local-leader
@@ -464,6 +466,12 @@ Works over TRAMP without relying on `vc-handled-backends'."
    :prefix "g"
    "R" '(eval-region :which-key "Eval region")
    )
+
+  (defun my/open-links()
+    (interactive)
+    (let ((browse-url-browser-function 'eww-browse-url))
+      (link-hint-open-link)
+      ))
   
   (my-leader-def
     ;; --- Named Prefix Groups for which-key ---
@@ -512,7 +520,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
     "sg" '(consult-grep :which-key "grep search")
     "sd" '(consult-ripgrep :which-key "search directory")
     "sb" '(consult-line :which-key "search directory")
-    "sl" '(ace-link :which-key "search links")
+    "sl" '(my/open-links :which-key "search links")
 
     ;; --- Org-roam bindings ---
     "nl" '(org-roam-node-find :which-key "find node")
@@ -1453,6 +1461,7 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
          )
 
         )
+  (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
   (setq agent-shell-confirm-interrupt nil
         agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
   ;; (add-hook 'diff-mode-hook
@@ -1510,7 +1519,7 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   :ensure t
   :hook (agent-shell-mode . agent-recall-track-sessions)
   :config
-  (setq agent-recall-search-paths '("~/Dropbox", "~/.config/emacs" "~/projects" "~/work")
+  (setq agent-recall-search-paths '("~/Dropbox" "~/.config/emacs" "~/projects" "~/work" "~/.agent-shell")
         agent-recall-search-function 'consult-ripgrep
         agent-recall-browse-sort 'modified-desc))
 
