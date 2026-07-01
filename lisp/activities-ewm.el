@@ -42,14 +42,49 @@ EWM-bound frames instead of tab-bar tabs."
   (setopt activities-resume-into-frame 'current)
   (advice-add 'activities--switch :override #'activities-ewm--switch)
   (advice-add 'activities-close   :override #'activities-ewm-close)
-  (advice-add 'ewm--assign-surface-to-frame :filter-return #'activities-ewm--after-surface-assigned))
+  (advice-add 'ewm--assign-surface-to-frame :filter-return #'activities-ewm--after-surface-assigned)
+  (advice-add 'activities-switch-buffer :override #'activities-ewm--switch-buffer)
+  )
 
 (defun activities-ewm--deactivate ()
   (advice-remove 'activities--switch #'activities-ewm--switch)
   (advice-remove 'activities-close   #'activities-ewm-close)
-  (advice-remove 'ewm--assign-surface-to-frame #'activities-ewm--after-surface-assigned))
+  (advice-remove 'ewm--assign-surface-to-frame #'activities-ewm--after-surface-assigned)
+  (advice-remove 'activities-switch-buffer #'activities-ewm--switch-buffer))
 
-;;;; Overrides
+;;;; Switch buffer
+
+(defun activities-ewm--switch-buffer (activity)
+  "Switch to a buffer associated with ACTIVITY.
+Interactively, select from buffers associated with ACTIVITY; or,
+with prefix argument, choose another activity."
+  (interactive
+   (list (if current-prefix-arg
+             (activities-completing-read)
+           (or (activities-current) (activities-completing-read)))))
+  (let* ((frame (activities--frame activity))
+         (activity-buffer-names (when frame
+                                  (mapcar #'buffer-name
+                                          (frame-parameter frame 'buffer-list))))
+         (current-buffer-name (buffer-name (current-buffer)))
+         (rbts-completion-table
+          (apply-partially
+           #'completion-table-with-predicate
+           #'internal-complete-buffer
+           (lambda (buffer-name)
+             (let ((buffer-name (if (consp buffer-name) (car buffer-name) buffer-name)))
+               (and (not (equal buffer-name current-buffer-name))
+                    (cl-member buffer-name activity-buffer-names))))
+           nil))
+         (selected-buffer
+          (minibuffer-with-setup-hook
+              (lambda ()
+                (setq-local minibuffer-completion-table rbts-completion-table))
+            (read-buffer "Switch to activity buffer:" (other-buffer (current-buffer))
+                         (confirm-nonexistent-file-or-buffer)))))
+    (when frame
+      (select-frame frame))
+    (switch-to-buffer selected-buffer)))
 
 (defun activities-ewm--switch (activity)
   "Switch to ACTIVITY using EWM frame management."

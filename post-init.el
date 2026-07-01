@@ -294,7 +294,7 @@ themes are lightened slightly; light themes are darkened."
 ;; Consult — efficient searching and previewing
 (use-package consult
   :ensure t
-  :bind (("C-x b" . consult-buffer)
+  :bind (
          ("M-y" . consult-yank-pop)
          ("M-g g" . consult-goto-line)
          ("M-g i" . consult-imenu)
@@ -315,6 +315,22 @@ themes are lightened slightly; light themes are darkened."
    :preview-key "C-SPC")
 
   (setq consult-line-start-from-top nil)
+
+  (defun my/consult-buffer-list--activity ()
+    "Return buffers from the current activity's frame, or all buffers if none active."
+    (condition-case nil
+        (if-let ((activity (activities-current))
+                 (frame (activities--frame activity))
+                 ((frame-live-p frame)))
+            (cl-loop for buf in (frame-parameter frame 'buffer-list)
+                     collect (if (consp buf) (cdr buf) buf))
+          (buffer-list))
+      (error (buffer-list))))
+
+  (advice-add #'consult-buffer :around
+              (lambda (fn &rest args)
+                (let ((consult-buffer-list-function #'my/consult-buffer-list--activity))
+                  (apply fn args))))
 
   (defun noct-consult-line-evil-history (&rest _)
     "Add latest `consult-line' search pattern to the evil search history ring.
@@ -495,6 +511,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
     "ff" '(find-file :which-key "find file")
     "fr" '(consult-recent-file :which-key "recent files")
     "fb" '(consult-buffer :which-key "buffer list")
+    "fy" '(my/copy-file-path :which-key "copy file path")
 
     ;; --- Git bindings ---
     "gg" '(magit-status :which-key "magit status")
@@ -522,10 +539,10 @@ Works over TRAMP without relying on `vc-handled-backends'."
     "TAB n" '(activities-new :which-key "new activity")
     "TAB d" '(activities-define :which-key "define activity")
     "TAB a" '(activities-resume :which-key "resume activity")
+    "TAB b" '(activities-switch-buffer :which-key "switch buffer")
     "TAB s" '(activities-suspend :which-key "suspend activity")
     "TAB k" '(activities-kill :which-key "kill activity")
     "TAB l" '(activities-list :which-key "list activities")
-    "TAB b" '(activities-switch-buffer :which-key "switch buffer")
     "TAB g" '(activities-revert :which-key "revert activity")))
 
 ;; ── Evil (Vim keybindings) ─────────────────────────────────────────────
@@ -624,6 +641,15 @@ Works over TRAMP without relying on `vc-handled-backends'."
 ;; ── Leader key (Doom-style) ────────────────────────────────────────────
 
 ;; Full config reload (like Doom's `SPC h R`)
+(defun my/copy-file-path ()
+  "Copy the full file path of the current buffer to the kill ring."
+  (interactive)
+  (if buffer-file-name
+      (progn
+        (kill-new buffer-file-name)
+        (message "Copied: %s" buffer-file-name))
+    (message "Current buffer is not visiting a file")))
+
 (defun my/config-reload ()
   "Reload post-init.el without restarting Emacs."
   (interactive)
@@ -1439,13 +1465,18 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   ;;  "c"   #'agent-shell-prompt-compose
   ;;  "x"   #'agent-shell-interrupt)
   ;; 
-  (add-hook 'agent-shell-mode-hook
-            (defun agent-shell/turn-off-minor-mode-overrides()
-              (evil-collection-unimpaired-mode -1)
-              (evil-commentary-mode -1)
-              (evil-define-key '(normal insert) agent-shell-mode-map (kbd "RET") #'agent-shell-submit)
-              ))
-  ;; 
+  (defun agent-shell/turn-off-minor-mode-overrides ()
+    (evil-collection-unimpaired-mode -1)
+    (evil-commentary-mode -1))
+
+  (add-hook 'agent-shell-mode-hook #'agent-shell/turn-off-minor-mode-overrides)
+
+  (with-eval-after-load 'evil-collection-agent-shell
+    (evil-define-key 'normal agent-shell-mode-map
+      (kbd "TAB") #'agent-shell-ui-toggle-fragment
+      (kbd "]")   #'agent-shell-next-item
+      (kbd "[")   #'agent-shell-previous-item)
+    )
   ;; (general-def
   ;;   :states '(motion normal)          ; Dired defaults to 'motion state in Evil
   ;;   :keymaps 'agent-shell-mode-map

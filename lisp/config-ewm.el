@@ -96,7 +96,9 @@
   (define-key ewm-mode-map (kbd "s-Q") #'my/session-noc)
   (define-key ewm-mode-map (kbd "s-d") #'ewm-launch-app)
   (define-key ewm-mode-map (kbd "M-q") #'evil-window-delete)
-  (define-key ewm-mode-map (kbd "s-i") #'thanos/type)
+  (setopt ewm-intercept-prefixes
+          (append ewm-intercept-prefixes
+                  (list (kbd "s-SPC"))))
 
   (defun my/session-noc ()
     (interactive)
