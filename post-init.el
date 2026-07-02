@@ -350,6 +350,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (magit-revision-insert-related-refs nil)
   (magit-uniquify-buffer-names nil)
   (magit-diff-refine-hunk t)
+  (magit-display-buffer-function 'magit-display-buffer-same-window-except-diff-v1)
   ;; (magit-git-executable (or (executable-find magit-git-executable) "git"))
   :config
   ;; Turn ref links into clickable buttons
@@ -799,5 +800,11 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (setq shr-image-animate t)
 (setq eww-search-prefix "https://html.duckduckgo.com/html/?q=")
 (setq eww-auto-rename-buffer t)
+(setq
+ shr-use-colors nil
+ shr-bullet "• "
+ shr-folding-mode t
+ )
+
 
 (provide 'post-init)

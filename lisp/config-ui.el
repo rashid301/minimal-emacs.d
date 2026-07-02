@@ -28,7 +28,7 @@
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
 (defun my/set-font (&optional frame)
-  (my/load-theme 'doom-gruvbox-light)
+  (my/load-theme 'doom-one)
   (set-face-attribute 'default frame
                       :family "RobotoMono Nerd Font"
                       :height 140

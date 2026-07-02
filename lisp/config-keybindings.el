@@ -35,6 +35,14 @@
   (evil-set-initial-state 'minibuffer-local-map 'emacs)
   )
 
+(use-package evil-escape
+  :ensure t
+  :after evil
+  :config
+  (setq evil-escape-delay 0.03
+        evil-escape-key-sequence "jk")
+  (evil-escape-mode 1))
+
 
 (use-package evil-collection
   :ensure t
@@ -238,6 +246,7 @@
     "wj" '(evil-window-down :which-key "window down")
     "wk" '(evil-window-up :which-key "window up")
     "wl" '(evil-window-right :which-key "window right")
+    "wd" (evil-window-delete :which-key "window delete")
     "wC-u" '(winner-undo :which-key "winner undo")
     "wC-r" '(winner-redo :which-key "winner redo")
 
