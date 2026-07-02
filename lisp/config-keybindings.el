@@ -178,7 +178,9 @@
     (let ((browse-url-browser-function 'eww-browse-url))
       (link-hint-open-link)
       ))
-  
+  (define-key evil-window-map (kbd "u") #'winner-undo)
+  (define-key evil-window-map (kbd "U") #'winner-redo) 
+
   (my-leader-def
     ;; --- Named Prefix Groups for which-key ---
     "f"  '(nil :which-key "file")
@@ -244,8 +246,6 @@
     ;; --- Window management ---
 
     "w" #'evil-window-map
-    "wC-u" '(winner-undo :which-key "winner undo")
-    "wC-r" '(winner-redo :which-key "winner redo")
 
     ;; --- Mode / local leader ---
     ;; --- Activities ---

@@ -549,7 +549,13 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :config
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
-        tmux-control-default-session "main"))
+        tmux-control-default-session "main")
+
+  (defun my/desktop-pc ()
+    "Connect to desktop-pc via tmux-control, prompting only for session."
+    (interactive)
+    (let ((session (tmux-control--read-session "desktop-pc" "/tmp/tmux-1000/default")))
+      (tmux-control-connect "desktop-pc" "/tmp/tmux-1000/default" session))))
 
 ;; ── rg (ripgrep integration) ───────────────────────────────────────────
 
@@ -612,8 +618,14 @@ Works over TRAMP without relying on `vc-handled-backends'."
          "AWS_PROFILE" "hermes"
          "OPENCODE_ENABLE_EXA" "1"
          )
-
-        )
+        agent-shell-opencode-environment
+        (agent-shell-make-environment-variables
+         "OPENCODE_ENABLE_EXA" "1"
+         )
+        agent-shell-pi-environment
+        (agent-shell-make-environment-variables
+         "PI_ACP_PI_COMMAND" "little-coder"
+         ))
   (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
   (setq agent-shell-confirm-interrupt nil
         agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
