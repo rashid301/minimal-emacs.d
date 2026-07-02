@@ -20,7 +20,8 @@
         evil-respect-visual-line-mode t
         evil-want-C-u-scroll t
         evil-vsplit-window-right t
-        evil-split-window-below t)
+        evil-split-window-below t
+        evil-ex-search-persistent-highlight nil)
   (define-key evil-normal-state-map (kbd ";") #'evil-ex)
   (define-key evil-visual-state-map (kbd ";") #'evil-ex)
   (define-key evil-motion-state-map [escape] #'keyboard-quit)

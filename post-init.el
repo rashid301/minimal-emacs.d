@@ -497,10 +497,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 (use-package eat
   :ensure t
-  :hook ((eshell-mode . eat-eshell-mode)
-         ;;(eat-mode-hook . mode-line-invisible-mode)
-         )
   :config
+  (eat-eshell-mode 1)
   (evil-set-initial-state 'eat-term-mode 'emacs)
   )
 
@@ -554,8 +552,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (defun my/desktop-pc ()
     "Connect to desktop-pc via tmux-control, prompting only for session."
     (interactive)
-    (let ((session (tmux-control--read-session "desktop-pc" "/tmp/tmux-1000/default")))
-      (tmux-control-connect "desktop-pc" "/tmp/tmux-1000/default" session))))
+    (let ((session (tmux-control--read-session "desktop-pc" "default")))
+      (tmux-control-connect "desktop-pc" "default" session))))
 
 ;; ── rg (ripgrep integration) ───────────────────────────────────────────
 
