@@ -88,7 +88,10 @@
   :ensure t)
 
 (use-package pdf-tools
-  :ensure t)
+  :ensure t
+  :mode ("\\.pdf\\'" . pdf-view-mode)
+  :config
+  (pdf-tools-install t t))
 
 
 ;; ── Completion (Doom-style) ────────────────────────────────────────────
@@ -680,14 +683,9 @@ Works over TRAMP without relying on `vc-handled-backends'."
   :config
   (advice-add 'shell-maker-submit :after
               (lambda (&rest _)
-                (goto-char (point-max))))
-  ;; (with-eval-after-load 'agent-shell
-  ;;   (with-eval-after-load 'evil-collection
-  ;;     (evil-define-key 'insert 'agent-shell-mode-map "RET" #'agent-shell-submit)
-  ;;     (evil-define-key 'normal 'agent-shell-mode-map (kbd "RET") #'agent-shell-submit)
-  ;;     )
-  ;;   )
-  )
+                (goto-char (point-max))
+                (evil-insert-state 1)
+                )))
 
 ;; ── capf-autosuggest (eshell completion hints) ─────────────────────────
 

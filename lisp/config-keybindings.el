@@ -31,7 +31,7 @@
   (define-key evil-normal-state-map (kbd "*") #'evil-search-word-forward)
   (define-key evil-normal-state-map (kbd "#") #'evil-search-word-backward)
 
-  (define-key evil-normal-state-map (kbd "C-i") #'evil-jump-forward) 
+  (define-key evil-normal-state-map (kbd "C-i") #'evil-jump-forward)
   (evil-set-initial-state 'minibuffer-local-map 'emacs)
   )
 
@@ -39,8 +39,8 @@
   :ensure t
   :after evil
   :config
-  (setq evil-escape-delay 0.03
-        evil-escape-key-sequence "jk")
+  (setq-default evil-escape-key-sequence "jk"
+                evil-escape-delay 0.2)
   (evil-escape-mode 1))
 
 
@@ -242,11 +242,8 @@
     "tn" '(display-line-numbers-mode :which-key "line numbers")
 
     ;; --- Window management ---
-    "wh" '(evil-window-left :which-key "window left")
-    "wj" '(evil-window-down :which-key "window down")
-    "wk" '(evil-window-up :which-key "window up")
-    "wl" '(evil-window-right :which-key "window right")
-    "wd" (evil-window-delete :which-key "window delete")
+
+    "w" #'evil-window-map
     "wC-u" '(winner-undo :which-key "winner undo")
     "wC-r" '(winner-redo :which-key "winner redo")
 
@@ -472,7 +469,8 @@
         avy-background t
         avy-all-windows t
         avy-highlight-first t
-        avy-timeout-seconds 0.3))
+        avy-timeout-seconds 0.3
+        avy-keys '(?j ?k ?l ?u ?i ?o ?p ?m)))
 
 
 (with-eval-after-load 'dired
