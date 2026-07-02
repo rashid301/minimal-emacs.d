@@ -104,8 +104,11 @@
   (vertico-resize nil)
   (vertico-cycle t)
   (vertico-scroll-margin 2)
+  (vertico-buffer-display-action
+   '(display-buffer-in-direction (direction . below) (window-height . 20)))
   :config
   (vertico-mode 1)
+  (vertico-buffer-mode 1)
   (setq completion-in-region-function
         #'consult-completion-in-region)
 
@@ -344,6 +347,14 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 ;; ── Git ────────────────────────────────────────────────────────────────
 
+(use-package forge
+  :ensure t
+  :if (locate-library "forge")
+  :after magit
+  :config
+  (setq forge-add-default-bindings nil)
+  )
+
 (use-package magit
   :commands magit-file-delete
   :custom
@@ -376,6 +387,9 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (add-hook 'git-commit-setup-hook #'evil-insert-state)
   )
 
+;; (use-package forge
+;;   :after magit)
+
 (use-package transient
   :ensure nil
   :config
@@ -407,6 +421,10 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 ;; ── Popper (popup management) ──────────────────────────────────────────
 
+(defun my/popper-select-at-bottom (buffer &optional alist)
+  (let ((window (display-buffer-below-selected buffer '((window-height . 0.3)))))
+    (select-window window)))
+
 (use-package popper
   :ensure t
   :demand t  ; <--- CRITICAL FIX: Forces immediate loading, bypassing :bind lazy-loading
@@ -415,6 +433,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
          ("C-M-`" . popper-toggle-type))
   :custom
   (popper-window-height 0.3)
+  (popper-display-function #'my/popper-select-at-bottom)
   (popper-reference-buffers
    '("\\*Messages\\*"
      "\\*Warnings\\*"
@@ -425,6 +444,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
      "\\*helpful.*\\*"
      "\\*tramp\\*"
      "\\*magit-process\\*"
+     "\\*Process List\\*"
      "\\*eldoc\\*"
      "\\*prodigy\\*"
      "\\*Flycheck errors\\*"
@@ -441,7 +461,8 @@ Works over TRAMP without relying on `vc-handled-backends'."
      ))
   :config
   (popper-mode +1)
-  (popper-echo-mode +1)) ; Shows popup status cleanly in the minibuffer
+  (popper-echo-mode +1) ; Shows popup status cleanly in the minibuffer
+  )
 
 ;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
 

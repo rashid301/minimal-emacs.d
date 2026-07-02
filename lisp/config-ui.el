@@ -27,11 +27,11 @@
 
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
-(defun my/set-font (&optional frame)
+(defun my/set-font (&optional frame font-size)
   (my/load-theme 'doom-one)
   (set-face-attribute 'default frame
                       :family "RobotoMono Nerd Font"
-                      :height 140
+                      :height (or font-size 140)
                       :weight 'normal))
 
 (defun my/load-theme (theme)
