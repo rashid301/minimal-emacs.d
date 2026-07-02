@@ -649,6 +649,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (add-hook 'agent-shell-mode-hook #'agent-shell/turn-off-minor-mode-overrides)
 
   (with-eval-after-load 'evil-collection-agent-shell
+    (agent-shell/turn-off-minor-mode-overrides)
     (evil-define-key 'normal agent-shell-mode-map
       (kbd "TAB") #'agent-shell-ui-toggle-fragment
       (kbd "]")   #'agent-shell-next-item
