@@ -24,6 +24,16 @@
             (setq-local bookmark-make-record-function
                         #'my/mu4e-bookmark-make-record)))
 
+(add-hook 'mu4e-headers-mode-hook
+          (lambda ()
+            (setq-local bookmark-make-record-function
+                        #'my/mu4e-bookmark-make-record)))
+
+(add-hook 'mu4e-view-mode-hook
+          (lambda ()
+            (setq-local bookmark-make-record-function
+                        #'my/mu4e-bookmark-make-record)))
+
 (use-package mu4e
   :ensure nil
   :defer t

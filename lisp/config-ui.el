@@ -108,14 +108,14 @@
 
 ;; ── Visual line wrap ──────────────────────────────────────────────────
 
-(global-visual-line-mode 1)
+;;(global-visual-line-mode 1)
 (global-visual-wrap-prefix-mode 1)
 
 ;; ── Visual-fill-column (SPC t c to toggle) ────────────────────────────
 
 (use-package visual-fill-column
   :ensure t
-  :hook ((elfeed-search-mode elfeed-show-mode eww-mode) . visual-fill-column-mode)
+  :hook ((elfeed-search-mode elfeed-show-mode eww-mode mu4e-main-mode) . visual-fill-column-mode)
   :config
   (setq-default visual-fill-column-width 120)
   (setq-default visual-fill-column-center-text t))

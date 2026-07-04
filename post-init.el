@@ -26,6 +26,9 @@
 ;; Activities EWM bridge
 (load "activities-ewm")
 
+(defun rs/shell-scroll-setup ()
+  (setq-local scroll-conservatively 101))
+
 ;; ── Remaining configuration (not yet extracted) ─────────────────────────
 
 ;; ── Tree-sitter (built-in) + LSP (built-in) ────────────────────────────
@@ -427,7 +430,14 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 (use-package popper
   :ensure t
-  :demand t  ; <--- CRITICAL FIX: Forces immediate loading, bypassing :bind lazy-loading
+  :demand t 
+  :init
+  
+  (defun my/tridactyl-editor-buffer-p (buf)
+    "Return t if BUF is a Tridactyl external-editor temp file."
+    (let ((name (buffer-file-name buf)))
+      (and name (string-match-p "^/tmp/tmp_.*\\.txt$" name))))
+
   :bind (("C-`" . popper-toggle)
          ("M-`" . popper-cycle)
          ("C-M-`" . popper-toggle-type))
@@ -439,6 +449,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
      "\\*Warnings\\*"
      "\\*compilation\\*"
      "\\*Completions\\*"
+     "\\*Compile-Log\\*"
      "\\*Help\\*"
      helpful-mode
      "\\*helpful.*\\*"
@@ -458,6 +469,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
      "\\*Calendar\\*"
      "\\*eww buffers\\*"
      "\\*eww history\\*"
+     my/tridactyl-editor-buffer-p
      ))
   :config
   (popper-mode +1)
@@ -482,18 +494,22 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (use-package elfeed
   :ensure t
   :defer t
+  :custom
+  (elfeed-search-filter "@3days +unread")
   :config
-  (setopt rmh-elfeed-org-files '("~/notes/elfeed.org"))
-  (setopt elfeed-search-filter "@3days +unread")
   (add-hook 'elfeed-search-mode-hook #'elfeed-update)
   )
 
 (use-package elfeed-org
   :after elfeed
   :ensure t
+  :custom
+  (rmh-elfeed-org-files '("~/notes/elfeed.org"))
   :config
   (elfeed-org))
 
+(use-package lobsters
+  :ensure t)
 ;; ── Eat (terminal emulator) ────────────────────────────────────────────
 
 
@@ -517,6 +533,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   )
 
 (use-package eat
+  :hook (eat-mode . rs/shell-scroll-setup)
   :ensure t
   :config
   (eat-eshell-mode 1)
@@ -525,7 +542,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 (with-eval-after-load 'eshell
   (require 'em-hist)
-
+  (add-hook 'eshell-mode  #'rs/shell-scroll-setup)
   (add-to-list 'eshell-modules-list 'eshell-rebind)
   ;; (add-to-list 'eshell-modules-list 'eshell-smart)
 
@@ -561,6 +578,15 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (use-package diminish
   :ensure t)
 
+;; ── Golden Ratio (automatic window resizing) ─────────────────────────
+
+(use-package golden-ratio
+  :ensure t
+  :diminish golden-ratio-mode
+  :config
+  (setq golden-ratio-auto-scale t)  ; Auto-scale for wide screens
+  (golden-ratio-mode -1))
+
 ;; ── Tmux control mode ──────────────────────────────────────────────────
 
 (use-package tmux-control
@@ -574,7 +600,11 @@ Works over TRAMP without relying on `vc-handled-backends'."
     "Connect to desktop-pc via tmux-control, prompting only for session."
     (interactive)
     (let ((session (tmux-control--read-session "desktop-pc" "default")))
-      (tmux-control-connect "desktop-pc" "default" session))))
+      (tmux-control-connect "desktop-pc" "default" session))
+    )
+  (my-leader-def
+    "od" '(my/desktop-pc :which-key "Tmux Desktop"))
+  )
 
 ;; ── rg (ripgrep integration) ───────────────────────────────────────────
 
@@ -629,13 +659,13 @@ Works over TRAMP without relying on `vc-handled-backends'."
 ;; ── agent-shell + notifications + bookmarks ────────────────────────────
 
 (use-package agent-shell
+  :hook (agent-shell-mode . rs/shell-scroll-setup)
   :ensure t
   :defer t
   :config
   (setq agent-shell-anthropic-claude-environment
         (agent-shell-make-environment-variables
          "AWS_PROFILE" "hermes"
-         "OPENCODE_ENABLE_EXA" "1"
          )
         agent-shell-opencode-environment
         (agent-shell-make-environment-variables
@@ -663,31 +693,22 @@ Works over TRAMP without relying on `vc-handled-backends'."
   ;;  "c"   #'agent-shell-prompt-compose
   ;;  "x"   #'agent-shell-interrupt)
   ;; 
-  (defun agent-shell/turn-off-minor-mode-overrides ()
+  (defun agent-shell/setup ()
     (evil-collection-unimpaired-mode -1)
-    (evil-commentary-mode -1))
-
-  (add-hook 'agent-shell-mode-hook #'agent-shell/turn-off-minor-mode-overrides)
-
-  (with-eval-after-load 'evil-collection-agent-shell
-    (agent-shell/turn-off-minor-mode-overrides)
+    (evil-commentary-mode -1)
     (evil-define-key 'normal agent-shell-mode-map
+      [tab]       #'agent-shell-ui-toggle-fragment
       (kbd "TAB") #'agent-shell-ui-toggle-fragment
       (kbd "]")   #'agent-shell-next-item
       (kbd "[")   #'agent-shell-previous-item)
     )
-  ;; (general-def
-  ;;   :states '(motion normal)          ; Dired defaults to 'motion state in Evil
-  ;;   :keymaps 'agent-shell-mode-map
-  ;;   "RET" #'agent-shell-submit)
-  ;; 
-  ;; (my-local-leader
-  ;;   :keymaps 'agent-shell-mode-map
-  ;;   "R" #'agent-shell-restart
-  ;;   "f" #'agent-shell-fork
-  ;;   "m" #'agent-shell-set-session-mode
-  ;;   "M" #'agent-shell-set-session-model
-  ;;   )
+  
+
+  (add-hook 'agent-shell-mode-hook #'agent-shell/setup)
+
+  (with-eval-after-load 'evil-collection-agent-shell
+    (agent-shell/setup)
+    )
   )
 
 (use-package agent-shell-tramp
@@ -716,7 +737,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (advice-add 'shell-maker-submit :after
               (lambda (&rest _)
                 (goto-char (point-max))
-                (evil-insert-state 1)
+                (evil-normal-state 1)
                 )))
 
 ;; ── capf-autosuggest (eshell completion hints) ─────────────────────────
@@ -742,12 +763,28 @@ Works over TRAMP without relying on `vc-handled-backends'."
 
 
 ;; server edit
+;; for tridactyl
+(setq server-window 'pop-to-buffer)
 (defun my/evil-save-modified-and-close (orig &rest args)
   (if server-buffer-clients
       (progn
         (save-buffer)
-        (server-edit))
+        (server-edit)
+        ;;        (evil-window-delete)
+        )
     (apply orig args)))
+
+(add-hook 'server-done-hook
+          (defun my/on-server-done ()
+            (let ((win (get-buffer-window)))
+              (when win
+                ;; If popper is tracking this window, use popper to close it cleanly
+                (if (bound-and-true-p popper-mode)
+                    (with-selected-window win
+                      (popper-close-latest))
+                  ;; Otherwise, just delete the window normally
+                  (delete-window win))))))
+
 
 (advice-add #'evil-save-modified-and-close
             :around #'my/evil-save-modified-and-close)

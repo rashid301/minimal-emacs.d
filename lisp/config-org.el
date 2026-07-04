@@ -6,7 +6,8 @@
   :demand t
   :bind (("C-c a" . org-agenda))
   :config
-  (setq org-directory (expand-file-name "~/notes/"))
+  (setq org-directory (expand-file-name "/home/rashid/Dropbox/notes/"))
+  (setq org-return-follows-link t)
   (setq org-id-link-to-frametree t)
   (setq org-confirm-babel-evaluate nil)
   (setq org-agenda-files '("~/notes/tasks.org"
@@ -91,7 +92,7 @@
             (todo "NEXT"
                   ((org-agenda-overriding-header "Next Actions")
                    (org-agenda-sorting-strategy '(priority-down effort-up)))))))
-  )
+        )
   (setq org-agenda-prefix-format
         '((agenda . " %i %-12:c%?-12t% s")
           (todo   . " %i %-12:c")
@@ -99,12 +100,19 @@
           (search . " %i %-12:c")))
   )
 
+(use-package evil-org
+  :ensure t
+  :after org
+  :hook (org-mode . (lambda () evil-org-mode))
+  :config
+  (require 'evil-org-agenda)
+  (evil-org-agenda-set-keys))
+
 (use-package org-roam
   :ensure t
   :after org
   :config
-  (setq org-roam-v2-ack t
-        org-roam-directory "~/notes/"
+  (setq org-roam-directory "/home/rashid/Dropbox/notes/roam"
         org-roam-completion-everywhere t)
   (setq org-roam-capture-templates
         '(("d" "default" plain
@@ -117,11 +125,7 @@
            :target (file+head "%<%Y-%m-%d>.org"
                               "#+title: %<%Y-%m-%d>\n#+startup: shrink\n"))))
   ;;(org-roam-dailies-setup)
-  (org-roam-setup)
-  ;; Global keybindings
-  ;; (global-set-key (kbd "C-c n l") #'org-roam-node-find)
-  ;; (global-set-key (kbd "C-c n i") #'org-roam-node-insert)
-  ;; (global-set-key (kbd "C-c n c") #'org-roam-capture)
+  (org-roam-db-autosync-mode)
   )
 
 (provide 'config-org)

@@ -11,6 +11,7 @@
   (setq evil-want-C-u-scroll t)
   (setq evil-symbol-word-search t)
   (setq evil-undo-system 'undo-redo)
+  (setq evil-auto-balance-windows nil)
   :config
   (setq evil-want-minibuffer nil)
   (add-to-list 'evil-emacs-state-modes 'minibuffer-mode)
@@ -65,7 +66,9 @@
   :config
 
   (add-to-list 'evil-textobj-tree-sitter-major-mode-language-alist
-               '(emacs-lisp-mode . "common-lisp"))
+               '(emacs-lisp-mode . "commonlisp"))
+  (add-to-list 'evil-textobj-tree-sitter-major-mode-language-alist
+               '(emacs-lisp-mode . "elisp"))
   ;; --- PARAMETERS (Overwriting paragraph 'p') ---
   (define-key evil-inner-text-objects-map "p" (evil-textobj-tree-sitter-get-textobj "parameter.inner"))
   (define-key evil-outer-text-objects-map "p" (evil-textobj-tree-sitter-get-textobj "parameter.outer"))
@@ -78,7 +81,31 @@
   (define-key evil-inner-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.inner"))
   (define-key evil-outer-text-objects-map "f" (evil-textobj-tree-sitter-get-textobj "function.outer"))
   (define-key evil-inner-text-objects-map "c" (evil-textobj-tree-sitter-get-textobj "class.inner"))
-  (define-key evil-outer-text-objects-map "c" (evil-textobj-tree-sitter-get-textobj "class.outer")))
+  (define-key evil-outer-text-objects-map "c" (evil-textobj-tree-sitter-get-textobj "class.outer"))
+
+  (evil-define-text-object my/elisp-a-defun (count &optional beg end type)
+    "Select a function definition (outer) using beginning/end-of-defun."
+    (save-excursion
+      (let (beg end)
+        (beginning-of-defun)
+        (setq beg (point))
+        (end-of-defun)
+        (setq end (point))
+        (list beg end))))
+
+  (evil-define-text-object my/smart-a-defun (count &optional beg end type)
+    "Select outer function: native defun nav for elisp, tree-sitter otherwise."
+    (if (derived-mode-p 'emacs-lisp-mode)
+        (save-excursion
+          (beginning-of-defun)
+          (let ((b (point)))
+            (end-of-defun)
+            (list b (point))))
+      (funcall (evil-textobj-tree-sitter-get-textobj "function.outer") count beg end type)))
+
+  (define-key evil-outer-text-objects-map "f" #'my/smart-a-defun)
+  (define-key evil-inner-text-objects-map "f" #'my/smart-a-defun)
+  )
 
 (use-package helpful
   :ensure t
@@ -213,7 +240,7 @@
     "br" '(revert-buffer :which-key "revert buffer")
     "b[" '(previous-buffer :which-key "previous buffer")
     "b]" '(next-buffer :which-key "next buffer")
-    "bd" '(kill-this-buffer :which-key "kill buffer")
+    "bd" '(kill-current-buffer :which-key "kill buffer")
 
     ;; --- File bindings ---
     "ff" '(find-file :which-key "find file")
@@ -234,10 +261,15 @@
     "sb" '(consult-line :which-key "search directory")
     "sl" '(my/open-links :which-key "search links")
 
+    ;; -- notes -
+    "n"  '(nil :which-key "notes")
+    "nf" '(find-file "~/notes" :which-key "find note")
+
     ;; --- Org-roam bindings ---
-    "nf" '(org-roam-node-find :which-key "find node")
-    "nc" '(org-roam-capture :which-key "capture")
-    "nd" '(org-roam-dailies-find-today :which-key "daily")
+    "nr"  '(nil :which-key "roam")
+    "nrf" '(org-roam-node-find :which-key "find node")
+    "nrc" '(org-roam-capture :which-key "capture")
+    "nrd" '(org-roam-dailies-goto-today :which-key "daily")
 
     ;; --- Toggle bindings ---
     "tw" '(visual-line-mode :which-key "word wrap")
@@ -418,7 +450,8 @@
     "r"  '(nil :which-key "roam")
     "rf" '(org-roam-node-find :which-key "find node")
     "rc" '(org-roam-capture :which-key "capture")
-    "rd" '(org-roam-dailies-find-today :which-key "daily")))
+    "rl" '(org-roam-node-insert :which-key "insert node")
+    "rd" '(org-roam-dailies-goto-today :which-key "daily")))
 
 ;; ── Agent shell / app shortcuts (in global leader) ──────────────────────
 
