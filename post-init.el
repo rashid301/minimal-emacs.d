@@ -446,6 +446,7 @@ Works over TRAMP without relying on `vc-handled-backends'."
   (popper-display-function #'my/popper-select-at-bottom)
   (popper-reference-buffers
    '("\\*Messages\\*"
+     "\\*emacs-float\\*"
      "\\*Warnings\\*"
      "\\*compilation\\*"
      "\\*Completions\\*"
@@ -790,9 +791,46 @@ Works over TRAMP without relying on `vc-handled-backends'."
             :around #'my/evil-save-modified-and-close)
 
 (add-hook 'server-visit-hook
-          (lambda ()
+          (defun my/server-visit-insert ()
             (when server-buffer-clients
               (evil-insert-state))))
+
+(defun my/save-client-buffer()
+  (interactive)
+  (save-buffer) (server-edit)
+  )
+
+(defun my/save-client-abort-buffer()
+  (interactive)
+  (server-edit-abort)
+  ;; (delete-window)
+  (if (bound-and-true-p popper-mode)
+      (popper-close-latest)
+    )
+  )
+
+(define-minor-mode tridactyl-edit-mode
+  "A minor mode for editing text fields sent from Firefox via Tridactyl."
+  :lighter " Tri"
+  :keymap (let ((map (make-sparse-keymap)))
+            ;; Standard Emacs keys
+            (define-key map (kbd "C-c C-c") #'my/save-client-buffer)
+            (define-key map (kbd "C-c C-k") 'my/save-client-abort-buffer)
+            map)
+  
+  ;; --- THE EVIL MODE FIX ---
+  ;; This automatically redefines ":q", ":wq", and "ZZ" ONLY inside Tridactyl buffers
+  (evil-insert-state)
+  (when (fboundp 'evil-local-set-key)
+    (evil-local-set-key 'normal (kbd "ZZ")))
+  (evil-local-set-key 'normal (kbd "ZQ") #'my/save-client-buffer)
+  (with-eval-after-load 'evil-ex
+    (evil-ex-define-local-cmd "q" 'my/save-client-abort-buffer)
+    (evil-ex-define-local-cmd "wq" #'my/save-client-buffer)
+    (evil-ex-define-local-cmd "x" #'my/save-client-buffer)))
+
+(add-to-list 'auto-mode-alist 
+             '("/tmp/tmp_[^/]*$" . tridactyl-edit-mode))
 
 
 ;; ── TRAMP ─────────────────────────────────────────────────────────────
@@ -830,11 +868,11 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (defun thanos/type ()
   "Launch a temporary frame with a clean buffer for typing."
   (interactive)
-  (let ((buf (get-buffer-create "emacs-float")))
-    (switch-to-buffer buf)
+  (let ((buf (get-buffer-create "*emacs-float*")))
+    (pop-to-buffer buf)
     (erase-buffer)
     (org-mode)
-    (evil-insert 1)
+    (evil-insert-state)
     (setq-local header-line-format
                 (format " %s to insert text or %s to cancel."
                         (propertize "C-c C-c" 'face 'help-key-binding)
@@ -842,12 +880,16 @@ Works over TRAMP without relying on `vc-handled-backends'."
     (local-set-key (kbd "C-c C-k")
                    (lambda () (interactive)
                      (kill-new (buffer-string))
-                     (kill-buffer buf)
+                     (if (bound-and-true-p popper-mode)
+                         (popper-close-latest)
+                       )
                      ))
     (local-set-key (kbd "C-c C-c")
                    (lambda () (interactive)
                      (let ((value (buffer-string)))
-                       (kill-buffer buf)
+                       (if (bound-and-true-p popper-mode)
+                           (popper-close-latest)
+                         )
                        (start-process-shell-command
                         "wtype " nil
                         (thanos/wtype-text value)))

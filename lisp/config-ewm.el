@@ -97,6 +97,8 @@
   (define-key ewm-mode-map (kbd "s-d") #'ewm-launch-app)
   (define-key ewm-mode-map (kbd "M-q") #'evil-window-delete)
   (define-key ewm-mode-map (kbd "s-SPC") #'my-leader)
+  (define-key ewm-mode-map (kbd "s-i") #'thanos/type)
+  (define-key ewm-mode-map (kbd "s-c") #'visual-fill-column-mode)
 
   (defun my/session-noc ()
     (interactive)

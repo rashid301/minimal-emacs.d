@@ -263,7 +263,7 @@
 
     ;; -- notes -
     "n"  '(nil :which-key "notes")
-    "nf" '(find-file "~/notes" :which-key "find note")
+    "nf" '((lambda () (interactive) (consult-find "~/notes")) :which-key "find note")
 
     ;; --- Org-roam bindings ---
     "nr"  '(nil :which-key "roam")
