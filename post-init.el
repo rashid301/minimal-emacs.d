@@ -195,7 +195,7 @@
   (completion-styles '(orderless basic))
   (completion-category-defaults nil)
   (completion-category-overrides '((file (styles orderless partial-completion))))
-  (orderless-component-separator #'orderless-escapable-split-on-space)
+  (orderless-component-separator #'orderless-escapable-split)
   (orderless-affix-dispatch-alist
    '((?! . orderless-without-literal)
      (?& . orderless-annotation)
@@ -269,6 +269,15 @@
    consult-ripgrep consult-git-grep consult-grep
    consult-bookmark consult-recent-file consult-theme
    :preview-key "C-SPC")
+
+  (defun consult--orderless-regexp-compiler (input type &rest _config)
+    (setq input (cdr (orderless-compile input)))
+    (cons
+     (mapcar (lambda (r) (consult--convert-regexp r type)) input)
+     (lambda (str) (orderless--highlight input t str))))
+
+  ;; Apply it globally to consult-find, consult-grep, and consult-ripgrep
+  (setq consult--regexp-compiler #'consult--orderless-regexp-compiler)
 
   (setq consult-line-start-from-top nil)
 
@@ -490,6 +499,47 @@ Works over TRAMP without relying on `vc-handled-backends'."
 (use-package dirvish
   :ensure t
   :defer t)
+
+;; ── EWW rdrview (reader view via Mozilla Readability C port) ───────────
+
+(defun eww-rdrview-update-title ()
+  "Update `eww-data' :title from the first line of the buffer
+(which rdrview prepends as the page title)."
+  (when (eq major-mode 'eww-mode)
+    (save-excursion
+      (goto-char (point-min))
+      (when-let ((title (thing-at-point 'line t)))
+        (plist-put eww-data :title (string-trim title))))
+    (eww--after-page-change)))
+
+(defun my-eww-rename-buffer ()
+  "Rename EWW buffers to show the page title."
+  (when (eq major-mode 'eww-mode)
+    (when-let ((string (or (plist-get eww-data :title)
+                           (plist-get eww-data :url))))
+      (format "%s *eww*" string))))
+
+(define-minor-mode eww-rdrview-mode
+  "Toggle reader view in EWW using `rdrview' (Mozilla Readability C port).
+When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
+  :lighter " rdrview"
+  (if eww-rdrview-mode
+      (progn
+        (setq eww-retrieve-command '("rdrview" "-T" "title,sitename,body" "-H"))
+        (add-hook 'eww-after-render-hook #'eww-rdrview-update-title))
+    (progn
+      (setq eww-retrieve-command nil)
+      (remove-hook 'eww-after-render-hook #'eww-rdrview-update-title))))
+
+(defun eww-rdrview-toggle-and-reload ()
+  "Toggle `eww-rdrview-mode' and reload the current EWW page."
+  (interactive)
+  (if eww-rdrview-mode
+      (eww-rdrview-mode -1)
+    (eww-rdrview-mode 1))
+  (eww-reload))
+
+(setq eww-auto-rename-buffer #'my-eww-rename-buffer)
 
 ;; ── Elfeed (RSS reader) ────────────────────────────────────────────────
 (use-package elfeed

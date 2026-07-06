@@ -243,7 +243,7 @@
     "bd" '(kill-current-buffer :which-key "kill buffer")
 
     ;; --- File bindings ---
-    "ff" '(find-file :which-key "find file")
+    "ff" '(consult-find :which-key "find file")
     "fr" '(consult-recent-file :which-key "recent files")
     "fb" '(consult-buffer :which-key "buffer list")
     "fy" '(my/copy-file-path :which-key "copy file path")
