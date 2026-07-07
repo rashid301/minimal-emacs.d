@@ -915,6 +915,32 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
                                 (replace-regexp-in-string "\"" "\\\\\"" line)))))
      " && ")))
 
+(defvar thanos/type-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c")
+                (lambda () (interactive)
+                  (let ((value (buffer-string)))
+                    (if (bound-and-true-p popper-mode)
+                        (popper-close-latest)
+                      )
+                    (start-process-shell-command
+                     "wtype " nil
+                     (thanos/wtype-text value)))
+                  ))
+    (define-key map (kbd "C-c C-k")
+                (lambda () (interactive)
+                  (kill-new (buffer-string))
+                  (if (bound-and-true-p popper-mode)
+                      (popper-close-latest)
+                    )
+                  )
+                )
+    map))
+
+(define-minor-mode thanos/type-mode
+  ""
+  :keymap thanos/type-mode-map)
+
 (defun thanos/type ()
   "Launch a temporary frame with a clean buffer for typing."
   (interactive)
@@ -922,28 +948,14 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
     (pop-to-buffer buf)
     (erase-buffer)
     (org-mode)
+    (thanos/type-mode 1)
     (evil-insert-state)
     (setq-local header-line-format
                 (format " %s to insert text or %s to cancel."
                         (propertize "C-c C-c" 'face 'help-key-binding)
                         (propertize "C-c C-k" 'face 'help-key-binding)))
-    (local-set-key (kbd "C-c C-k")
-                   (lambda () (interactive)
-                     (kill-new (buffer-string))
-                     (if (bound-and-true-p popper-mode)
-                         (popper-close-latest)
-                       )
-                     ))
-    (local-set-key (kbd "C-c C-c")
-                   (lambda () (interactive)
-                     (let ((value (buffer-string)))
-                       (if (bound-and-true-p popper-mode)
-                           (popper-close-latest)
-                         )
-                       (start-process-shell-command
-                        "wtype " nil
-                        (thanos/wtype-text value)))
-                     ))))
+    
+    ))
 
 (with-eval-after-load 'eww
   (define-key eww-mode-map (kbd "=") #'text-scale-increase)
