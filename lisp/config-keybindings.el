@@ -128,7 +128,7 @@
 (use-package markdown-mode
   :mode ("\\.md\\'" . markdown-mode)
   :config
-  (setq markdown-command "multimarkdown")) 
+  (setq markdown-command "pandoc")) 
 
 ;; ── Evil goodies ───────────────────────────────────────────────────────
 
@@ -489,6 +489,22 @@
       (error (buffer-list))))
 
   (setq consult-buffer-list-function #'my/consult-buffer-list--activity)
+
+  (defun my/activity-buffer-p (buf)
+    "Return non-nil if BUF belongs to the current activity's frame."
+    (condition-case nil
+        (if-let ((activity (activities-current))
+                 (frame (activities--frame activity))
+                 ((frame-live-p frame)))
+            (memq buf (cl-loop for b in (frame-parameter frame 'buffer-list)
+                               collect (if (consp b) (cdr b) b)))
+          t)
+      (error t)))
+
+  ;; apply to future frames
+  (add-to-list 'default-frame-alist '(buffer-predicate . my/activity-buffer-p))
+  ;; and to the current one, since default-frame-alist only affects new frames
+  (set-frame-parameter nil 'buffer-predicate #'my/activity-buffer-p)
   )
 
 ;; ── Navigation ─────────────────────────────────────────────────────────

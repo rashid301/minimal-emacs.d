@@ -97,7 +97,9 @@ with prefix argument, choose another activity."
            (frame (ewm--create-frame-for-output
                    (frame-parameter eframe 'ewm-output) eframe
                    `((activity . ,activity)
-                     (ewm-focus-on-create . t)))))
+                     (ewm-focus-on-create . t)
+                     (buffer-predicate . my/activity-buffer-p)
+                     ))))
       (select-frame frame)
       (activities-ewm--name-frame eframe activity)
       (activities--set activity)))
