@@ -345,6 +345,25 @@ Empty string means no filter (all pending tasks)."
 ;; Header line
 ;; ---------------------------------------------------------------------------
 
+(defun taskwarrior-gtd-bookmark-handler (_bookmark)
+  "Restore a taskwarrior-gtd bookmark."
+  (taskwarrior-gtd)
+  (get-buffer taskwarrior-gtd--buffer))
+
+(defun taskwarrior-gtd-bookmark-make-record ()
+  "Create a bookmark record for the GTD buffer."
+  `("taskwarrior-gtd"
+    (handler . taskwarrior-gtd-bookmark-handler)))
+
+(add-hook 'gtd-list-mode-hook
+          (lambda ()
+            (setq-local bookmark-make-record-function
+                        #'taskwarrior-gtd-bookmark-make-record)))
+
+;; ---------------------------------------------------------------------------
+;; Header line
+;; ---------------------------------------------------------------------------
+
 (defun taskwarrior-gtd--update-header-line ()
   "Update the header line with current filter and counts."
   (let* ((filter taskwarrior-gtd--current-filter)
