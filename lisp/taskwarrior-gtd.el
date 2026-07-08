@@ -467,8 +467,10 @@ Empty string means no filter (all pending tasks)."
                                            col-specs))))
                   (or tasks '())))))
 
-(defun taskwarrior-gtd-refresh ()
-  "Re-fetch tasks from taskwarrior and refresh the current view."
+(defun taskwarrior-gtd-refresh (&optional preserve-pos)
+  "Re-fetch tasks from taskwarrior and refresh the current view.
+When PRESERVE-POS is non-nil, keep the cursor on the same row instead of
+going to the top."
   (interactive)
   (when taskwarrior-gtd--buffer
     (with-current-buffer taskwarrior-gtd--buffer
@@ -477,7 +479,11 @@ Empty string means no filter (all pending tasks)."
       (taskwarrior-gtd--populate)
       (tabulated-list-print t)
       (taskwarrior-gtd--update-header-line)
-      (goto-char (point-min))
+      (if preserve-pos
+          (let ((target (line-number-at-pos)))
+            (goto-char (point-min))
+            (forward-line (1- target)))
+        (goto-char (point-min)))
       (when (get-buffer-window taskwarrior-gtd--buffer)
         (with-selected-window (get-buffer-window taskwarrior-gtd--buffer)
           (recenter 0))))))
@@ -522,21 +528,21 @@ E.g: project:Home due:today +urgent \"buy milk\""
              (active-id (taskwarrior-gtd--get-active-task-id)))
         (cond
          ((equal id active-id)
-          (taskwarrior-gtd--run (list id "stop"))
-          (message "Task %s stopped" id)
-          (taskwarrior-gtd-refresh))
-         (active-id
-           (let ((active-desc (cdr (assoc 'description taskwarrior-gtd--active-task))))
-            (when (y-or-n-p (format "Task %s is active (%s). Stop it and start task %s (%s)? "
-                                    active-id (or active-desc "?") id desc))
-              (taskwarrior-gtd--run (list active-id "stop"))
-              (taskwarrior-gtd--run (list id "start"))
-              (message "Stopped task %s, started task %s" active-id id)
-              (taskwarrior-gtd-refresh))))
-         (t
-          (taskwarrior-gtd--run (list id "start"))
-          (message "Task %s started" id)
-          (taskwarrior-gtd-refresh)))))))
+           (taskwarrior-gtd--run (list id "stop"))
+           (message "Task %s stopped" id)
+           (taskwarrior-gtd-refresh t))
+          (active-id
+            (let ((active-desc (cdr (assoc 'description taskwarrior-gtd--active-task))))
+             (when (y-or-n-p (format "Task %s is active (%s). Stop it and start task %s (%s)? "
+                                     active-id (or active-desc "?") id desc))
+               (taskwarrior-gtd--run (list active-id "stop"))
+               (taskwarrior-gtd--run (list id "start"))
+               (message "Stopped task %s, started task %s" active-id id)
+               (taskwarrior-gtd-refresh t))))
+          (t
+           (taskwarrior-gtd--run (list id "start"))
+           (message "Task %s started" id)
+           (taskwarrior-gtd-refresh t)))))))
 
 (defun taskwarrior-gtd-action-complete ()
   "Mark the task at point as done."
@@ -576,8 +582,8 @@ E.g: project:Home due:today +urgent \"buy milk\""
                                       nil t)))
         (when (length> bucket 0)
           (taskwarrior-gtd--run (list id "modify" (format "type:%s" bucket)))
-          (message "Task %s moved to type:%s" id bucket)
-          (taskwarrior-gtd-refresh))))))
+         (message "Task %s moved to type:%s" id bucket)
+           (taskwarrior-gtd-refresh t))))))
 
 (defun taskwarrior-gtd-action-add (&optional initial-input)
   "Add a new task, supporting native project, tag, and date syntax."
@@ -621,8 +627,8 @@ E.g: project:Home due:today +urgent \"buy milk\""
         (taskwarrior-gtd--run-async
          (list id "edit")
          (lambda (_proc _event)
-           (message "Task %s modified" id)
-           (taskwarrior-gtd-refresh)))))))
+            (message "Task %s modified" id)
+            (taskwarrior-gtd-refresh t)))))))
 
 (defun taskwarrior-gtd-action-jump ()
   "Jump to a task by ID, searching across all tasks if needed."
