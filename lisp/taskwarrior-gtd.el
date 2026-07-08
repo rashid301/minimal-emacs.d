@@ -122,6 +122,12 @@ Empty string means no filter (all pending tasks)."
   "Buffer-local: list of task alists for the current view.")
 (defvar taskwarrior-gtd--search-filter nil
   "Buffer-local: custom search filter string, or nil to use report.")
+(defvar taskwarrior-gtd--all-tasks nil
+  "Buffer-local: cached full list of all pending tasks.")
+(defvar taskwarrior-gtd--active-id nil
+  "Buffer-local: cached active task ID string, or nil.")
+(defvar taskwarrior-gtd--active-task nil
+  "Buffer-local: cached active task alist, or nil.")
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
@@ -157,24 +163,26 @@ Empty string means no filter (all pending tasks)."
         (json-parse-string out :object-type 'alist :array-type 'list)
       (error nil))))
 
-(defun taskwarrior-gtd--filter-count (filter)
-  "Return the count of tasks for FILTER name."
-  (let* ((filter-str (cdr (assoc filter taskwarrior-gtd-filters)))
-         (args (if (string= filter-str "")
-                   '("count")
-                 (append (split-string filter-str) (list "count"))))
-         (out (taskwarrior-gtd--run args))
-         (n (string-trim out)))
-    (condition-case nil (string-to-number n) (error 0))))
+(defun taskwarrior-gtd--fetch-all-tasks ()
+  "Fetch all pending tasks from taskwarrior once."
+  (let ((data (taskwarrior-gtd--run-json '("status:pending" "export"))))
+    (if (and data (sequencep data)) data nil)))
+
+(defun taskwarrior-gtd--match-filter (task filter)
+  "Return non-nil if TASK matches the FILTER name (client-side)."
+  (let ((filter-str (cdr (assoc filter taskwarrior-gtd-filters))))
+    (cond
+     ((string= filter-str "") t)
+     ((string-prefix-p "type:" filter-str)
+      (let ((wanted (substring filter-str 5))
+            (actual (cdr (assoc 'type task))))
+        (equal actual wanted)))
+     (t nil))))
 
 (defun taskwarrior-gtd--filter-tasks (filter)
-  "Return the list of task objects for FILTER name."
-  (let* ((filter-str (cdr (assoc filter taskwarrior-gtd-filters)))
-         (args (if (string= filter-str "")
-                   '("status:pending" "export")
-                 (append (split-string filter-str) (list "status:pending" "export"))))
-         (data (taskwarrior-gtd--run-json args)))
-    (if (and data (sequencep data)) data nil)))
+  "Filter `taskwarrior-gtd--all-tasks' by FILTER name (client-side)."
+  (seq-filter (lambda (t) (taskwarrior-gtd--match-filter t filter))
+              (or taskwarrior-gtd--all-tasks '())))
 
 (defun taskwarrior-gtd--search-tasks (filter)
   "Return tasks matching a raw Taskwarrior FILTER string."
@@ -301,9 +309,18 @@ Empty string means no filter (all pending tasks)."
     (if diff (propertize diff 'face 'taskwarrior-gtd-count) "")))
 
 (defun taskwarrior-gtd--get-active-task-id ()
+  "Return the cached active task ID. Use `taskwarrior-gtd--refresh-active-id' to update."
+  taskwarrior-gtd--active-id)
+
+(defun taskwarrior-gtd--refresh-active-id ()
+  "Query taskwarrior and update the cached active task info."
   (let ((data (taskwarrior-gtd--run-json '("+ACTIVE" "export"))))
-    (when (and data (sequencep data) (> (length data) 0))
-      (number-to-string (cdr (assoc 'id (car data)))))))
+    (if (and data (sequencep data) (> (length data) 0))
+        (let ((task (car data)))
+          (setq taskwarrior-gtd--active-id (number-to-string (cdr (assoc 'id task)))
+                taskwarrior-gtd--active-task task))
+      (setq taskwarrior-gtd--active-id nil
+            taskwarrior-gtd--active-task nil))))
 
 (defun taskwarrior-gtd--sort-by-due (tasks)
   (sort (copy-sequence tasks)
@@ -332,15 +349,14 @@ Empty string means no filter (all pending tasks)."
          (filter-str (propertize (or filter "all") 'face 'taskwarrior-gtd-filter-name))
          (count-str (propertize (format "%d" count) 'face 'taskwarrior-gtd-count))
          (active-id (taskwarrior-gtd--get-active-task-id))
-         (active-str (if active-id
-                         (let* ((data (taskwarrior-gtd--run-json '("+ACTIVE" "export")))
-                                (task (car data))
-                                (desc (cdr (assoc 'description task)))
-                                (proj (cdr (assoc 'project task)))
-                                (proj-str (if proj (format " [%s]" proj) "")))
-                           (propertize (format " ▶ [%s] %s%s" active-id desc proj-str)
-                                       'face 'taskwarrior-gtd-active))
-                       ""))
+        (active-str (if active-id
+                          (let* ((task taskwarrior-gtd--active-task)
+                                 (desc (cdr (assoc 'description task)))
+                                 (proj (cdr (assoc 'project task)))
+                                 (proj-str (if proj (format " [%s]" proj) "")))
+                            (propertize (format " ▶ [%s] %s%s" active-id desc proj-str)
+                                        'face 'taskwarrior-gtd-active))
+                        ""))
          (header (concat " GTD [" filter-str "] " count-str " tasks" active-str)))
     (setq header-line-format header)))
 
@@ -401,6 +417,10 @@ Empty string means no filter (all pending tasks)."
     (with-current-buffer buf
       (unless (derived-mode-p 'gtd-list-mode)
         (gtd-list-mode))
+      (unless taskwarrior-gtd--all-tasks
+        (make-local-variable 'taskwarrior-gtd--all-tasks)
+        (setq taskwarrior-gtd--all-tasks (taskwarrior-gtd--fetch-all-tasks))
+        (taskwarrior-gtd--refresh-active-id))
       (make-local-variable 'taskwarrior-gtd--current-filter)
       (setq taskwarrior-gtd--current-filter filter)
       (make-local-variable 'taskwarrior-gtd--search-filter)
@@ -439,10 +459,12 @@ Empty string means no filter (all pending tasks)."
                   (or tasks '())))))
 
 (defun taskwarrior-gtd-refresh ()
-  "Refresh the current view."
+  "Re-fetch tasks from taskwarrior and refresh the current view."
   (interactive)
   (when taskwarrior-gtd--buffer
     (with-current-buffer taskwarrior-gtd--buffer
+      (setq taskwarrior-gtd--all-tasks (taskwarrior-gtd--fetch-all-tasks))
+      (taskwarrior-gtd--refresh-active-id)
       (taskwarrior-gtd--populate)
       (tabulated-list-print t)
       (taskwarrior-gtd--update-header-line)
@@ -495,9 +517,7 @@ E.g: project:Home due:today +urgent \"buy milk\""
           (message "Task %s stopped" id)
           (taskwarrior-gtd-refresh))
          (active-id
-          (let ((active-desc (cdr (assoc 'description
-                                         (car (taskwarrior-gtd--run-json
-                                               '("+ACTIVE" "export")))))))
+           (let ((active-desc (cdr (assoc 'description taskwarrior-gtd--active-task))))
             (when (y-or-n-p (format "Task %s is active (%s). Stop it and start task %s (%s)? "
                                     active-id (or active-desc "?") id desc))
               (taskwarrior-gtd--run (list active-id "stop"))
