@@ -129,6 +129,9 @@ Empty string means no filter (all pending tasks)."
 (defvar taskwarrior-gtd--active-task nil
   "Buffer-local: cached active task alist, or nil.")
 
+(defvar taskwarrior-gtd--last-refresh nil
+  "Timestamp of the last task list refresh.")
+
 ;; ---------------------------------------------------------------------------
 ;; Helpers
 ;; ---------------------------------------------------------------------------
@@ -357,8 +360,13 @@ Empty string means no filter (all pending tasks)."
                             (propertize (format " ▶ [%s] %s%s" active-id desc proj-str)
                                         'face 'taskwarrior-gtd-active))
                         ""))
-         (header (concat " GTD [" filter-str "] " count-str " tasks" active-str)))
-    (setq header-line-format header)))
+         (refresh-str (if taskwarrior-gtd--last-refresh
+                           (propertize (format " (updated %s)"
+                                               (format-time-string "%H:%M:%S" taskwarrior-gtd--last-refresh))
+                                       'face 'shadow)
+                         ""))
+          (header (concat " GTD [" filter-str "] " count-str " tasks" active-str refresh-str)))
+     (setq header-line-format header)))
 
 ;; ---------------------------------------------------------------------------
 ;; List mode
@@ -433,6 +441,7 @@ Empty string means no filter (all pending tasks)."
 
 (defun taskwarrior-gtd--populate ()
   "Populate the current buffer with tasks for the current filter."
+  (setq taskwarrior-gtd--last-refresh (current-time))
   (let* ((filter taskwarrior-gtd--current-filter)
          (tasks (if taskwarrior-gtd--search-filter
                     (taskwarrior-gtd--search-tasks taskwarrior-gtd--search-filter)
