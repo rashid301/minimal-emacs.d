@@ -345,12 +345,22 @@ This only works with orderless and for the first component of the search."
   (setq project-vc-extra-file-search-functions nil)
   (project-remember-project (cons 'transient (expand-file-name "~/Dropbox/")))
 
+  (defvar my-project-git-root-cache (make-hash-table :test 'equal)
+    "Cache of directory -> git project root, to avoid repeated locate-dominating-file walks over TRAMP.")
+
   (defun my-project-try-git (dir)
     "Detect a Git project root by checking for a .git directory.
-Works over TRAMP without relying on `vc-handled-backends'."
-    (when-let ((root (locate-dominating-file dir ".git")))
-      (when (file-directory-p (expand-file-name ".git" root))
-        (list 'vc 'Git root))))
+Works over TRAMP without relying on `vc-handled-backends'.
+Caches result per DIR to avoid repeated ancestor walks."
+    (let ((cached (gethash dir my-project-git-root-cache 'not-found)))
+      (if (not (eq cached 'not-found))
+          cached
+        (let ((result
+               (when-let ((root (locate-dominating-file dir ".git")))
+                 (when (file-directory-p (expand-file-name ".git" root))
+                   (list 'vc 'Git root)))))
+          (puthash dir result my-project-git-root-cache)
+          result))))
 
   (add-hook 'project-find-functions #'my-project-try-git 'append)
   )
@@ -765,7 +775,17 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 (use-package agent-shell-tramp
   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
   :config
-  (agent-shell-tramp-mode 1))
+  (agent-shell-tramp-mode 1)
+  ;; (connection-local-set-profile-variables
+  ;;  'remote-direct-async-process
+  ;;  '((tramp-direct-async-process . t)))
+  ;; 
+  ;; (connection-local-set-profiles
+  ;;  '(:application tramp)
+  ;;  'remote-direct-async-process)
+
+
+  )
 
 (use-package agent-shell-bookmark
   :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev :newest))
