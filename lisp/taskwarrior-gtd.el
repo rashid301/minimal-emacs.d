@@ -371,21 +371,21 @@ Empty string means no filter (all pending tasks)."
          (filter-str (propertize (or filter "all") 'face 'taskwarrior-gtd-filter-name))
          (count-str (propertize (format "%d" count) 'face 'taskwarrior-gtd-count))
          (active-id (taskwarrior-gtd--get-active-task-id))
-        (active-str (if active-id
-                          (let* ((task taskwarrior-gtd--active-task)
-                                 (desc (cdr (assoc 'description task)))
-                                 (proj (cdr (assoc 'project task)))
-                                 (proj-str (if proj (format " [%s]" proj) "")))
-                            (propertize (format " ▶ [%s] %s%s" active-id desc proj-str)
-                                        'face 'taskwarrior-gtd-active))
-                        ""))
+         (active-str (if active-id
+                         (let* ((task taskwarrior-gtd--active-task)
+                                (desc (cdr (assoc 'description task)))
+                                (proj (cdr (assoc 'project task)))
+                                (proj-str (if proj (format " [%s]" proj) "")))
+                           (propertize (format " ▶ [%s] %s%s" active-id desc proj-str)
+                                       'face 'taskwarrior-gtd-active))
+                       ""))
          (refresh-str (if taskwarrior-gtd--last-refresh
-                           (propertize (format " (updated %s)"
-                                               (format-time-string "%H:%M:%S" taskwarrior-gtd--last-refresh))
-                                       'face 'shadow)
-                         ""))
-          (header (concat " GTD [" filter-str "] " count-str " tasks" active-str refresh-str)))
-     (setq header-line-format header)))
+                          (propertize (format " (updated %s)"
+                                              (format-time-string "%H:%M:%S" taskwarrior-gtd--last-refresh))
+                                      'face 'shadow)
+                        ""))
+         (header (concat " GTD [" filter-str "] " count-str " tasks" active-str refresh-str)))
+    (setq header-line-format header)))
 
 ;; ---------------------------------------------------------------------------
 ;; List mode
@@ -407,7 +407,7 @@ Empty string means no filter (all pending tasks)."
     (define-key map (kbd "c") #'taskwarrior-gtd-action-add)
     (define-key map (kbd "gt") #'taskwarrior-gtd-action-jump)
     (define-key map (kbd "r") #'taskwarrior-gtd-refresh)
-    (define-key map (kbd "q") #'taskwarrior-gtd-quit)
+    (define-key map (kbd "q") #'taskwarrior-gtd-action-quit-or-all)
     (define-key map (kbd "u") #'taskwarrior-gtd-action-undo)
     (define-key map (kbd "t") #'taskwarrior-gtd-action-toggle-start)
     (define-key map (kbd "s") #'taskwarrior-gtd-action-search)
@@ -418,7 +418,7 @@ Empty string means no filter (all pending tasks)."
   (evil-make-overriding-map gtd-list-mode-map 'normal)
   (add-hook 'gtd-list-mode-hook #'evil-normalize-keymaps)
   (evil-define-key 'normal gtd-list-mode-map
-    (kbd "q") #'taskwarrior-gtd-quit
+    (kbd "q") #'taskwarrior-gtd-action-quit-or-all
     (kbd "gg") #'beginning-of-buffer
     (kbd "G") #'end-of-buffer
     (kbd "gt") #'taskwarrior-gtd-action-jump
@@ -547,21 +547,21 @@ E.g: project:Home due:today +urgent \"buy milk\""
              (active-id (taskwarrior-gtd--get-active-task-id)))
         (cond
          ((equal id active-id)
-           (taskwarrior-gtd--run (list id "stop"))
-           (message "Task %s stopped" id)
-           (taskwarrior-gtd-refresh t))
-          (active-id
-            (let ((active-desc (cdr (assoc 'description taskwarrior-gtd--active-task))))
-             (when (y-or-n-p (format "Task %s is active (%s). Stop it and start task %s (%s)? "
-                                     active-id (or active-desc "?") id desc))
-               (taskwarrior-gtd--run (list active-id "stop"))
-               (taskwarrior-gtd--run (list id "start"))
-               (message "Stopped task %s, started task %s" active-id id)
-               (taskwarrior-gtd-refresh t))))
-          (t
-           (taskwarrior-gtd--run (list id "start"))
-           (message "Task %s started" id)
-           (taskwarrior-gtd-refresh t)))))))
+          (taskwarrior-gtd--run (list id "stop"))
+          (message "Task %s stopped" id)
+          (taskwarrior-gtd-refresh t))
+         (active-id
+          (let ((active-desc (cdr (assoc 'description taskwarrior-gtd--active-task))))
+            (when (y-or-n-p (format "Task %s is active (%s). Stop it and start task %s (%s)? "
+                                    active-id (or active-desc "?") id desc))
+              (taskwarrior-gtd--run (list active-id "stop"))
+              (taskwarrior-gtd--run (list id "start"))
+              (message "Stopped task %s, started task %s" active-id id)
+              (taskwarrior-gtd-refresh t))))
+         (t
+          (taskwarrior-gtd--run (list id "start"))
+          (message "Task %s started" id)
+          (taskwarrior-gtd-refresh t)))))))
 
 (defun taskwarrior-gtd-action-complete ()
   "Mark the task at point as done."
@@ -601,8 +601,8 @@ E.g: project:Home due:today +urgent \"buy milk\""
                                       nil t)))
         (when (length> bucket 0)
           (taskwarrior-gtd--run (list id "modify" (format "type:%s" bucket)))
-         (message "Task %s moved to type:%s" id bucket)
-           (taskwarrior-gtd-refresh t))))))
+          (message "Task %s moved to type:%s" id bucket)
+          (taskwarrior-gtd-refresh t))))))
 
 (defun taskwarrior-gtd-action-add (&optional initial-input)
   "Add a new task, supporting native project, tag, and date syntax."
@@ -646,8 +646,8 @@ E.g: project:Home due:today +urgent \"buy milk\""
         (taskwarrior-gtd--run-async
          (list id "edit")
          (lambda (_proc _event)
-            (message "Task %s modified" id)
-            (taskwarrior-gtd-refresh t)))))))
+           (message "Task %s modified" id)
+           (taskwarrior-gtd-refresh t)))))))
 
 (defun taskwarrior-gtd-action-jump ()
   "Jump to a task by ID, searching across all tasks if needed."
@@ -707,6 +707,13 @@ E.g: project:Home due:today +urgent \"buy milk\""
   "Open the Taskwarrior GTD buffer."
   (interactive)
   (taskwarrior-gtd-filter "all"))
+
+(defun taskwarrior-gtd-action-quit-or-all ()
+  "Go to the 'all' filter when in search mode, otherwise quit the GTD buffer."
+  (interactive)
+  (if (equal taskwarrior-gtd--current-filter "search")
+      (taskwarrior-gtd-filter "all")
+    (taskwarrior-gtd-quit)))
 
 (defun taskwarrior-gtd-quit ()
   "Quit the GTD buffer."
