@@ -28,7 +28,7 @@
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
 (defun my/set-font (&optional frame font-size)
-  (my/load-theme 'doom-one)
+  (my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "RobotoMono Nerd Font"
                       :height (or font-size 140)
@@ -97,7 +97,8 @@
       eshell-mode
       eat-mode
       dashboard-mode
-      completion-list-mode)
+      completion-list-mode
+      agent-shell-mode)
     "List of major modes where the mode-line should be completely hidden.")
 
   :config

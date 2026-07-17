@@ -599,6 +599,28 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   :config
   (eat-eshell-mode 1)
   (evil-set-initial-state 'eat-term-mode 'emacs)
+
+  (defun my/eat-left ()
+    (interactive)
+    (eat-self-input 1 'left))
+
+  (defun my/eat-right ()
+    (interactive)
+    (eat-self-input 1 'right))
+
+  (defun my/eat-up ()
+    (interactive)
+    (eat-self-input 1 'up))
+
+  (defun my/eat-down ()
+    (interactive)
+    (eat-self-input 1 'down))
+
+  (evil-define-key 'normal eat-semi-char-mode-map
+    "h" #'my/eat-left
+    ;; "j" #'my/eat-down
+    ;; "k" #'my/eat-up
+    "l" #'my/eat-right)
   )
 
 (with-eval-after-load 'eshell
@@ -651,7 +673,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 ;; ── Tmux control mode ──────────────────────────────────────────────────
 
 (use-package tmux-control
-  :vc (:url "https://github.com/csheaff/tmux-control" :rev :newest)
+  :vc (:url "https://github.com/csheaff/tmux-control" :rev "4afbbcab4593a1acb3a31183b1ae4ee20f9638df")
   :config
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
@@ -773,7 +795,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   )
 
 (use-package agent-shell-tramp
-  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev :newest)
+  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "ebdeb204973beb116017a977bee52cdced78e447")
   :config
   (agent-shell-tramp-mode 1)
   ;; (connection-local-set-profile-variables
@@ -788,7 +810,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   )
 
 (use-package agent-shell-bookmark
-  :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev :newest))
+  :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496"))
 
 ;; ── agent-recall (search/browse agent-shell transcripts) ───────────────
 
