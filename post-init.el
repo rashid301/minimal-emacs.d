@@ -3,6 +3,14 @@
 ;; Add lisp/ to load-path so `require` can find our modules
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 
+;; ── Mouse horizontal scroll ─────────────────────────────────────────────
+;; Enable horizontal scrolling when tilting the mouse wheel
+(setq mouse-wheel-tilt-scroll t)
+
+;; Bind the MX Master 3 thumb wheel directly to horizontal scrolling
+(global-set-key [mouse-6] #'scroll-right)
+(global-set-key [mouse-7] #'scroll-left)
+
 ;; ── Load modules ─────────────────────────────────────────────────────────
 
 ;; UI: themes, font, line numbers, modeline, icons
