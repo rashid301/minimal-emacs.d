@@ -232,9 +232,7 @@
    corfu-count 16
    corfu-max-width 120
    corfu-on-exact-match nil
-   corfu-quit-at-boundary (if (or (modulep! :completion vertico)
-                                  (modulep! +orderless))
-                              'separator t)
+   corfu-quit-at-boundary 'separator
    corfu-quit-no-match corfu-quit-at-boundary)
   
   (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
@@ -681,7 +679,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 ;; ── Tmux control mode ──────────────────────────────────────────────────
 
 (use-package tmux-control
-  :vc (:url "https://github.com/csheaff/tmux-control" :rev "4afbbcab4593a1acb3a31183b1ae4ee20f9638df")
+  :vc (:url "https://github.com/csheaff/tmux-control" :rev "cb329d30124d1a932ad1c2857373f680f7d39dee")
   :config
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
