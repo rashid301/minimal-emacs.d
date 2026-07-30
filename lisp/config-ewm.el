@@ -174,7 +174,8 @@
             (make-process :buffer " *noctalia*"
                           :name "noctalia"
                           :command '("noctalia" "--daemon")
-                          :noquery t)))
+                          :noquery t)
+            ))
 
 (defun my/activity-name ()
   (interactive)

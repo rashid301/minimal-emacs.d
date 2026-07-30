@@ -12,9 +12,13 @@
   (doom-themes-visual-bell-config)
   (doom-themes-org-config))
 
-(setq scroll-conservatively 3)
+(setq scroll-conservatively 101)
 (global-superword-mode 1)
 (global-subword-mode 1)
+
+(use-package nano-theme
+  :ensure t
+  )
 
 ;; ── Ultra-scroll (smooth scrolling) ────────────────────────────────────
 
@@ -28,9 +32,10 @@
 ;; ── Font (GUI only) ────────────────────────────────────────────────────
 
 (defun my/set-font (&optional frame font-size)
-  (my/load-theme 'noctalia)
+  ;;(nano-mode)
+  (my/load-theme 'modus-operandi)
   (set-face-attribute 'default frame
-                      :family "RobotoMono Nerd Font"
+                      :family "Iosevka Extended"
                       :height (or font-size 140)
                       :weight 'normal))
 
@@ -131,6 +136,21 @@
   :after nerd-icons
   :config
   (nerd-icons-completion-mode 1))
+
+(use-package ligature
+  :ensure t
+  :config
+  ;; Enable all Iosevka ligatures for typographic and programming modes
+  (ligature-set-ligatures 'prog-mode
+                          '("|||=" "||=" "||" "|=" "|>" "感知" "::=" "::" ":=" "==" "===" "==>" "=>" "!=" "!==" "->" "-->" "->>" "->=" "<-" "<--" "<-" "<=" "<==" "<=>" "<~" "<~>" "<>" "<<" "<<-" "<<=" "<<<" ">>" ">>-" ">>=" ">>>" ".-" ".=" ".." "..." "++" "+++" "+=" "/=" "///" "/*" "*/" "safe" "&&" "&&=" "&&&" "&=" "==" "===" "==>" "=>"))
+  ;; Activate ligature-mode globally
+  (global-ligature-mode t))
+
+(use-package nerd-icons-dired
+  :ensure t
+  :hook
+  (dired-mode . nerd-icons-dired-mode))
+
 
 (provide 'config-ui)
 ;; config-ui.el ends here

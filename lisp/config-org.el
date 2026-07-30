@@ -21,6 +21,7 @@
   (setq org-log-done 'time)
   (setq org-log-into-drawer t)
   (setq org-startup-align-all-tables t)
+  (setq org-startup-indented t)
   (setq org-use-speed-commands t)
   (setq org-export-preserve-breaks nil)
   (setq org-todo-keywords '((sequence "TODO(t)" "NEXT(n)" "WAITING(w)" "PROJECT(p)"
@@ -127,6 +128,18 @@
   ;;(org-roam-dailies-setup)
   (org-roam-db-autosync-mode)
   )
+
+(use-package org-modern
+  :ensure t
+  :hook (org-mode . org-modern-mode)
+  )
+
+;; (use-package org-modern-indent
+;;   ;;:load-path "~/code/emacs/org-modern-indent/"
+;;                                         ; or
+;;                                          (:type git :host github :repo "jdtsmith/org-modern-indent"))
+;;   :config ; add late to hook
+;;   (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
 
 (provide 'config-org)
 ;; config-org.el ends here

@@ -631,7 +631,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 
 (with-eval-after-load 'eshell
   (require 'em-hist)
-  (add-hook 'eshell-mode  #'rs/shell-scroll-setup)
+  (add-hook 'eshell-mode-hook  #'rs/shell-scroll-setup)
   (add-to-list 'eshell-modules-list 'eshell-rebind)
   ;; (add-to-list 'eshell-modules-list 'eshell-smart)
 
@@ -669,17 +669,17 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 
 ;; ── Golden Ratio (automatic window resizing) ─────────────────────────
 
-(use-package golden-ratio
-  :ensure t
-  :diminish golden-ratio-mode
-  :config
-  (setq golden-ratio-auto-scale t)  ; Auto-scale for wide screens
-  (golden-ratio-mode -1))
+;; (use-package golden-ratio
+;;   :ensure t
+;;   :diminish golden-ratio-mode
+;;   :config
+;;   (setq golden-ratio-auto-scale t)  ; Auto-scale for wide screens
+;;   (golden-ratio-mode -1))
 
 ;; ── Tmux control mode ──────────────────────────────────────────────────
 
 (use-package tmux-control
-  :vc (:url "https://github.com/csheaff/tmux-control" :rev "cb329d30124d1a932ad1c2857373f680f7d39dee")
+  :vc (:url "https://github.com/csheaff/tmux-control" :rev "6cba37a20c9e0eb3620cd1cd7aae757e4707cb9")
   :config
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
@@ -828,6 +828,19 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
         agent-recall-search-function 'consult-ripgrep
         agent-recall-browse-sort 'modified-desc))
 
+;; ── gptel ──────────────────────
+
+(use-package gptel
+  :ensure t
+  :config
+  (setq gptel-api-key "your key")
+  (setq gptel-backend (gptel-make-openai "Beellama"             ;Any name of your choosing
+                        :protocol "http"
+                        :host "desktop-pc:8060"               ;Where it's running
+                        :stream t                             ;Stream responses
+                        :models '(Qwen3.6-27B-Q5_K_S.gguf)))          ;List of models
+  )
+
 ;; ── shell-maker (create custom shells in eshell) ──────────────────────
 
 (use-package shell-maker
@@ -845,9 +858,15 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   :ensure t
   :hook (eshell-mode . capf-autosuggest-mode)
   :config
+
+  (add-hook 'eshell-mode-hook #'capf-autosuggest-mode)
   (setq capf-autosuggest-backends '(capf-autosuggest-eshell-history))
   (with-eval-after-load 'eshell
-    (define-key eshell-mode-map (kbd "C-f") #'capf-autosuggest-accept)))
+    (define-key eshell-mode-map (kbd "C-f") #'capf-autosuggest-accept)
+    ;; (define-key capf-autosuggest-mode-map (kbd "M-p") #'eshell-previous-input)
+    ;; (define-key capf-autosuggest-mode-map (kbd "M-n") #'eshell-next-input)
+    )
+  )
 
 ;; ── Quickrun ───────────────────────────────────────────────────────────
 
