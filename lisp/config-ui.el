@@ -33,7 +33,8 @@
 
 (defun my/set-font (&optional frame font-size)
   ;;(nano-mode)
-  (my/load-theme 'modus-operandi)
+  ;;(my/load-theme 'modus-operandi)
+  (my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka Extended"
                       :height (or font-size 140)
@@ -151,6 +152,37 @@
   :hook
   (dired-mode . nerd-icons-dired-mode))
 
+(setq
+ my/light-theme 'modus-operandi  ; Placeholder for light toggle (not yet wired)
+ my/dark-theme 'modus-vivendi    ; Nano dark theme
+ )
+
+
+
+(defun my/toggle-theme-mode ()
+  "Toggle between dark and light themes, update GTK theme, and restart Firefox."
+  (interactive)
+
+  ;; --- Detect current theme ---
+  (setq rs/theme-dark
+        (member my/dark-theme custom-enabled-themes))
+
+  ;; --- Switch Doom theme ---
+  (mapc #'disable-theme custom-enabled-themes)
+  (let ((th
+         (if rs/theme-dark
+             my/light-theme
+           my/dark-theme)
+         ))
+    (call-process "noctalia" nil 0 nil
+                  "msg" "theme-mode-set"
+                  (if rs/theme-dark "light" "dark"))
+
+    (my/load-theme th)
+    )
+
+  (message "Theme toggled: %s"
+           (if rs/theme-dark "Light mode" "Dark mode")))
 
 (provide 'config-ui)
 ;; config-ui.el ends here

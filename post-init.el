@@ -22,6 +22,9 @@
 ;; Email: mu4e + org email (loads org first)
 (load "config-email")
 
+;; Email: GNUS (personal Gmail via IMAP)
+(load "config-gnus")
+
 ;; Org + Org-roam
 (load "config-org")
 
@@ -81,7 +84,7 @@
       (append
        '((python-mode . ("pyright"))
          (js-mode . ("typescript-language-server" "--stdio"))
-         (typescript-ts-mode . ("typescript-language-server" "--stdio")))
+         (typescript-ts-mode . ("tsc" "--lsp" "--stdio")))
        (assq-delete-all 'python-mode 
                         (assq-delete-all 'js-mode
                                          (assq-delete-all 'typescript-ts-mode eglot-server-programs)))))

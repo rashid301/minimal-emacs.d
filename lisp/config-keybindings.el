@@ -275,6 +275,7 @@
     "tw" '(visual-line-mode :which-key "word wrap")
     "tc" '(visual-fill-column-mode :which-key "center text")
     "tn" '(display-line-numbers-mode :which-key "line numbers")
+    "tt" '(my/toggle-theme-mode :which-key "Toggle Theme Mode (Dark/Light)")
 
     ;; --- Window management ---
 

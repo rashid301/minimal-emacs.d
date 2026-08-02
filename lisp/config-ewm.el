@@ -139,18 +139,24 @@
   (when my/ewm-activities-use-frame
     (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
     (require 'activities-ewm)
-    (activities-ewm-mode 1)))
+    (activities-ewm-mode 1))
 
-(defvar consult-source-xdg-apps
-  `(:name "Apps"
-          :narrow ?a
-          :category app
-          :items ,(lambda ()
-                    (mapcar #'car (ewm-list-xdg-apps)))
-          :action ,#'ewm-launch-xdg-command))
 
-(with-eval-after-load 'consult
-  (add-to-list 'consult-buffer-sources consult-source-xdg-apps t))
+  (defvar consult-source-xdg-apps
+    `(:name "Apps"
+            :narrow ?a
+            :category app
+            :items ,(lambda ()
+                      (mapcar #'car (ewm-list-xdg-apps)))
+            :action ,#'ewm-launch-xdg-command))
+
+  (with-eval-after-load 'consult
+    (add-to-list 'consult-buffer-sources consult-source-xdg-apps t))
+
+  ;; (setq ewm-intercept-prefixes
+  ;;       (delq ?\C-u (copy-sequence ewm-intercept-prefixes)))
+  )
+
 
 (defun my/signal-noctalia-workspace-update (&rest _)
   (let* ((all-names (my/ewm-workspace-all-names))
