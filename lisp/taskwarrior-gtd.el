@@ -448,8 +448,9 @@ Empty string means no filter (all pending tasks)."
   (interactive (list (completing-read "Filter: "
                                       (mapcar #'car taskwarrior-gtd-filters)
                                       nil t)))
-  (let ((buf (or taskwarrior-gtd--buffer
-                 (get-buffer-create "*gtd*"))))
+  (let ((buf (if (buffer-live-p taskwarrior-gtd--buffer)
+                 taskwarrior-gtd--buffer
+               (get-buffer-create "*gtd*"))))
     (with-current-buffer buf
       (unless (derived-mode-p 'gtd-list-mode)
         (gtd-list-mode))
@@ -484,24 +485,24 @@ Empty string means no filter (all pending tasks)."
     (tabulated-list-init-header)
     (make-local-variable 'taskwarrior-gtd--tasks)
     (setq taskwarrior-gtd--tasks tasks)
-   (setq tabulated-list-entries
-           (mapcar (lambda (task)
-                     (let* ((id (taskwarrior-gtd--task-id task))
-                            (completed-p (equal id "0"))
-                            (id-str (if completed-p
-                                        (propertize id 'face 'taskwarrior-gtd-completed)
-                                      id)))
-                       (list id-str
-                             (vconcat (mapcar (lambda (col)
-                                                (let ((fn (nth 2 col)))
-                                                  (if fn
-                                                      (let ((val (funcall fn task)))
-                                                        (if (and completed-p (stringp val))
-                                                            (propertize val 'face 'taskwarrior-gtd-completed)
-                                                          val))
-                                                    "")))
-                                              col-specs)))))
-                   (or tasks '())))))
+    (setq tabulated-list-entries
+          (mapcar (lambda (task)
+                    (let* ((id (taskwarrior-gtd--task-id task))
+                           (completed-p (equal id "0"))
+                           (id-str (if completed-p
+                                       (propertize id 'face 'taskwarrior-gtd-completed)
+                                     id)))
+                      (list id-str
+                            (vconcat (mapcar (lambda (col)
+                                               (let ((fn (nth 2 col)))
+                                                 (if fn
+                                                     (let ((val (funcall fn task)))
+                                                       (if (and completed-p (stringp val))
+                                                           (propertize val 'face 'taskwarrior-gtd-completed)
+                                                         val))
+                                                   "")))
+                                             col-specs)))))
+                  (or tasks '())))))
 
 (defun taskwarrior-gtd-refresh (&optional preserve-pos)
   "Re-fetch tasks from taskwarrior and refresh the current view.

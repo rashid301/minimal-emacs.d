@@ -28,6 +28,9 @@
 ;; Org + Org-roam
 (load "config-org")
 
+;; Utils
+(load "config-utils")
+
 ;; EWM integration
 (load "config-ewm")
 
@@ -325,7 +328,24 @@ This only works with orderless and for the first component of the search."
          :map minibuffer-local-map
          ("C-." . embark-act))
   :config
-  (setq prefix-help-command #'embark-prefix-help-command))
+  (setq prefix-help-command #'embark-prefix-help-command)
+
+  ;; (defun my-embark-which-key-indicator (&rest args)
+  ;;   "Safely send embark actions straight to which-key."
+  ;;   (let ((bindings (car args)))
+  ;;     (when (keymapp bindings)
+  ;;       (let ((embark-indicators nil))
+  ;;         (which-key--show-keymap "Embark Actions"
+  ;;                                 (embark-collect-aligned-bindings bindings)
+  ;;                                 nil nil t)))))
+  ;; 
+  ;; ;; Reset and cleanly register our new indicator
+  ;; (setq embark-indicators
+  ;;       '(embark-highlight-indicator
+  ;;         embark-mixed-indicator
+  ;;         embark-isearch-highlight-indicator))
+  
+  )
 
 ;; Embark-consult — integration
 (use-package embark-consult
@@ -482,6 +502,7 @@ Caches result per DIR to avoid repeated ancestor walks."
      "\\*Help\\*"
      helpful-mode
      "\\*helpful.*\\*"
+     "\\*Embark Actions\\*"
      "\\*tramp\\*"
      "\\*magit-process\\*"
      "\\*Process List\\*"
@@ -517,7 +538,9 @@ Caches result per DIR to avoid repeated ancestor walks."
 
 (use-package dirvish
   :ensure t
-  :defer t)
+  :defer t
+  :config
+  (dirvish-override-dired-mode 1))
 
 ;; ── EWW rdrview (reader view via Mozilla Readability C port) ───────────
 
