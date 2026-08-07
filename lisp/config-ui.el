@@ -79,9 +79,6 @@
 (add-hook 'mu4e:view #'turn-off-line-numbers)
 (add-hook 'eww-mode-hook #'turn-off-line-numbers)
 
-;;(setq 'ewm-mode-hook '())
-;;(add-hook 'ewm-mode-hook #'mode-line-invisible-mode)
-
 ;; doom-modeline
 (use-package doom-modeline
   :ensure t
@@ -164,27 +161,31 @@
   (interactive)
 
   ;; --- Detect current theme ---
-  (setq rs/theme-dark
-        (member my/dark-theme custom-enabled-themes))
+  (setq rs/theme-dark (eq (frame-parameter nil 'background-mode) 'dark))
 
   ;; --- Switch Doom theme ---
-  (mapc #'disable-theme custom-enabled-themes)
-  (let ((th
-         (if rs/theme-dark
-             my/light-theme
-           my/dark-theme)
-         ))
-    (call-process "noctalia" nil 0 nil
-                  "msg" "theme-mode-set"
-                  (if rs/theme-dark "light" "dark"))
+  (if (member 'noctalia custom-enabled-themes)
+      (progn
+        (call-process "noctalia" nil 0 nil "msg" "theme-mode-toggle")
+        )
+    (let ((th
+           (if rs/theme-dark
+               my/light-theme
+             my/dark-theme)
+           ))
 
-    (call-process "noctalia" nil 0 nil
-                  "msg" "wallpaper-set"
-                  (format "~/Community-wallpapers/eos_wallpapers_community/%s"  (if rs/theme-dark "endeavour_os_simple_wallpaper_light.png" "endeavour_os_simple_wallpaper_dark.png")))
+      (mapc #'disable-theme custom-enabled-themes)
+      (call-process "noctalia" nil 0 nil
+                    "msg" "theme-mode-set"
+                    (if rs/theme-dark "light" "dark"))
 
-    (my/load-theme th)
+      (my/load-theme th)
+      )
     )
-
+  (call-process "noctalia" nil 0 nil
+                "msg" "wallpaper-set"
+                (format "~/Community-wallpapers/eos_wallpapers_community/%s"  (if rs/theme-dark "endeavour_os_simple_wallpaper_light.png" "endeavour_os_simple_wallpaper_dark.png")))
+  
   (message "Theme toggled: %s"
            (if rs/theme-dark "Light mode" "Dark mode")))
 
