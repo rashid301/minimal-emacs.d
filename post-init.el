@@ -502,7 +502,7 @@ Caches result per DIR to avoid repeated ancestor walks."
      "\\*Help\\*"
      helpful-mode
      "\\*helpful.*\\*"
-     "\\*Embark Actions\\*"
+     ;;"\\*Embark Actions\\*"
      "\\*tramp\\*"
      "\\*magit-process\\*"
      "\\*Process List\\*"

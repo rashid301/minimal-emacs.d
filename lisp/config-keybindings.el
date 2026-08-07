@@ -221,6 +221,7 @@
     "h"  '(nil :which-key "help")
     "t"  '(nil :which-key "toggle")
     "w"  '(nil :which-key "window")
+    "SPC" '(consult-buffer :which-key "switch buffer")
     "u"  #'universal-argument
 
     ;; --- help ---

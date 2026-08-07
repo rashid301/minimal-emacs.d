@@ -128,6 +128,7 @@
 
   (setq tab-bar-select-tab-modifiers '(meta))
   (setq ewm-focus-follows-mouse t)
+  (setq ewm-unfocused-alpha 1.0)
 
   (setq ewm-output-config
         '(("DP-1" :scale 1.5)))

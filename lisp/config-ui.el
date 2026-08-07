@@ -33,8 +33,8 @@
 
 (defun my/set-font (&optional frame font-size)
   ;;(nano-mode)
-  ;;(my/load-theme 'modus-operandi)
-  (my/load-theme 'noctalia)
+  (my/load-theme 'modus-operandi)
+  ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka Extended"
                       :height (or font-size 140)
@@ -99,7 +99,7 @@
       neotree-mode
       treemacs-mode
       speedbar-mode
-      ewm-surface-mode
+      ;;ewm-surface-mode
       eshell-mode
       eat-mode
       dashboard-mode
@@ -178,11 +178,18 @@
                   "msg" "theme-mode-set"
                   (if rs/theme-dark "light" "dark"))
 
+    (call-process "noctalia" nil 0 nil
+                  "msg" "wallpaper-set"
+                  (format "~/Community-wallpapers/eos_wallpapers_community/%s"  (if rs/theme-dark "endeavour_os_simple_wallpaper_light.png" "endeavour_os_simple_wallpaper_dark.png")))
+
     (my/load-theme th)
     )
 
   (message "Theme toggled: %s"
            (if rs/theme-dark "Light mode" "Dark mode")))
+
+;; default settings
+(add-to-list 'default-frame-alist '(alpha-background . 80))
 
 (provide 'config-ui)
 ;; config-ui.el ends here
