@@ -361,6 +361,7 @@ This only works with orderless and for the first component of the search."
   (setq recentf-max-saved-items 200)
   ;; exclude tridactly buffers
   (add-to-list 'recentf-exclude "/tmp/tmp_[^/]*$") 
+  (add-to-list 'recentf-exclude "/tmp/\glide_text_[^/]*$")
   )
 
 ;; ── Project (built-in) ─────────────────────────────────────────────────
@@ -482,9 +483,10 @@ Caches result per DIR to avoid repeated ancestor walks."
   :init
   
   (defun my/tridactyl-editor-buffer-p (buf)
-    "Return t if BUF is a Tridactyl external-editor temp file."
+    "Return t if BUF is a Tridactyl or Glide external-editor temp file."
     (let ((name (buffer-file-name buf)))
-      (and name (string-match-p "^/tmp/tmp_.*\\.txt$" name))))
+      (and name (or (string-match-p "^/tmp/tmp_.*\\.txt$" name)
+                    (string-match-p "^/tmp/glide_text_.*\\.txt$" name)))))
 
   :bind (("C-`" . popper-toggle)
          ("M-`" . popper-cycle)
@@ -972,8 +974,8 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
     (evil-ex-define-local-cmd "wq" #'my/save-client-buffer)
     (evil-ex-define-local-cmd "x" #'my/save-client-buffer)))
 
-(add-to-list 'auto-mode-alist 
-             '("/tmp/tmp_[^/]*$" . tridactyl-edit-mode))
+(add-to-list 'auto-mode-alist '("/tmp/tmp_[^/]*$" . tridactyl-edit-mode))
+(add-to-list 'auto-mode-alist '("/tmp/glide_text_[^/]*$" . tridactyl-edit-mode))
 
 
 ;; ── TRAMP ─────────────────────────────────────────────────────────────
