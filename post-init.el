@@ -20,7 +20,7 @@
 (load "config-keybindings")
 
 ;; Email: mu4e + org email (loads org first)
-(load "config-email")
+;;(load "config-email")
 
 ;; Email: GNUS (personal Gmail via IMAP)
 (load "config-gnus")
@@ -1071,6 +1071,53 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
  shr-bullet "• "
  shr-folding-mode t
  )
+
+;; ── ement ──────────────────────
+
+(use-package ement
+  :custom
+  (ement-save-sessions t)
+  ;; (ement-view-room-display-buffer-action
+  ;;  '((display-buffer-reuse-window)))
+  ;; (ement-view-room-display-buffer-action
+  ;;  '((display-buffer-reuse-window)
+  ;;    (window-parameters . ((quit-restore . delete)))))
+
+
+  (ement-room-compose-buffer-display-action
+   (cons 'display-buffer-below-selected
+         '((window-height . 15)
+           (inhibit-same-window . t)
+           (reusable-frames . nil))))
+  (ement-view-room-display-buffer-action
+   '((display-buffer-reuse-window
+      display-buffer-pop-up-window)
+     (window-parameters . ((quit-restore . delete)))))
+
+  (ement-room-send-message-filter #'ement-room-send-org-filter)
+  (setopt
+   evil-collection-ement-want-auto-retro t
+   ement-room-buffer-name-prefix "Ement Room:" ;; remove asterisk for persp
+   ement-room-buffer-name-suffix ""
+   )
+
+  :config
+  (defun my/ement-ret ()
+    (interactive)
+    (if (or (button-at (point))
+            (get-text-property (point) 'mouse-face))
+        (push-button)
+      (ement-room-send-message)))
+
+  ;; (defun rs/ement-fundamental-save-binding ()
+  ;;   (local-set-key (kbd "C-c C-c") #'save-buffer))
+
+  (add-hook 'ement-room-compose-hook #'rs/ement-fundamental-save-binding)
+
+  (evil-collection-define-key '(normal motion) 'ement-room-mode-map
+    (kbd "<")  'ement-room-transient
+    (kbd "<return>")   'my/ement-ret
+    (kbd "RET")        'my/ement-ret))
 
 
 (provide 'post-init)

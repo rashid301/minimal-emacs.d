@@ -78,6 +78,8 @@
 (add-hook 'mu4e-headers-mode-hook #'turn-off-line-numbers)
 (add-hook 'mu4e:view #'turn-off-line-numbers)
 (add-hook 'eww-mode-hook #'turn-off-line-numbers)
+(add-hook 'image-mode-hook #'turn-off-line-numbers)
+(add-hook 'pdf-view-mode-hook #'turn-off-line-numbers)
 
 ;; doom-modeline
 (use-package doom-modeline
@@ -174,7 +176,7 @@
              my/dark-theme)
            ))
 
-      (mapc #'disable-theme custom-enabled-themes)
+      ;; (mapc #'disable-theme custom-enabled-themes)
       (call-process "noctalia" nil 0 nil
                     "msg" "theme-mode-set"
                     (if rs/theme-dark "light" "dark"))
@@ -190,7 +192,21 @@
            (if rs/theme-dark "Light mode" "Dark mode")))
 
 ;; default settings
-(add-to-list 'default-frame-alist '(alpha-background . 80))
+(add-to-list 'default-frame-alist '(alpha-background . 70))
+
+;; --- EWM window visual separation ---
+;; Dim unfocused app surfaces (compositor level)
+(when (featurep 'ewm)
+  (setopt ewm-unfocused-alpha 0.9))
+
+;; Colored dividers between split windows
+(setopt window-divider-width 2)
+(custom-set-faces
+ '(window-divider ((t (:background "#333333")))))
+
+;; Transparent fringes so wallpaper shows through pane edges
+(set-fringe-mode 4)
+(set-face-attribute 'fringe nil :background nil)
 
 (provide 'config-ui)
 ;; config-ui.el ends here

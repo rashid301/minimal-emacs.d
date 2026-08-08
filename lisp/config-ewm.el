@@ -178,10 +178,24 @@
             (setq tab-bar-show nil)
             (setenv "LABWC_PID" (format "%s" (emacs-pid)))
             (setenv "NOCTALIA_PAM_SERVICE" "fingerprint")
+            (setenv "QT_QPA_PLATFORM" "xcb")
             (make-process :buffer " *noctalia*"
                           :name "noctalia"
                           :command '("noctalia" "--daemon")
                           :noquery t)
+            (make-process :buffer " *easyeffects*"
+                          :name "easyeffects"
+                          :command '("easyeffects" "--hide-window" "--service-mode")
+                          :noquery t)
+            (make-process :buffer " *dropbox*"
+                          :name "dropbox"
+                          :command '("/home/rashid/.dropbox-dist/dropboxd")
+                          :noquery t)
+            (make-process :buffer " *enpass*"
+                          :name "enpass"
+                          :command '("/opt/enpass/Enpass" "-minimize")
+                          :noquery t)
+
             ))
 
 (defun my/activity-name ()
