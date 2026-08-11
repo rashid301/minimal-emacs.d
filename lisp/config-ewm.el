@@ -130,8 +130,14 @@
   (setq ewm-focus-follows-mouse t)
   (setq ewm-unfocused-alpha 1.0)
 
-  (setq ewm-output-config
-        '(("DP-1" :scale 1.5)))
+  (setq ewm-edp1-side 'left)
+
+  (setopt ewm-output-config
+          (if (eq ewm-edp1-side 'left)
+              '(("eDP-1" :x -1920 :y 0)
+                ("DP-1" :scale 1.5))
+            '(("DP-1" :scale 1.5)
+              ("eDP-1" :x 2560 :y 0))))
 
   (setq ewm-input-config
         '((touchpad :natural-scroll t :tap t :dwt t)
@@ -194,9 +200,7 @@
             (make-process :buffer " *enpass*"
                           :name "enpass"
                           :command '("/opt/enpass/Enpass" "-minimize")
-                          :noquery t)
-
-            ))
+                          :noquery t)))
 
 (defun my/activity-name ()
   (interactive)

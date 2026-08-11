@@ -40,6 +40,9 @@
 ;; Activities EWM bridge
 (load "activities-ewm")
 
+;; Glide  browser
+(load "config-browser")
+
 (defun rs/shell-scroll-setup ()
   (setq-local scroll-conservatively 101))
 
@@ -55,7 +58,7 @@
 (setq treesit-font-lock-level 4)
 
 ;; Associate .tsx files with typescript-ts-mode
-(add-to-list 'auto-mode-alist '("\\.tsx\\'" . typescript-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-ts-mode))
 (add-to-list 'auto-mode-alist '("\\.jsx\\'" . js-ts-mode))
 (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode))
 (setq major-mode-remap-alist '((python-mode . python-ts-mode)))
@@ -94,7 +97,11 @@
 (use-package apheleia
   :ensure t
   :init
-  (apheleia-global-mode +1))
+  (apheleia-global-mode +1)
+  :config
+  (setf (alist-get 'prettier apheleia-formatters)
+        '("apheleia-npx" "prettier" "--stdin-filepath" filepath))
+  )
 
 ;; Tell Eglot NEVER to attempt formatting so it won't conflict with Apheleia
 (with-eval-after-load 'eglot
@@ -186,7 +193,17 @@
   (marginalia-mode 1)
   (general-define-key
    :keymaps 'minibuffer-local-map
-   "M-A" #'marginalia-cycle))
+   "M-A" #'marginalia-cycle)
+
+  ;; Glide browser window annotator
+  (defun glide/marginalia-annotator (cand)
+    (when-let* ((profile (get-text-property 0 'glide-profile cand))
+                ((not (string-empty-p profile))))
+      (marginalia--fields
+       (profile :face 'marginalia-key :width 10))))
+
+  (add-to-list 'marginalia-annotators
+               '(glide glide/marginalia-annotator nil builtin none)))
 
 ;; Solaire — dual-background mode for side windows and minibuffer
 (use-package solaire-mode
@@ -719,8 +736,15 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
     (let ((session (tmux-control--read-session "desktop-pc" "default")))
       (tmux-control-connect "desktop-pc" "default" session))
     )
+  (defun my/laptop-pc ()
+    "Connect to desktop-pc via tmux-control, prompting only for session."
+    (interactive)
+    (let ((session (tmux-control--read-session "" "default")))
+      (tmux-control-connect "" "default" session))
+    )
   (my-leader-def
-    "od" '(my/desktop-pc :which-key "Tmux Desktop"))
+    "od" '(my/desktop-pc :which-key "Tmux Desktop")
+    "ol" '(my/laptop-pc :which-key "Tmux Laptop"))
   )
 
 ;; ── rg (ripgrep integration) ───────────────────────────────────────────
@@ -791,6 +815,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
         agent-shell-pi-environment
         (agent-shell-make-environment-variables
          "PI_ACP_PI_COMMAND" "little-coder"
+         "LITTLE_CODER_BASH_ALLOW" "docker ,npm ,tmux, emacsclient"
          ))
   (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
   (setq agent-shell-confirm-interrupt nil
@@ -844,7 +869,31 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   )
 
 (use-package agent-shell-bookmark
-  :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496"))
+  :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496")
+  :config
+
+  (defun my-agent-shell-bookmark--find-config (agent-identifier)
+    "Find config by identifier, supporting both maker symbols and alists."
+    (when agent-identifier (or
+                            ;; Newer style: maker function symbols
+                            (let ((maker
+                                   (seq-find (lambda (entry)
+                                               (and (symbolp entry) (string-match-p (format "-%s-" (symbol-name agent-identifier)) (symbol-name entry))))
+                                             agent-shell-agent-configs)))
+                              (when maker (funcall maker)))
+                            ;; Older style: realized config alists
+                            (seq-find (lambda (entry)
+                                        (and (listp entry)
+                                             (eq (alist-get :identifier entry) agent-identifier)))
+                                      agent-shell-agent-configs))))
+
+  (defun my-agent-shell-bookmark--find-config (agent-identifier)
+    "Work around agent-shell-agent-configs containing maker function symbols."
+    (and agent-identifier
+         (seq-find (lambda (config) (and (listp config) (eq (alist-get :identifier config) agent-identifier))) agent-shell-agent-configs)))
+
+  (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
+  )
 
 ;; ── agent-recall (search/browse agent-shell transcripts) ───────────────
 
@@ -864,9 +913,9 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   (setq gptel-api-key "your key")
   (setq gptel-backend (gptel-make-openai "Beellama"             ;Any name of your choosing
                         :protocol "http"
-                        :host "desktop-pc:8060"               ;Where it's running
+                        :host "desktop-pc:8020"               ;Where it's running
                         :stream t                             ;Stream responses
-                        :models '(Qwen3.6-27B-Q5_K_S.gguf)))          ;List of models
+                        :models '(Qwen3.6-27B-MTP-IQ4_KS.gguf)))          ;List of models
   )
 
 ;; ── shell-maker (create custom shells in eshell) ──────────────────────

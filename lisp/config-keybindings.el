@@ -13,6 +13,7 @@
   (setq evil-undo-system 'undo-redo)
   (setq evil-auto-balance-windows nil)
   :config
+  (setq evil-mode-buffers nil)
   (setq evil-want-minibuffer nil)
   (add-to-list 'evil-emacs-state-modes 'minibuffer-mode)
   (add-to-list 'evil-emacs-state-modes 'minibuffer-inactive-mode)
@@ -468,7 +469,8 @@
     "o-" '(dirvish-dwim :which-key "dirvish")
     "om" '(my/mu4e :which-key "mu4e")
     "on" '(elfeed :which-key "elfeed")
-    "ob" '(eww :which-key "eww")
+    ;;"ob" '(eww :which-key "eww")
+    "ob" '(glide-launcher :which-key "eww")
     ))
 
 ;; ── Activities (workspace management) ──────────────────────────────────

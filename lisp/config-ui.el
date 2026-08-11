@@ -33,8 +33,8 @@
 
 (defun my/set-font (&optional frame font-size)
   ;;(nano-mode)
-  (my/load-theme 'modus-operandi)
-  ;;(my/load-theme 'noctalia)
+  ;;(my/load-theme 'modus-operandi)
+  (my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka Extended"
                       :height (or font-size 140)
@@ -70,6 +70,7 @@
   (display-line-numbers-mode -1))
 ;; Hide line numbers in eshell buffers
 (add-hook 'eshell-mode-hook #'turn-off-line-numbers)
+(add-hook 'eat-mode-hook #'turn-off-line-numbers)
 (add-hook 'eww-mode-hook #'turn-off-line-numbers)
 (add-hook 'agent-shell-mode-hook #'turn-off-line-numbers)
 (add-hook 'ewm-mode-hook #'turn-off-line-numbers)
@@ -192,7 +193,7 @@
            (if rs/theme-dark "Light mode" "Dark mode")))
 
 ;; default settings
-(add-to-list 'default-frame-alist '(alpha-background . 70))
+;;(add-to-list 'default-frame-alist '(alpha-background . 70))
 
 ;; --- EWM window visual separation ---
 ;; Dim unfocused app surfaces (compositor level)
