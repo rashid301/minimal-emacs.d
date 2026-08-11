@@ -745,6 +745,32 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   (my-leader-def
     "od" '(my/desktop-pc :which-key "Tmux Desktop")
     "ol" '(my/laptop-pc :which-key "Tmux Laptop"))
+
+  ;; ── Bookmark support (like mu4e) ──────────────────────────────────────
+
+  (defun my/tmux-control-bookmark-handler (bookmark)
+    "Restore a tmux-control bookmark by reconnecting to the saved session." (let* ((bmk-data (bookmark-get-bookmark-record bookmark))
+                                        (host (cdr (assq 'host bmk-data)))
+                                        (socket (cdr (assq 'socket bmk-data)))
+                                        (session (cdr (assq 'session bmk-data))))
+      (if (get-buffer (format "*tmux-control:%s:%s*" (or host "") session))
+          (pop-to-buffer (format "*tmux-control:%s:%s*" (or host "") session))
+        (tmux-control-connect host socket session))))
+
+  (defun my/tmux-control-bookmark-make-record ()
+    "Create a bookmark record for the current tmux-control buffer." (let* ((host tmux-control--host)
+                                        (socket (or tmux-control--socket-name "default"))
+                                        (session (or tmux-control--session "main")))
+      `("tmux-control"
+        (handler . my/tmux-control-bookmark-handler)
+        (host . ,host)
+        (socket . ,socket)
+        (session . ,session))))
+
+  (add-hook 'tmux-control-mode-hook
+            (lambda ()
+              (setq-local bookmark-make-record-function
+                          #'my/tmux-control-bookmark-make-record)))
   )
 
 ;; ── rg (ripgrep integration) ───────────────────────────────────────────

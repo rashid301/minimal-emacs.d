@@ -200,6 +200,16 @@ Returns the profile name (second-to-last segment) or empty string."
         (nth (- n 2) parts)
       "")))
 
+(defun glide--extract-history-title (title)
+  "Extract history title name from EWM title.
+
+Title format: 'Page Title — Profile Name — Glide Browser'
+Returns the title name (1st segment) or empty string."
+  (let* ((parts (split-string title "[–—]" t "[[:space:]]*"))
+         (n (length parts)))
+    (nth 0 parts)
+    ))
+
 (defun glide--extract-domain (url)
   "Extract domain from a URL string. Returns empty string if not found."
   (if-let ((match (string-match "\\(https?://[^[:space:]/?#]+\\)" url)))
@@ -408,7 +418,7 @@ Otherwise, look up the URL in places.sqlite and open it."
         (switch-to-buffer buf)
       (unless title
         (user-error "Glide bookmark '%s' has no title stored" (bookmark-name bmk)))
-      (let ((url (glide--lookup-url-by-title title profile)))
+      (let ((url (glide--lookup-url-by-title (glide--extract-history-title title) profile)))
         (if url
             (progn
               (message "Opening %s in %s..." url profile)
