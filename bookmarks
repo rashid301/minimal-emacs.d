@@ -1,0 +1,62 @@
+;;;; Emacs Bookmark Format Version 1;;;; -*- coding: utf-8-emacs; mode: lisp-data -*-
+;;; This format is meant to be slightly human-readable;
+;;; nevertheless, you probably don't want to edit it.
+;;; -*- End Of Bookmark File Format Version Stamp -*-
+(("*ewm:[chatgpt.com] Fix Elisp Function — Personal — Glide Browser*"
+  ("*ewm:[chatgpt.com] Fix Elisp Function — Personal — Glide Browser*")
+  (handler . glide-bookmark--handler)
+  (glide-title . "[chatgpt.com] Fix Elisp Function — Personal — Glide Browser")
+  (glide-profile . "Personal"))
+("*ewm:[github.com] alexluigit/dirvish: A polished Dired with batteries included. — Personal — Glide Browser*" :name "*ewm:[github.com] alexluigit/dirvish: A polished Dired with batteries included. — Personal — Glide Browser*" :handler glide-bookmark--handler :glide-title "[github.com] alexluigit/dirvish: A polished Dired with batteries included. — Personal — Glide Browser" :glide-profile "Personal")
+("AS 2026-2027"
+ (filename . "~/Dropbox/taxes/ITR/AS 2026-2027/")
+ (front-context-string . "rashid\n  -rw-r--")
+ (rear-context-string . "96 Aug 10 12:30 ")
+ (position . 200)
+ (last-modified 27259 13240 705581 944000))
+("*ewm:WhatsApp — Personal — Glide Browser*" :name "*ewm:WhatsApp — Personal — Glide Browser*" :handler glide-bookmark--handler :glide-title "WhatsApp — Personal — Glide Browser" :glide-profile "Personal")
+("*ewm:[www.google.com] how to set bookmark custom function default - Google Search — Personal — Glide Browser*" :name "*ewm:[www.google.com] how to set bookmark custom function default - Google Search — Personal — Glide Browser*" :handler glide-bookmark--handler :glide-title "[www.google.com] how to set bookmark custom function default - Google Search — Personal — Glide Browser" :glide-profile "")
+("test"
+ (handler . agent-shell-bookmark-handler)
+ (location . #1="/home/rashid/.config/emacs/")
+ (session-id . "019fecaa-1c4b-791d-9fd5-8c1031851d19")
+ (agent-identifier . pi)
+ (buffer-name . "Pi Agent @ emacs")
+ (project-path . #1#))
+("Activity: drhareth-custom"
+ (activities-name . "drhareth-custom")
+ (handler . activities-bookmark-handler))
+("org-capture-last-stored"
+ (filename . "~/Dropbox/notes/roam/20260717113132-webassembly.org")
+ (front-context-string . "* Summary\nWebass")
+ (rear-context-string . "startup: shrink\n")
+ (position . 107)
+ (last-modified 27225 50724 227589 278000))
+("Activity: sensai"
+ (activities-name . "sensai")
+ (handler . activities-bookmark-handler))
+("Activity: elfeed"
+ (activities-name . "elfeed")
+ (handler . activities-bookmark-handler))
+("Activity: bitbute-saas-app"
+ (activities-name . "bitbute-saas-app")
+ (handler . activities-bookmark-handler))
+("Activity: efleed"
+ (activities-name . "efleed")
+ (handler . activities-bookmark-handler))
+("Activity: config"
+ (activities-name . "config")
+ (handler . activities-bookmark-handler))
+("Activity: mu4e"
+ (activities-name . "mu4e")
+ (handler . activities-bookmark-handler))
+("Activity: comms"
+ (activities-name . "comms")
+ (handler . activities-bookmark-handler))
+("Activity: shopmgmt"
+ (activities-name . "shopmgmt")
+ (handler . activities-bookmark-handler))
+("Activity: home"
+ (activities-name . "home")
+ (handler . activities-bookmark-handler))
+)
