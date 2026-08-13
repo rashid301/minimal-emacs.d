@@ -131,8 +131,6 @@
   :config
   (vertico-mode 1)
   (vertico-buffer-mode 1)
-  (setq completion-in-region-function
-        #'consult-completion-in-region)
 
   ;; Clean up shadowed path syntax (e.g. ~/foo/bar/// → /)
   (add-hook 'rfn-eshadow-update-overlay-hook #'vertico-directory-tidy)
@@ -226,6 +224,7 @@
 
 ;; Corfu — in-buffer completion
 (use-package corfu
+  :after evil-collection
   :custom
   (corfu-auto t)
   (corfu-auto-delay 0.2)
@@ -237,7 +236,7 @@
               ("TAB" . corfu-next)
               ("BACKTAB" . corfu-previous))
   :config
-  (global-corfu-mode)
+  (global-corfu-mode +1)
   (setq
    corfu-preselect 'prompt
    corfu-count 16
@@ -822,10 +821,9 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 ;; (use-package pinentry
 ;;   :ensure t)
 
-;; ── acp (Auto-Complete Plus) ───────────────────────────────────────────
-;; Disabled — conflicts with Corfu. Corfu handles in-buffer completion.
-;; (use-package acp
-;;   :ensure t)
+;; ── acp (agent client protocol) ───────────────────────────────────────────
+(use-package acp
+  :ensure t)
 
 ;; ── agent-shell + notifications + bookmarks ────────────────────────────
 
@@ -1201,6 +1199,11 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 
 ;; Glide  browser
 (load "config-browser")
+
+
+;; Swap trackpad horizontal scroll for non-natural scrolling
+(global-set-key [horizontal-scroll left] #'scroll-left)
+(global-set-key [horizontal-scroll right] #'scroll-right)
 
 (provide 'post-init)
 
