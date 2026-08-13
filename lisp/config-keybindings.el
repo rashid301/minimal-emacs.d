@@ -202,6 +202,13 @@
    "R" '(eval-region :which-key "Eval region")
    )
 
+  ;; Error navigation
+  (general-define-key
+   :states '(normal)
+   "[e" '(previous-error :which-key "previous error")
+   "]e" '(next-error :which-key "next error")
+   )
+
   (defun my/open-links()
     (interactive)
     (let ((browse-url-browser-function 'eww-browse-url))

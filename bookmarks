@@ -2,13 +2,18 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("linkedin-posts"
-  (filename . "~/Dropbox/notes/linkedin-posts/")
-  (front-context-string . "post-17-ai-bench")
-  (rear-context-string . "09 Jul 30 15:46 ")
-  (position . 2605)
-  (last-modified 27261 51101 836964 784000))
-("expriing tokens"
+(("emacs-reddit"
+  ("*ewm:[www.reddit.com] M-x emacs-reddit — Personal — Glide Browser*")
+  (handler . glide-bookmark--handler)
+  (glide-title . "[www.reddit.com] M-x emacs-reddit — Personal — Glide Browser")
+  (glide-profile . "Personal"))
+("linkedin-posts"
+ (filename . "~/Dropbox/notes/linkedin-posts/")
+ (front-context-string . "post-17-ai-bench")
+ (rear-context-string . "09 Jul 30 15:46 ")
+ (position . 2605)
+ (last-modified 27261 51101 836964 784000))
+("expiring tokens"
  (filename . "~/.mail/zoho/Archive.old/cur/1783520459.455362_1.rashid-thinkbook,U=2031:2,S")
  (front-context-string . "Delivered-To: ra")
  (rear-context-string)

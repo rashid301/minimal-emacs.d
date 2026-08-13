@@ -203,12 +203,23 @@
 
 ;; Colored dividers between split windows
 (setopt window-divider-width 2)
-(custom-set-faces
- '(window-divider ((t (:background "#333333")))))
+;; (custom-set-faces
+;;  '(window-divider ((t (:background "#333333")))))
 
 ;; Transparent fringes so wallpaper shows through pane edges
 (set-fringe-mode 4)
 (set-face-attribute 'fringe nil :background nil)
+
+(add-to-list 'display-buffer-alist
+             '((lambda (buf _)
+                 (with-current-buffer buf
+                   (and (bound-and-true-p ewm-surface-app)
+                        (member ewm-surface-app '("foot" "mpv")))))
+               (display-buffer-reuse-mode-window display-buffer-at-bottom)
+               (dedicated . t)
+               (window-height . 0.3)
+               (window-parameters . ((mode-line-format . none)))
+               (post-command-select-window . t)))
 
 (provide 'config-ui)
 ;; config-ui.el ends here

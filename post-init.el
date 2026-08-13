@@ -40,8 +40,6 @@
 ;; Activities EWM bridge
 (load "activities-ewm")
 
-;; Glide  browser
-(load "config-browser")
 
 (defun rs/shell-scroll-setup ()
   (setq-local scroll-conservatively 101))
@@ -249,8 +247,6 @@
    corfu-quit-no-match corfu-quit-at-boundary)
   
   (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
-  (add-to-list 'corfu-continue-commands #'+corfu/move-to-minibuffer)
-  (add-to-list 'corfu-continue-commands #'+corfu/smart-sep-toggle-escape)
   (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
   )
 
@@ -827,9 +823,9 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 ;;   :ensure t)
 
 ;; ── acp (Auto-Complete Plus) ───────────────────────────────────────────
-
-(use-package acp
-  :ensure t)
+;; Disabled — conflicts with Corfu. Corfu handles in-buffer completion.
+;; (use-package acp
+;;   :ensure t)
 
 ;; ── agent-shell + notifications + bookmarks ────────────────────────────
 
@@ -1202,6 +1198,9 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
     (kbd "<return>")   'my/ement-ret
     (kbd "RET")        'my/ement-ret))
 
+
+;; Glide  browser
+(load "config-browser")
 
 (provide 'post-init)
 
