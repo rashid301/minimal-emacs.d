@@ -2,12 +2,35 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("AS 2026-2027"
-  (filename . "~/Dropbox/taxes/ITR/AS 2026-2027/")
-  (front-context-string . "rashid\n  -rw-r--")
-  (rear-context-string . "96 Aug 10 12:30 ")
-  (position . 200)
-  (last-modified 27259 13240 705581 944000))
+(("linkedin-posts"
+  (filename . "~/Dropbox/notes/linkedin-posts/")
+  (front-context-string . "post-17-ai-bench")
+  (rear-context-string . "09 Jul 30 15:46 ")
+  (position . 2605)
+  (last-modified 27261 51101 836964 784000))
+("expriing tokens"
+ (filename . "~/.mail/zoho/Archive.old/cur/1783520459.455362_1.rashid-thinkbook,U=2031:2,S")
+ (front-context-string . "Delivered-To: ra")
+ (rear-context-string)
+ (position . 1)
+ (last-modified 27261 35067 512829 868000))
+("*ewm:[elpa.nongnu.org] Eat User Manual, version 0.9.4 — Personal — Glide Browser*"
+ ("*ewm:[elpa.nongnu.org] Eat User Manual, version 0.9.4 — Personal — Glide Browser*")
+ (handler . glide-bookmark--handler)
+ (glide-title . "[elpa.nongnu.org] Eat User Manual, version 0.9.4 — Personal — Glide Browser")
+ (glide-profile . "Personal"))
+("personal documents"
+ (filename . "~/Dropbox/personal documents/")
+ (front-context-string . "Afreen\n  drwxr-x")
+ (rear-context-string . "96 Aug  1 11:12 ")
+ (position . 246)
+ (last-modified 27260 2366 264231 705000))
+("AS 2026-2027"
+ (filename . "~/Dropbox/taxes/ITR/AS 2026-2027/")
+ (front-context-string . "rashid\n  -rw-r--")
+ (rear-context-string . "96 Aug 10 12:30 ")
+ (position . 200)
+ (last-modified 27259 13240 705581 944000))
 ("Activity: drhareth-custom"
  (activities-name . "drhareth-custom")
  (handler . activities-bookmark-handler))

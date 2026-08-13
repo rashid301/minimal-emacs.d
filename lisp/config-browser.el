@@ -182,7 +182,7 @@ Returns nil if the profile or places.sqlite does not exist."
     (let* ((title (or ewm-surface-title "Untitled"))
            (profile (glide--extract-profile title)))
       (propertize
-       title
+       (truncate-string-to-width title 80 0 nil t)
        'glide-profile profile
        'glide-title title
        'ewm-buffer buf
@@ -212,15 +212,16 @@ Returns the title name (1st segment) or empty string."
 
 (defun glide--extract-domain (url)
   "Extract domain from a URL string. Returns empty string if not found."
-  (if-let ((match (string-match "\\(https?://[^[:space:]/?#]+\\)" url)))
+  (if-let ((match (string-match "\\(https?://[^[:space:]/?#]+\\)" (or url ""))))
       (match-string 1 url)
     ""))
 
 (defun glide--history-candidate (title url profile)
   (let ((domain (glide--extract-domain url)))
     (propertize
-     (format "%s  %s" title domain)
-     'display url
+     ;; (format "%s  %s" title domain)
+     (truncate-string-to-width title 80 0 nil t)
+     ;; 'display (truncate-string-to-width title 60)
      'glide-profile profile
      'glide-title title
      'glide-domain domain
@@ -415,15 +416,19 @@ Otherwise, look up the URL in places.sqlite and open it."
          (profile (bookmark-prop-get bmk 'glide-profile))
          (buf (glide-bookmark--ewm-buffer-alive-p title)))
     (if buf
-        (switch-to-buffer buf)
-      (unless title
-        (user-error "Glide bookmark '%s' has no title stored" (bookmark-name bmk)))
-      (let ((url (glide--lookup-url-by-title (glide--extract-history-title title) profile)))
-        (if url
-            (progn
-              (message "Opening %s in %s..." url profile)
-              (glide--open-url url profile))
-          (user-error "No URL found in %s's history for title: %s" profile title))))))
+        (progn
+          (switch-to-buffer buf)
+          buf)
+      (progn
+        (unless title
+          (user-error "Glide bookmark '%s' has no title stored" (bookmark-name bmk)))
+        (let ((url (glide--lookup-url-by-title (glide--extract-history-title title) profile)))
+          (if url
+              (progn
+                (message "Opening %s in %s..." url profile)
+                (glide--open-url url profile)
+                (get-buffer-create "*scratch*"))
+            (user-error "No URL found in %s's history for title: %s" profile title)))))))
 
 (defun glide-bookmark--setup ()
   "Set up bookmark support for Glide EWM buffers." 
@@ -434,6 +439,18 @@ Otherwise, look up the URL in places.sqlite and open it."
 
 (add-hook 'ewm-update-title-hook #'glide-bookmark--setup)
 (add-hook 'ewm-surface-mode-hook #'glide-bookmark--setup)
+
+
+;; Glide browser window annotator
+(defun glide/marginalia-annotator (cand)
+  (let* ((profile (get-text-property 0 'glide-profile cand))
+         )
+    (marginalia--fields
+     ((or profile "") :face 'marginalia-documentation :width 10))))
+
+
+(add-to-list 'marginalia-annotators
+             '(glide glide/marginalia-annotator nil builtin none))
 
 (provide 'config-browser)
 ;;; config-browser.el ends here

@@ -193,17 +193,7 @@
   (marginalia-mode 1)
   (general-define-key
    :keymaps 'minibuffer-local-map
-   "M-A" #'marginalia-cycle)
-
-  ;; Glide browser window annotator
-  (defun glide/marginalia-annotator (cand)
-    (when-let* ((profile (get-text-property 0 'glide-profile cand))
-                ((not (string-empty-p profile))))
-      (marginalia--fields
-       (profile :face 'marginalia-key :width 10))))
-
-  (add-to-list 'marginalia-annotators
-               '(glide glide/marginalia-annotator nil builtin none)))
+   "M-A" #'marginalia-cycle))
 
 ;; Solaire — dual-background mode for side windows and minibuffer
 (use-package solaire-mode
@@ -488,6 +478,7 @@ Caches result per DIR to avoid repeated ancestor walks."
   :ensure t
   :after (smartparens evil))
 
+
 ;; ── Popper (popup management) ──────────────────────────────────────────
 
 (defun my/popper-select-at-bottom (buffer &optional alist)
@@ -558,8 +549,16 @@ Caches result per DIR to avoid repeated ancestor walks."
 (use-package dirvish
   :ensure t
   :defer t
+  :init
   :config
-  (dirvish-override-dired-mode 1))
+  (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
+  (require 'dirvish)
+  (require 'dirvish-icons)
+  (require 'dirvish-quick-access)
+  (require 'dirvish-yank)
+  (dirvish-override-dired-mode 1)
+  (setq dired-kill-when-openinging-new-dired-buffer t)
+  )
 
 ;; ── EWW rdrview (reader view via Mozilla Readability C port) ───────────
 
@@ -659,19 +658,25 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
     (interactive)
     (eat-self-input 1 'right))
 
-  (defun my/eat-up ()
+  (defun my/eat-left-word ()
     (interactive)
-    (eat-self-input 1 'up))
+    (backward-word 1))
+
+  (defun my/eat-right-word ()
+    (interactive)
+    (forward-word 1))
 
   (defun my/eat-down ()
     (interactive)
     (eat-self-input 1 'down))
 
-  (evil-define-key 'normal eat-semi-char-mode-map
-    "h" #'my/eat-left
-    ;; "j" #'my/eat-down
-    ;; "k" #'my/eat-up
-    "l" #'my/eat-right)
+  ;; (evil-define-key 'normal eat-semi-char-mode-map
+  ;;   "h" #'my/eat-left
+  ;;   "f" #'forward-word
+  ;;   "b" #'backward-word
+  ;;   ;; "j" #'my/eat-down
+  ;;   ;; "k" #'my/eat-up
+  ;;   "l" #'my/eat-right)
   )
 
 (with-eval-after-load 'eshell
@@ -728,7 +733,8 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   :config
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
-        tmux-control-default-session "main")
+        tmux-control-default-session "main"
+        tmux-control-windows-buffers nil)
 
   (defun my/desktop-pc ()
     "Connect to desktop-pc via tmux-control, prompting only for session."
@@ -749,18 +755,20 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   ;; ── Bookmark support (like mu4e) ──────────────────────────────────────
 
   (defun my/tmux-control-bookmark-handler (bookmark)
-    "Restore a tmux-control bookmark by reconnecting to the saved session." (let* ((bmk-data (bookmark-get-bookmark-record bookmark))
-                                        (host (cdr (assq 'host bmk-data)))
-                                        (socket (cdr (assq 'socket bmk-data)))
-                                        (session (cdr (assq 'session bmk-data))))
+    "Restore a tmux-control bookmark by reconnecting to the saved session."
+    (let* ((bmk-data (bookmark-get-bookmark-record bookmark))
+           (host (cdr (assq 'host bmk-data)))
+           (socket (cdr (assq 'socket bmk-data)))
+           (session (cdr (assq 'session bmk-data))))
       (if (get-buffer (format "*tmux-control:%s:%s*" (or host "") session))
           (pop-to-buffer (format "*tmux-control:%s:%s*" (or host "") session))
-        (tmux-control-connect host socket session))))
+        (tmux-control--connect-or-switch host socket session))))
 
   (defun my/tmux-control-bookmark-make-record ()
-    "Create a bookmark record for the current tmux-control buffer." (let* ((host tmux-control--host)
-                                        (socket (or tmux-control--socket-name "default"))
-                                        (session (or tmux-control--session "main")))
+    "Create a bookmark record for the current tmux-control buffer."
+    (let* ((host tmux-control--host)
+           (socket (or tmux-control--socket-name "default"))
+           (session (or tmux-control--session "main")))
       `("tmux-control"
         (handler . my/tmux-control-bookmark-handler)
         (host . ,host)
@@ -840,7 +848,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
          )
         agent-shell-pi-environment
         (agent-shell-make-environment-variables
-         "PI_ACP_PI_COMMAND" "little-coder"
+         ;; "PI_ACP_PI_COMMAND" "little-coder"
          "LITTLE_CODER_BASH_ALLOW" "docker ,npm ,tmux, emacsclient"
          ))
   (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
@@ -1196,3 +1204,4 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 
 
 (provide 'post-init)
+

@@ -33,8 +33,8 @@
 
 (defun my/set-font (&optional frame font-size)
   ;;(nano-mode)
-  ;;(my/load-theme 'modus-operandi)
-  (my/load-theme 'noctalia)
+  (my/load-theme 'modus-operandi)
+  ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka Extended"
                       :height (or font-size 140)
@@ -159,38 +159,39 @@
 
 
 
+
 (defun my/toggle-theme-mode ()
   "Toggle between dark and light themes, update GTK theme, and restart Firefox."
   (interactive)
 
   ;; --- Detect current theme ---
-  (setq rs/theme-dark (eq (frame-parameter nil 'background-mode) 'dark))
+  (let* ((rs/theme-mode (if (member my/dark-theme custom-enabled-themes)
+                            "light"
+                          "dark"))
+         (th (if (string-equal rs/theme-mode "dark")
+                 my/dark-theme
+               my/light-theme))
+         (is-noctalia (member 'noctalia custom-enabled-themes)))
 
-  ;; --- Switch Doom theme ---
-  (if (member 'noctalia custom-enabled-themes)
-      (progn
+    ;; --- Switch Doom theme ---
+    (if is-noctalia
         (call-process "noctalia" nil 0 nil "msg" "theme-mode-toggle")
-        )
-    (let ((th
-           (if rs/theme-dark
-               my/light-theme
-             my/dark-theme)
-           ))
+      (progn
+        (call-process "noctalia" nil 0 nil
+                      "msg" "theme-mode-set"
+                      rs/theme-mode)
 
-      ;; (mapc #'disable-theme custom-enabled-themes)
-      (call-process "noctalia" nil 0 nil
-                    "msg" "theme-mode-set"
-                    (if rs/theme-dark "light" "dark"))
+        (my/load-theme th)
 
-      (my/load-theme th)
-      )
-    )
-  (call-process "noctalia" nil 0 nil
-                "msg" "wallpaper-set"
-                (format "~/Community-wallpapers/eos_wallpapers_community/%s"  (if rs/theme-dark "endeavour_os_simple_wallpaper_light.png" "endeavour_os_simple_wallpaper_dark.png")))
-  
-  (message "Theme toggled: %s"
-           (if rs/theme-dark "Light mode" "Dark mode")))
+        ;; Fix: Use rs/theme-mode (not rs/theme-dark) and correct string comparison
+        (call-process "noctalia" nil 0 nil
+                      "msg" "wallpaper-set"
+                      (format "~/Community-wallpapers/eos_wallpapers_community/%s"
+                              (if (string-equal rs/theme-mode "light")
+                                  "endeavour_os_simple_wallpaper_light.png"
+                                "endeavour_os_simple_wallpaper_dark.png"))))
+
+      (message "Theme toggled: %s mode" rs/theme-mode))))
 
 ;; default settings
 ;;(add-to-list 'default-frame-alist '(alpha-background . 70))
