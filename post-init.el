@@ -944,41 +944,6 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
         agent-recall-search-function 'consult-ripgrep
         agent-recall-browse-sort 'modified-desc))
 
-;; ── gptel ──────────────────────
-
-(use-package gptel
-  :ensure t
-  :config
-  (setq gptel-api-key "your key")
-  (setq gptel-backend (gptel-make-openai "Beellama"             ;Any name of your choosing
-                        :protocol "http"
-                        :host "desktop-pc:8060"               ;Where it's running
-                        :stream t                             ;Stream responses
-                        :models '(Qwen3.6-27B-MTP-IQ4_KS.gguf))
-        )
-  (gptel-make-openai "Ollama"             ;Any name of your choosing
-    :protocol "http"
-    :host "desktop-pc:11434"               ;Where it's running
-    :stream t                             ;Stream responses
-    :models '(muse-glimmer:30b hf.co/unsloth/Qwen3.8-27B-GGUF:Q4_K_M hf.co/unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_XL))
-  
-  )
-
-(use-package gptel-agent
-  :ensure t 
-  :config (gptel-agent-update))         ;Read files from agents directories
-
-;; ── shell-maker (create custom shells in eshell) ──────────────────────
-
-(use-package shell-maker
-  :ensure t
-  :config
-  (advice-add 'shell-maker-submit :after
-              (lambda (&rest _)
-                (goto-char (point-max))
-                (evil-normal-state 1)
-                )))
-
 ;; ── capf-autosuggest (eshell completion hints) ─────────────────────────
 
 (use-package capf-autosuggest
