@@ -31,12 +31,6 @@
 ;; Utils
 (load "config-utils")
 
-;; EWM integration
-(load "config-ewm")
-
-;; i3 integration
-(load "config-i3")
-
 ;; Activities EWM bridge
 (load "activities-ewm")
 
@@ -231,10 +225,16 @@
   (read-extended-command-predicate #'command-completion-default-include-p)
   (text-mode-ispell-word-completion nil)
   (tab-always-indent 'complete)
+  (tab-always-indent nil)
+  (corfu-preview-current 'insert)
   :bind (:map corfu-map
               ("<mouse-1>" . corfu-select)
-              ("TAB" . corfu-next)
-              ("BACKTAB" . corfu-previous))
+              ("TAB" . corfu-complete)
+              ("RET" . corfu-insert)
+              ("<return>" . corfu-insert)
+              ([tab] . corfu-complete)
+              ("<tab>" . corfu-insert))
+  
   :config
   (global-corfu-mode +1)
   (setq
@@ -244,7 +244,7 @@
    corfu-on-exact-match nil
    corfu-quit-at-boundary 'separator
    corfu-quit-no-match corfu-quit-at-boundary)
-  
+
   (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
   (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
   )
@@ -894,7 +894,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   )
 
 (use-package agent-shell-tramp
-  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "ebdeb204973beb116017a977bee52cdced78e447")
+  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "14560d42440c17d9b59fc18d304687641ddf06e5")
   :config
   (agent-shell-tramp-mode 1)
   ;; (connection-local-set-profile-variables
@@ -927,11 +927,6 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
                                              (eq (alist-get :identifier entry) agent-identifier)))
                                       agent-shell-agent-configs))))
 
-  (defun my-agent-shell-bookmark--find-config (agent-identifier)
-    "Work around agent-shell-agent-configs containing maker function symbols."
-    (and agent-identifier
-         (seq-find (lambda (config) (and (listp config) (eq (alist-get :identifier config) agent-identifier))) agent-shell-agent-configs)))
-
   (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
   )
 
@@ -953,10 +948,21 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   (setq gptel-api-key "your key")
   (setq gptel-backend (gptel-make-openai "Beellama"             ;Any name of your choosing
                         :protocol "http"
-                        :host "desktop-pc:8020"               ;Where it's running
+                        :host "desktop-pc:8060"               ;Where it's running
                         :stream t                             ;Stream responses
-                        :models '(Qwen3.6-27B-MTP-IQ4_KS.gguf)))          ;List of models
+                        :models '(Qwen3.6-27B-MTP-IQ4_KS.gguf))
+        )
+  (gptel-make-openai "Ollama"             ;Any name of your choosing
+    :protocol "http"
+    :host "desktop-pc:11434"               ;Where it's running
+    :stream t                             ;Stream responses
+    :models '(muse-glimmer:30b hf.co/unsloth/Qwen3.8-27B-GGUF:Q4_K_M hf.co/unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_XL))
+  
   )
+
+(use-package gptel-agent
+  :ensure t 
+  :config (gptel-agent-update))         ;Read files from agents directories
 
 ;; ── shell-maker (create custom shells in eshell) ──────────────────────
 
