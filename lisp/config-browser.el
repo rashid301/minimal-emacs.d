@@ -452,5 +452,59 @@ Otherwise, look up the URL in places.sqlite and open it."
 (add-to-list 'marginalia-annotators
              '(glide glide/marginalia-annotator nil builtin none))
 
+;; ── EWW (Emacs Web Wowser) configuration ───────────────────────────────
+
+(defun eww-rdrview-update-title ()
+  "Update `eww-data' :title from the first line of the buffer
+(which rdrview prepends as the page title)."
+  (when (eq major-mode 'eww-mode)
+    (save-excursion
+      (goto-char (point-min))
+      (when-let ((title (thing-at-point 'line t)))
+        (plist-put eww-data :title (string-trim title))))
+    (eww--after-page-change)))
+
+(defun my-eww-rename-buffer ()
+  "Rename EWW buffers to show the page title."
+  (when (eq major-mode 'eww-mode)
+    (when-let ((string (or (plist-get eww-data :title)
+                           (plist-get eww-data :url))))
+      (format "%s *eww*" string))))
+
+(define-minor-mode eww-rdrview-mode
+  "Toggle reader view in EWW using `rdrview' (Mozilla Readability C port).
+When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
+  :lighter " rdrview"
+  (if eww-rdrview-mode
+      (progn
+        (setq eww-retrieve-command '("rdrview" "-T" "title,sitename,body" "-H"))
+        (add-hook 'eww-after-render-hook #'eww-rdrview-update-title))
+    (progn
+      (setq eww-retrieve-command nil)
+      (remove-hook 'eww-after-render-hook #'eww-rdrview-update-title))))
+
+(defun eww-rdrview-toggle-and-reload ()
+  "Toggle `eww-rdrview-mode' and reload the current EWW page."
+  (interactive)
+  (if eww-rdrview-mode
+      (eww-rdrview-mode -1)
+    (eww-rdrview-mode 1))
+  (eww-reload))
+
+(setq eww-auto-rename-buffer #'my-eww-rename-buffer)
+
+;; ── EWW display settings ───────────────────────────────────────────────
+
+(setq shr-width 100)
+(setq shr-max-width 120)
+(setq shr-indentation 4)
+(setq shr-use-fonts nil)
+(setq shr-max-image-size '(800 . 600))
+(setq shr-image-animate t)
+(setq eww-search-prefix "https://html.duckduckgo.com/html/?q=")
+(setq shr-use-colors nil
+      shr-bullet "• "
+      shr-folding-mode t)
+
 (provide 'config-browser)
 ;;; config-browser.el ends here

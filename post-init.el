@@ -3,13 +3,6 @@
 ;; Add lisp/ to load-path so `require` can find our modules
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 
-;; ── Mouse horizontal scroll ─────────────────────────────────────────────
-;; Enable horizontal scrolling when tilting the mouse wheel
-(setq mouse-wheel-tilt-scroll t)
-
-;; Bind the MX Master 3 thumb wheel directly to horizontal scrolling
-(global-set-key [mouse-6] #'scroll-right)
-(global-set-key [mouse-7] #'scroll-left)
 
 ;; ── Load modules ─────────────────────────────────────────────────────────
 
@@ -18,6 +11,9 @@
 
 ;; Keybindings: evil, general, leader keys, navigation, activities
 (load "config-keybindings")
+
+;; Completion: Vertico, Corfu, Orderless, Marginalia
+(load "config-completion")
 
 ;; Email: mu4e + org email (loads org first)
 ;;(load "config-email")
@@ -111,155 +107,6 @@
   :mode ("\\.pdf\\'" . pdf-view-mode)
   :config
   (pdf-tools-install t t))
-
-
-;; ── Completion (Doom-style) ────────────────────────────────────────────
-
-;; Vertico — vertical completion UI
-(use-package vertico
-  :ensure t
-  :custom
-  (vertico-count 17)
-  (vertico-resize nil)
-  (vertico-cycle t)
-  (vertico-scroll-margin 2)
-  (vertico-buffer-display-action
-   '(display-buffer-in-direction (direction . below) (window-height . 20)))
-  :config
-  (vertico-mode 1)
-  (vertico-buffer-mode 1)
-
-  ;; Clean up shadowed path syntax (e.g. ~/foo/bar/// → /)
-  (add-hook 'rfn-eshadow-update-overlay-hook #'vertico-directory-tidy)
-  (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
-
-  (general-define-key
-   :keymaps 'vertico-map
-   :states '(insert normal)
-   "C-n"   #'vertico-next
-   "C-p"   #'vertico-previous
-   "C-j"   #'vertico-next
-   "C-k"   #'vertico-previous
-   "C-h"   #'vertico-directory-up
-   "C-l"   #'vertico-directory-enter
-   "C-SPC" #'vertico-exit-input)
-  ;;"DEL"   #'vertico-directory-delete-char)
-
-  ;; Give the minibuffer and echo area left margin padding
-  (dolist (hook '(minibuffer-setup-hook
-                  minibuffer-inactive-mode-hook
-                  which-key-init-buffer-hook
-                  ))
-    (add-hook hook
-              (lambda ()
-                (let ((win (minibuffer-window)))
-                  (with-current-buffer (window-buffer win)
-                    (setq-local left-margin-width 4))
-                  (set-window-buffer win (window-buffer win))))))
-
-  ;; Highlight directories and enabled modes (Doom-style)
-  (require 'vertico-multiform)
-  (vertico-multiform-mode 1)
-  (defun +vertico-highlight-directory (f)
-    (when (string-suffix-p "/" f)
-      (add-face-text-property 0 (length f) 'marginalia-file-priv-dir 'append f))
-    f)
-  (defun +vertico-highlight-enabled-mode (cmd)
-    (let ((sym (intern cmd)))
-      (with-current-buffer (nth 1 (buffer-list))
-        (when (or (eq sym major-mode)
-                  (and (memq sym minor-mode-list)
-                       (boundp sym) (symbol-value sym)))
-          (add-face-text-property 0 (length cmd) 'font-lock-constant-face 'append cmd))))
-    cmd)
-  (add-to-list 'vertico-multiform-categories
-               '(file (+vertico-transform-functions . +vertico-highlight-directory)))
-  (add-to-list 'vertico-multiform-commands
-               '(execute-extended-command
-                 (+vertico-transform-functions . +vertico-highlight-enabled-mode))))
-
-;; Marginalia — rich annotations
-(use-package marginalia
-  :ensure t
-  :after vertico
-  :config
-  (marginalia-mode 1)
-  (general-define-key
-   :keymaps 'minibuffer-local-map
-   "M-A" #'marginalia-cycle))
-
-;; Solaire — dual-background mode for side windows and minibuffer
-(use-package solaire-mode
-  :ensure t
-  :demand t
-  :custom
-  (solaire-mode-supported-themes :all)
-  :config
-  (add-hook 'vertico-mode-hook #'solaire-mode)
-  (add-hook 'marginalia-mode-hook #'solaire-mode)
-  (add-hook 'embark-collect-mode-hook #'solaire-mode)
-  (add-hook 'consult-src-mode-hook #'solaire-mode)
-  (add-hook 'consult--process-filter-hook #'solaire-mode)
-  (solaire-global-mode +1))
-
-;; Orderless — flexible completion style
-(use-package orderless
-  :ensure t
-  :custom
-  (completion-styles '(orderless basic))
-  (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles orderless partial-completion))))
-  (orderless-component-separator #'orderless-escapable-split)
-  (orderless-affix-dispatch-alist
-   '((?! . orderless-without-literal)
-     (?& . orderless-annotation)
-     (?% . char-fold-to-regexp)
-     (?` . orderless-initialism)
-     (?= . orderless-literal)
-     (?^ . orderless-literal-prefix)
-     (?~ . orderless-flex))))
-
-;; Corfu — in-buffer completion
-(use-package corfu
-  :after evil-collection
-  :custom
-  (corfu-auto t)
-  (corfu-auto-delay 0.2)
-  (read-extended-command-predicate #'command-completion-default-include-p)
-  (text-mode-ispell-word-completion nil)
-  (tab-always-indent 'complete)
-  (tab-always-indent nil)
-  (corfu-preview-current 'insert)
-  :bind (:map corfu-map
-              ("<mouse-1>" . corfu-select)
-              ("TAB" . corfu-complete)
-              ("RET" . corfu-insert)
-              ("<return>" . corfu-insert)
-              ([tab] . corfu-complete)
-              ("<tab>" . corfu-insert))
-  
-  :config
-  (global-corfu-mode +1)
-  (setq
-   corfu-preselect 'prompt
-   corfu-count 16
-   corfu-max-width 120
-   corfu-on-exact-match nil
-   corfu-quit-at-boundary 'separator
-   corfu-quit-no-match corfu-quit-at-boundary)
-
-  (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
-  (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
-  )
-
-(use-package expreg
-  :ensure t
-  :after evil
-  :bind (:map evil-visual-state-map
-              ("RET" . expreg-expand)   ;; Press 'v' in visual mode to expand
-              ("-" . expreg-contract) ;; Press capital 'V' to contract selection
-              :map global-map
-              ("C-=" . expreg-expand))) ;; Global key fallback
 
 
 ;; ── Search (Doom-style) ────────────────────────────────────────────────
@@ -557,47 +404,6 @@ Caches result per DIR to avoid repeated ancestor walks."
   (dirvish-override-dired-mode 1)
   (setq dired-kill-when-openinging-new-dired-buffer t)
   )
-
-;; ── EWW rdrview (reader view via Mozilla Readability C port) ───────────
-
-(defun eww-rdrview-update-title ()
-  "Update `eww-data' :title from the first line of the buffer
-(which rdrview prepends as the page title)."
-  (when (eq major-mode 'eww-mode)
-    (save-excursion
-      (goto-char (point-min))
-      (when-let ((title (thing-at-point 'line t)))
-        (plist-put eww-data :title (string-trim title))))
-    (eww--after-page-change)))
-
-(defun my-eww-rename-buffer ()
-  "Rename EWW buffers to show the page title."
-  (when (eq major-mode 'eww-mode)
-    (when-let ((string (or (plist-get eww-data :title)
-                           (plist-get eww-data :url))))
-      (format "%s *eww*" string))))
-
-(define-minor-mode eww-rdrview-mode
-  "Toggle reader view in EWW using `rdrview' (Mozilla Readability C port).
-When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
-  :lighter " rdrview"
-  (if eww-rdrview-mode
-      (progn
-        (setq eww-retrieve-command '("rdrview" "-T" "title,sitename,body" "-H"))
-        (add-hook 'eww-after-render-hook #'eww-rdrview-update-title))
-    (progn
-      (setq eww-retrieve-command nil)
-      (remove-hook 'eww-after-render-hook #'eww-rdrview-update-title))))
-
-(defun eww-rdrview-toggle-and-reload ()
-  "Toggle `eww-rdrview-mode' and reload the current EWW page."
-  (interactive)
-  (if eww-rdrview-mode
-      (eww-rdrview-mode -1)
-    (eww-rdrview-mode 1))
-  (eww-reload))
-
-(setq eww-auto-rename-buffer #'my-eww-rename-buffer)
 
 ;; ── Elfeed (RSS reader) ────────────────────────────────────────────────
 (use-package elfeed
@@ -1116,24 +922,6 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
     
     ))
 
-(with-eval-after-load 'eww
-  (define-key eww-mode-map (kbd "=") #'text-scale-increase)
-  (define-key eww-mode-map (kbd "-") #'text-scale-decrease)
-  (define-key eww-mode-map (kbd "0") #'text-scale-adjust))
-
-(setq shr-width 100)
-(setq shr-max-width 120)
-(setq shr-indentation 4)
-
-(setq shr-use-fonts nil)
-(setq shr-max-image-size '(800 . 600))
-(setq shr-image-animate t)
-(setq eww-search-prefix "https://html.duckduckgo.com/html/?q=")
-(setq
- shr-use-colors nil
- shr-bullet "• "
- shr-folding-mode t
- )
 
 ;; ── ement ──────────────────────
 
@@ -1183,13 +971,9 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
     (kbd "RET")        'my/ement-ret))
 
 
-;; Glide  browser
+;; Browser configuration (EWW + Glide)
 (load "config-browser")
 
-
-;; Swap trackpad horizontal scroll for non-natural scrolling
-(global-set-key [horizontal-scroll left] #'scroll-left)
-(global-set-key [horizontal-scroll right] #'scroll-right)
 
 (provide 'post-init)
 

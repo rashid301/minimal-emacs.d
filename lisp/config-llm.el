@@ -170,11 +170,15 @@
               (setenv "OLLAMA_API_BASE" "http://desktop-pc:11434")
               (setenv "AWS_PROFILE" "hermes")
               ))
-  (setq aidermacs-default-model "ollama_chat/muse-glimmer:30b"
-        aidermacs-editor-model "ollama_chat/muse-glimmer:30b"
-        aidermacs-default-chat-mode 'code
-        aidermacs-extra-args '("--no-show-model-warnings")
-        )
+  (setq 
+   ;;aidermacs-default-model "ollama_chat/muse-glimmer:30b"
+   aidermacs-default-model "bedrock/converse/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+   ;;aidermacs-editor-model "ollama_chat/muse-glimmer:30b"
+   aidermacs-editor-model "bedrock/converse/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+   aidermacs-editor-model "ollama_chat/muse-glimmer:30b"
+   aidermacs-default-chat-mode 'code
+   aidermacs-extra-args '("--no-show-model-warnings")
+   )
   :custom
   ;; Keep changes explicit, no auto-commits by default
   (aidermacs-auto-commits nil)

@@ -543,5 +543,25 @@
   (setq which-key-idle-delay 1.5)
   )
 
+;; ── Mouse and scroll keybindings ───────────────────────────────────────
+
+;; Enable horizontal scrolling when tilting the mouse wheel
+(setq mouse-wheel-tilt-scroll t)
+
+;; Bind the MX Master 3 thumb wheel directly to horizontal scrolling
+(global-set-key [mouse-6] #'scroll-right)
+(global-set-key [mouse-7] #'scroll-left)
+
+;; Swap trackpad horizontal scroll for non-natural scrolling
+(global-set-key [horizontal-scroll left] #'scroll-left)
+(global-set-key [horizontal-scroll right] #'scroll-right)
+
+;; ── EWW keybindings ────────────────────────────────────────────────────
+
+(with-eval-after-load 'eww
+  (define-key eww-mode-map (kbd "=") #'text-scale-increase)
+  (define-key eww-mode-map (kbd "-") #'text-scale-decrease)
+  (define-key eww-mode-map (kbd "0") #'text-scale-adjust))
+
 (provide 'config-keybindings)
 ;; config-keybindings.el ends here
