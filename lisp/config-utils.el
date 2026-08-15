@@ -106,6 +106,7 @@ BUFFER may be a buffer object or a buffer name (string)."
                (side . ,side)
                (slot . 0)
                (modeline . t)
+               (no-other-window . t)
                (window-width . 0.25)))))
 
     ;; display-buffer sometimes returns (win . alist)
@@ -182,6 +183,7 @@ BUFFER may be a buffer object or a buffer name (string)."
                     `(display-buffer-in-side-window
                       (side . ,side)
                       (slot . ,slot)
+                      (no-other-window . t)
                       ,size-param-list))))
 
 ;; 3. Helper functions for the 4 specific slots
