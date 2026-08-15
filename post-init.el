@@ -712,6 +712,17 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 (use-package diminish
   :ensure t)
 
+;; ── Autorevert (refresh buffers when files change on disk) ────────────
+(use-package autorevert
+  :ensure t
+  :config
+  (global-auto-revert-mode 1)
+  ;; Also refresh non-file buffers (magit, elfeed, gnus status) on the
+  ;; same cycle — no "File was modified" prompts for files agents and
+  ;; background tools rewrite continuously.
+  (setq global-auto-revert-non-file-buffers t
+        auto-revert-interval 2))  ; poll every 2s
+
 ;; ── Golden Ratio (automatic window resizing) ─────────────────────────
 
 ;; (use-package golden-ratio
@@ -1143,7 +1154,6 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 (setq shr-max-image-size '(800 . 600))
 (setq shr-image-animate t)
 (setq eww-search-prefix "https://html.duckduckgo.com/html/?q=")
-(setq eww-auto-rename-buffer t)
 (setq
  shr-use-colors nil
  shr-bullet "• "

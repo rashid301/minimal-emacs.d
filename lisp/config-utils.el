@@ -170,16 +170,19 @@ BUFFER may be a buffer object or a buffer name (string)."
 (defun my/send-buffer-to-side-slot (side slot &optional size)
   "Send the current buffer to a specific SIDE and SLOT."
   (let ((buf (current-buffer))
-        ;; Determine if we need to set width (left/right) or height (top/bottom)
-        (size-param (if (memq side '(left right))
-                        `(window-width . ,(or size 0.25))
-                      `(window-height . ,(or size 0.25)))))
+        ;; Left/right get both width and height;
+        ;; height is fixed per slot (-1 -> 0.25, else 0.75)
+        (size-param-list
+         (cond ((memq side '(left right))
+                `((window-width . ,(or size 0.25))
+                  (window-height . ,(if (= slot -1) 0.25 0.75))))
+               (t `(window-height . ,(or size 0.25))))))
     ;; Display the buffer using the side window action
     (display-buffer buf
                     `(display-buffer-in-side-window
                       (side . ,side)
                       (slot . ,slot)
-                      ,size-param))))
+                      ,size-param-list))))
 
 ;; 3. Helper functions for the 4 specific slots
 (defun my/send-to-left-top ()
