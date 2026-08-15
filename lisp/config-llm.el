@@ -22,6 +22,12 @@
     :host "desktop-pc:11434"               ;Where it's running
     :stream t                             ;Stream responses
     :models '(muse-glimmer:30b hf.co/unsloth/Qwen3.8-27B-GGUF:Q4_K_M hf.co/unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_XL))
+
+  (gptel-make-openai "Qwen3.8"             ;Any name of your choosing
+    :protocol "http"
+    :host "desktop-pc:8086"               ;Where it's running
+    :stream t                             ;Stream responses
+    :models '(qwen3.8-27b))
   
   )
 
@@ -184,6 +190,24 @@
   (aidermacs-auto-commits nil)
   (aidermacs-show-diff-after-change t)
   (aidermacs-backend 'comint))
+
+;; ── Launch aidermacs with qwen3.8-27b via llama.cpp:8086 ─────────────
+(defun my/aider-qwen38--env-setup ()
+  "Set env vars for llama.cpp:8086 backend."
+  (setenv "OPENAI_BASE_URL" "http://desktop-pc:8086/v1")
+  (setenv "OPENAI_API_KEY" "llama"))
+
+(defun my/aider-qwen38 ()
+  "Launch aidermacs using qwen3.8-27b served at desktop-pc:8086."
+  (interactive)
+  (let ((aidermacs-default-model "openai/qwen3.8-27b")
+        (aidermacs-editor-model "openai/qwen3.8-27b")
+        (aidermacs-extra-args '("--no-show-model-warnings" "--yes-always")))
+    (add-hook 'aidermacs-before-run-backend-hook #'my/aider-qwen38--env-setup)
+    (unwind-protect
+        (aidermacs-run)
+      (remove-hook 'aidermacs-before-run-backend-hook #'my/aider-qwen38--env-setup))))
+
 
 (provide 'config-llm)
 ;;; config-llm.el ends here
