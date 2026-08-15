@@ -629,6 +629,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 
   (setenv "EDITOR" "emacsclient")
   (setenv "VISUAL" "emacsclient")
+  (setenv "BROWSER" nil) ;; let browser use xdg-open
 
   ;; (general-def
   ;;   :keymaps 'eshell-prompt-mode-map
@@ -1221,6 +1222,28 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 ;; Swap trackpad horizontal scroll for non-natural scrolling
 (global-set-key [horizontal-scroll left] #'scroll-left)
 (global-set-key [horizontal-scroll right] #'scroll-right)
+
+;; ── Aidermacs (Aider integration) ─────────────────────────────────────
+(use-package aidermacs
+  :ensure t
+  :bind (("C-c a" . aidermacs-transient-menu))
+  :config
+  ;; Pre-run hook to configure Ollama host for Aider via env vars
+  (add-hook 'aidermacs-before-run-backend-hook
+            (defun my/aider-setup ()
+              (setenv "OLLAMA_API_BASE" "http://desktop-pc:11434")
+              (setenv "AWS_PROFILE" "hermes")
+              ))
+  (setq aidermacs-default-model "ollama_chat/muse-glimmer:30b"
+        aidermacs-editor-model "ollama_chat/muse-glimmer:30b"
+        aidermacs-default-chat-mode 'code
+        aidermacs-extra-args '("--no-show-model-warnings")
+        )
+  :custom
+  ;; Keep changes explicit, no auto-commits by default
+  (aidermacs-auto-commits nil)
+  (aidermacs-show-diff-after-change t)
+  (aidermacs-backend 'comint))
 
 (provide 'post-init)
 
