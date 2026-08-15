@@ -179,63 +179,6 @@ This only works with orderless and for the first component of the search."
   :after (smartparens evil))
 
 
-;; ── Popper (popup management) ──────────────────────────────────────────
-
-(defun my/popper-select-at-bottom (buffer &optional alist)
-  (let ((window (display-buffer-below-selected buffer '((window-height . 0.3)))))
-    (select-window window)))
-
-(use-package popper
-  :ensure t
-  :demand t 
-  :init
-  
-  (defun my/tridactyl-editor-buffer-p (buf)
-    "Return t if BUF is a Tridactyl or Glide external-editor temp file."
-    (let ((name (buffer-file-name buf)))
-      (and name (or (string-match-p "^/tmp/tmp_.*\\.txt$" name)
-                    (string-match-p "^/tmp/glide_text_.*\\.txt$" name)))))
-
-  :bind (("C-`" . popper-toggle)
-         ("M-`" . popper-cycle)
-         ("C-M-`" . popper-toggle-type))
-  :custom
-  (popper-window-height 0.3)
-  (popper-display-function #'my/popper-select-at-bottom)
-  (popper-reference-buffers
-   '("\\*Messages\\*"
-     "\\*emacs-float\\*"
-     "\\*Warnings\\*"
-     "\\*compilation\\*"
-     "\\*Completions\\*"
-     "\\*Compile-Log\\*"
-     "\\*Help\\*"
-     helpful-mode
-     "\\*helpful.*\\*"
-     ;;"\\*Embark Actions\\*"
-     "\\*tramp\\*"
-     "\\*magit-process\\*"
-     "\\*Process List\\*"
-     "\\*eldoc\\*"
-     "\\*prodigy\\*"
-     "\\*Flycheck errors\\*"
-     "^\\*eglot"
-     "^\\*tree-view\\*"
-     "^\\*v?term.*"
-     "\\*Buffer List\\*"
-     "\\*Ibuffer\\*"
-     "\\*Apropos\\*"
-     "\\*Quick Help\\*"
-     "\\*Calendar\\*"
-     "\\*eww buffers\\*"
-     "\\*eww history\\*"
-     my/tridactyl-editor-buffer-p
-     ))
-  :config
-  (popper-mode +1)
-  (popper-echo-mode +1) ; Shows popup status cleanly in the minibuffer
-  )
-
 ;; ── Lookup (Doom-style "K") ────────────────────────────────────────────────
 
 (define-key evil-normal-state-map (kbd "K")
@@ -516,4 +459,3 @@ This only works with orderless and for the first component of the search."
 
 
 (provide 'post-init)
-
