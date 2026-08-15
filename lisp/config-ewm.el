@@ -185,6 +185,10 @@
             (setenv "LABWC_PID" (format "%s" (emacs-pid)))
             (setenv "NOCTALIA_PAM_SERVICE" "fingerprint")
             (setenv "QT_QPA_PLATFORM" "xcb")
+            (make-process :buffer " *gnome-keyring*"
+                          :name "gnome-keyring"
+                          :command '("gnome-keyring-daemon" "--daemonize" "--start")
+                          :noquery t)
             (make-process :buffer " *noctalia*"
                           :name "noctalia"
                           :command '("noctalia" "--daemon")

@@ -114,5 +114,62 @@
     )
   )
 
+;; ── Tmux control mode ──────────────────────────────────────────────────
+
+(use-package tmux-control
+  :vc (:url "https://github.com/csheaff/tmux-control" :rev "6cba37a20c9e0eb3620cd1cd7aae757e4707cb9")
+  :config
+  (setq tmux-control-default-host "desktop-pc"
+        tmux-control-default-socket-name "/tmp/tmux-1000/default"
+        tmux-control-default-session "main"
+        tmux-control-window-buffers nil)
+
+  (defun my/desktop-pc ()
+    "Connect to desktop-pc via tmux-control, prompting only for session."
+    (interactive)
+    (let ((session (tmux-control--read-session "desktop-pc" "default")))
+      (tmux-control-connect "desktop-pc" "default" session))
+    )
+  (defun my/laptop-pc ()
+    "Connect to desktop-pc via tmux-control, prompting only for session."
+    (interactive)
+    (let ((session (tmux-control--read-session "" "default")))
+      (tmux-control-connect "" "default" session))
+    )
+  (my-leader-def
+    "od" '(my/desktop-pc :which-key "Tmux Desktop")
+    "ol" '(my/laptop-pc :which-key "Tmux Laptop"))
+
+  ;; ── Bookmark support (like mu4e) ──────────────────────────────────────
+
+  (defun my/tmux-control-bookmark-handler (bookmark)
+    "Restore a tmux-control bookmark by reconnecting to the saved session."
+    (let* ((bmk-data (bookmark-get-bookmark-record bookmark))
+           (host (cdr (assq 'host bmk-data)))
+           (socket (cdr (assq 'socket bmk-data)))
+           (session (cdr (assq 'session bmk-data))))
+      (if (get-buffer (format "*tmux-control:%s:%s*" (or host "") session))
+          (pop-to-buffer (format "*tmux-control:%s:%s*" (or host "") session))
+        (tmux-control--connect-or-switch host socket session))))
+
+  (defun my/tmux-control-bookmark-make-record ()
+    "Create a bookmark record for the current tmux-control buffer."
+    (let* ((host tmux-control--host)
+           (socket (or tmux-control--socket-name "default"))
+           (session (or tmux-control--session "main")))
+      `("tmux-control"
+        (handler . my/tmux-control-bookmark-handler)
+        (host . ,host)
+        (socket . ,socket)
+        (session . ,session))))
+
+  (add-hook 'tmux-control-mode-hook
+            (lambda ()
+              (setq-local bookmark-make-record-function
+                          #'my/tmux-control-bookmark-make-record)))
+  )
+
+
+
 (provide 'config-terminal)
 ;;; config-terminal.el ends here

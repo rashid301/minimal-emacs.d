@@ -402,10 +402,16 @@ TITLE is matched case-insensitively against moz_places.title."
   "Create a bookmark record for Glide EWM buffers."
   (when (boundp 'ewm-surface-title)
     (let* ((title ewm-surface-title)
-           (profile (glide--extract-profile title)))
+           (profile (glide--extract-profile title))
+           (url (glide--lookup-url-by-title (glide--extract-history-title title) profile)))
+      (unless url
+        (user-error "No URL found in %s's history for title: %s" profile title)
+        )
       `((,(or bmk-name (buffer-name)))
         (handler . glide-bookmark--handler)
+        (filename . ,url)
         (glide-title . ,title)
+        (glide-url . ,url)
         (glide-profile . ,(or profile "Personal"))))))
 
 (defun glide-bookmark--handler (bmk)
@@ -414,6 +420,7 @@ If the EWM buffer still exists, switch to it.
 Otherwise, look up the URL in places.sqlite and open it." 
   (let* ((title (bookmark-prop-get bmk 'glide-title))
          (profile (bookmark-prop-get bmk 'glide-profile))
+         (url (bookmark-prop-get bmk 'glide-url))
          (buf (glide-bookmark--ewm-buffer-alive-p title)))
     (if buf
         (progn
@@ -422,13 +429,12 @@ Otherwise, look up the URL in places.sqlite and open it."
       (progn
         (unless title
           (user-error "Glide bookmark '%s' has no title stored" (bookmark-name bmk)))
-        (let ((url (glide--lookup-url-by-title (glide--extract-history-title title) profile)))
-          (if url
-              (progn
-                (message "Opening %s in %s..." url profile)
-                (glide--open-url url profile)
-                (get-buffer-create "*scratch*"))
-            (user-error "No URL found in %s's history for title: %s" profile title)))))))
+        (if url
+            (progn
+              (message "Opening %s in %s..." url profile)
+              (glide--open-url url profile)
+              (get-buffer-create "*scratch*"))
+          (user-error "No URL found in %s's history for title: %s" profile title))))))
 
 (defun glide-bookmark--setup ()
   "Set up bookmark support for Glide EWM buffers." 
@@ -505,6 +511,27 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
 (setq shr-use-colors nil
       shr-bullet "• "
       shr-folding-mode t)
+
+
+(defun my/firefox-copy-url()
+  (interactive)
+  (evil-echo "wtype")
+  ;; send yy to glide browser
+  (start-process-shell-command
+   "wtype " nil "wtype -s 350 yy"
+   ))
+
+
+(defun my/firefox-get-url ()
+  (glide--lookup-url-by-title (glide--extract-history-title title) profile)
+  (my/firefox-copy-url)
+  (sleep-for 0.05)
+  ;; 3. Read URL from kill-ring
+  (let ((url (current-kill 0)))
+    (if (and url (string-match-p "\\`https?://" url))
+        (pop kill-ring)
+      (user-error "Could not retrieve URL from kill-ring")))
+  )
 
 (provide 'config-browser)
 ;;; config-browser.el ends here
