@@ -111,5 +111,24 @@ Caches result per DIR to avoid repeated ancestor walks."
   :config
   (rg-enable-menu))
 
+;; ── Tree-sitter ────────────────────────────────────────────────────────
+
+(use-package treesit
+  :ensure nil
+  :config
+  (setq treesit-language-source-alist
+        '((c "https://github.com/tree-sitter/tree-sitter-c" "master" "src")
+          (cpp "https://github.com/tree-sitter/tree-sitter-cpp" "master" "src")
+          (elisp "https://github.com/Wilfred/tree-sitter-elisp" "master" "src")
+          (go "https://github.com/tree-sitter/tree-sitter-go" "master" "src")
+          (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+          (json "https://github.com/tree-sitter/tree-sitter-json" "master" "src")
+          (lua "https://github.com/tree-sitter/tree-sitter-lua" "master" "src")
+          (python "https://github.com/tree-sitter/tree-sitter-python" "master" "src")
+          (rust "https://github.com/tree-sitter/tree-sitter-rust" "master" "src")
+          (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")))
+  (setq treesit-include-language-in-error-message t)
+  (global-treesit-mode +1))
+
 (provide 'config-project)
 ;;; config-project.el ends here
