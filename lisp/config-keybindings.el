@@ -217,6 +217,7 @@
   (define-key evil-window-map (kbd "u") #'winner-undo)
   (define-key evil-window-map (kbd "U") #'winner-redo) 
 
+
   (my-leader-def
     ;; --- Named Prefix Groups for which-key ---
     "f"  '(nil :which-key "file")
@@ -303,40 +304,6 @@
     "TAB g" '(activities-revert :which-key "revert activity")))
 
 ;; ── Leader key (Doom-style) ────────────────────────────────────────────
-
-;; Full config reload (like Doom's `SPC h R`)
-(defun my/copy-file-path ()
-  "Copy the full file path of the current buffer to the kill ring."
-  (interactive)
-  (if buffer-file-name
-      (progn
-        (kill-new buffer-file-name)
-        (message "Copied: %s" buffer-file-name))
-    (message "Current buffer is not visiting a file")))
-
-(defun my/config-reload ()
-  "Reload post-init.el without restarting Emacs."
-  (interactive)
-  (let* ((config-dir (expand-file-name "~/.config/emacs/"))
-         (post-init (expand-file-name "post-init.el" config-dir)))
-    (message "Reloading configuration...")
-    (when (file-exists-p post-init)
-      (load-file post-init))
-    (message "Configuration reloaded.")))
-
-;; Journal directory
-(defvar my/journal-dir (expand-file-name "~/notes/journal/")
-  "Directory for daily journal files.")
-(unless (file-exists-p my/journal-dir)
-  (make-directory my/journal-dir t))
-
-;; Taskwarrior GTD
-(use-package taskwarrior-gtd
-  :load-path "lisp/")
-
-(defun my/dotfiles ()
-  (interactive)
-  (find-file "~/dotfiles"))
 
 ;; ── Local leader (SPC m) — mode-specific bindings (like Doom) ──────────
 

@@ -729,7 +729,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
         tmux-control-default-session "main"
-        tmux-control-windows-buffers nil)
+        tmux-control-window-buffers nil)
 
   (defun my/desktop-pc ()
     "Connect to desktop-pc via tmux-control, prompting only for session."
@@ -847,6 +847,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
          ))
   (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
   (setq agent-shell-confirm-interrupt nil
+        agent-shell-header-style 'graphical
         agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
   ;; (add-hook 'diff-mode-hook
   ;;           (lambda ()
