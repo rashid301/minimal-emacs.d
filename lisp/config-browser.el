@@ -180,7 +180,9 @@ Returns nil if the profile or places.sqlite does not exist."
 (defun glide--ewm-candidate (buf)
   (with-current-buffer buf
     (let* ((title (or ewm-surface-title "Untitled"))
-           (profile (glide--extract-profile title)))
+           ;; prefer the buffer-local set by Glide's WindowLoaded autocmd,
+           ;; fall back to parsing the window title
+           (profile (or glide-profile (glide--extract-profile title))))
       (propertize
        (truncate-string-to-width title 80 0 nil t)
        'glide-profile profile
@@ -402,8 +404,11 @@ TITLE is matched case-insensitively against moz_places.title."
   "Create a bookmark record for Glide EWM buffers."
   (when (boundp 'ewm-surface-title)
     (let* ((title ewm-surface-title)
-           (profile (glide--extract-profile title))
-           (url (glide--lookup-url-by-title (glide--extract-history-title title) profile)))
+           ;; prefer buffer-locals set by Glide autocmds, fall back to
+           ;; title parsing + places.sqlite lookup
+           (profile (or glide-profile (glide--extract-profile title)))
+           (url (or glide-url
+                    (glide--lookup-url-by-title (glide--extract-history-title title) profile))))
       (unless url
         (user-error "No URL found in %s's history for title: %s" profile title)
         )
@@ -522,16 +527,21 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
    ))
 
 
-(defun my/firefox-get-url ()
-  (glide--lookup-url-by-title (glide--extract-history-title title) profile)
-  (my/firefox-copy-url)
-  (sleep-for 0.05)
-  ;; 3. Read URL from kill-ring
-  (let ((url (current-kill 0)))
-    (if (and url (string-match-p "\\`https?://" url))
-        (pop kill-ring)
-      (user-error "Could not retrieve URL from kill-ring")))
-  )
+(defun glide-get-url ()
+  "Return the current Glide URL for this buffer.
+If the buffer-local `glide-url' (set by Glide's UrlEnter autocmd) is
+bound, return it. Otherwise fall back to yanking the URL from the
+browser via wtype and reading the kill-ring."
+  (interactive)
+  (if glide-url
+      glide-url
+    (progn
+      (my/firefox-copy-url)
+      (sleep-for 0.05)
+      (let ((url (current-kill 0)))
+        (unless (and url (string-match-p "\\`https?://" url))
+          (user-error "Could not retrieve URL from kill-ring"))
+        url))))
 
 
 ;; Glide -> Emacs mode sync entry point.
