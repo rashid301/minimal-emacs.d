@@ -130,50 +130,14 @@ Results are cached per profile and reused while places.sqlite (and its
      profile-dir)))
 
 
-;;;###autoload
-(defun glide-browse-history ()
-  "Consult-based history picker for Glide Browser."
-  (interactive)
-  (let* ((lines (glide--history-query))
-         (alist (cl-loop for row in lines
-                         for parts = (split-string row "\t")
-                         for title = (string-trim (or (nth 0 parts) ""))
-                         for url   = (nth 1 parts)
-                         for ts    = (or (nth 2 parts) "")
-                         for display = (if (string-blank-p title)
-                                           (format "%s — %s" url ts)
-                                         (format "%s — %s" title url))
-                         collect (cons display url)))
-         (candidates (mapcar #'car alist))
-         (choice (consult--read
-                  candidates
-                  :prompt "History: "
-                  :category 'url
-                  :require-match t)))
-    (let ((url (alist-get choice alist nil nil #'string=)))
-      (if (and url (stringp url) (> (length url) 0))
-          (glide--open-url url)
-        (user-error "No URL found for selection")))))
-
-
 (defun glide--ewm-list ()
   "List EWM buffers that belong to Glide Browser."
   (require 'ewm)
   (cl-remove-if-not
    (lambda (buf)
      (with-current-buffer buf
-       (and (ewm-surface-buffer-p (current-buffer))
-            (string-prefix-p "glide" (or ewm-surface-app "")))))
-   (buffer-list)))
-
-
-(defun glide-switch-window ()
-  "Switch to a Glide Browser window using consult."
-  (interactive)
-  (let* ((list (glide--ewm-list))
-         (names (mapcar #'buffer-name list))
-         (choice (consult--read names :prompt "Glide windows: ")))
-    (switch-to-buffer choice)))
+       (string-prefix-p "glide" (or ewm-surface-app ""))))
+   (hash-table-values ewm--surfaces)))
 
 
 (defun glide--looks-like-url-p (s)
@@ -201,11 +165,14 @@ Results are cached per profile and reused while places.sqlite (and its
     (let* ((title (or ewm-surface-title "Untitled"))
            ;; prefer the buffer-local set by Glide's WindowLoaded autocmd,
            ;; fall back to parsing the window title
-           (profile (or glide-profile (glide--extract-profile title))))
+           (profile (or glide-profile (glide--extract-profile title)))
+           (domain (glide--extract-domain (or glide-url "")))
+           )
       (propertize
-       (truncate-string-to-width title 80 0 nil t)
+       (truncate-string-to-width title 50 0 nil t)
        'glide-profile profile
        'glide-title title
+       'glide-domain domain
        'ewm-buffer buf
        'ewm-app 'glide
        ))))
@@ -241,7 +208,7 @@ Returns the title name (1st segment) or empty string."
   (let ((domain (glide--extract-domain url)))
     (propertize
      ;; (format "%s  %s" title domain)
-     (truncate-string-to-width title 80 0 nil t)
+     (truncate-string-to-width title 50 0 nil t)
      ;; 'display (truncate-string-to-width title 60)
      'glide-profile profile
      'glide-title title
@@ -334,17 +301,6 @@ Returns the title name (1st segment) or empty string."
       )))
 
 
-(defun glide--group-header (title)
-  (propertize title 'face '(:foreground "cyan" :weight bold)))
-
-
-(defun glide--window-candidates ()
-  "Return list of (display . buffer)"
-  (mapcar (lambda (b)
-            (cons (format "  %s" (buffer-name b)) b))
-          (glide--ewm-list)))
-
-
 (defun glide--history-candidates (&optional profile)
   (delq nil
         (mapcar
@@ -364,16 +320,26 @@ Returns the title name (1st segment) or empty string."
 
 ;;; ---- Glide bookmark support ----
 
-(defun glide--lookup-url-by-title (title profile)
+(defun glide--sql-literal (s)
+  "Return a safe SQL string literal for S (embedded quotes escaped)."
+  (concat "'" (replace-regexp-in-string "'" "''" s) "'"))
+
+(defun glide--lookup-url-by-title (title profile &optional days)
   "Look up a URL in PROFILE's places.sqlite that matches TITLE.
-Returns the first matching URL, or nil if not found.
-TITLE is matched case-insensitively against moz_places.title." 
+Returns the most recently visited matching URL, or nil if not found.
+TITLE is matched case-insensitively against moz_places.title.
+DAYS bounds the scan to the last N days (default 90) so the LIKE
+query stays fast as history grows." 
   (let* ((profile-dir (glide-profile-path profile)))
     (when (and profile-dir (file-directory-p profile-dir))
       (let* ((src-db (expand-file-name "places.sqlite" profile-dir)))
         (when (file-exists-p src-db)
-          (let* ((escaped (replace-regexp-in-string "'" "''" title))
-                 (sql (format "SELECT p.url FROM moz_places p WHERE p.title LIKE '%%%s%%' AND p.url LIKE 'http%%' ORDER BY p.last_visit_date DESC LIMIT 1;" escaped)))
+          ;; Escape LIKE wildcards in the title so they match literally
+          (let* ((like-escaped (replace-regexp-in-string "[\\%_]" "\\\\&" title))
+                 (cutoff-us (* (or days 90) 86400000000)) ; microseconds
+                 (esc-char (char-to-string #o47)) ; backslash as escape char
+                 (sql (format "SELECT p.url FROM moz_places p\nWHERE p.title LIKE '%%%s%%' ESCAPE '%s'\n  AND p.url LIKE 'http%%'\n  AND p.last_visit_date > (strftime('%%s','now')*1000000 - %d)\nORDER BY p.last_visit_date DESC LIMIT 1;"
+                              like-escaped esc-char cutoff-us)))
             ;; Query the live DB read-only (immutable=1 bypasses WAL lock)
             (let ((result
                    (with-temp-buffer
@@ -442,10 +408,14 @@ Otherwise, look up the URL in places.sqlite and open it."
 
 ;; Glide browser window annotator
 (defun glide/marginalia-annotator (cand)
-  (let* ((profile (get-text-property 0 'glide-profile cand))
+  (let* (
+         (profile (get-text-property 0 'glide-profile cand))
+         (domain (get-text-property 0 'glide-domain cand))
          )
     (marginalia--fields
-     ((or profile "") :face 'marginalia-documentation :width 10))))
+     ((or profile "") :face 'marginalia-type :width 10)
+     ((or domain "") :face 'marginalia-documentation :width 30)
+     )))
 
 
 (add-to-list 'marginalia-annotators
@@ -505,6 +475,7 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
       shr-bullet "• "
       shr-folding-mode t)
 
+;; ── firefox settings ───────────────────────────────────────────────
 
 (defun my/firefox-copy-url()
   (interactive)
