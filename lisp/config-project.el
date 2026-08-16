@@ -111,24 +111,34 @@ Caches result per DIR to avoid repeated ancestor walks."
   :config
   (rg-enable-menu))
 
-;; ── Tree-sitter ────────────────────────────────────────────────────────
+;; ── Tree-sitter (built-in) ─────────────────────────────────────────────
 
-(use-package treesit
-  :ensure nil
-  :config
-  (setq treesit-language-source-alist
-        '((c "https://github.com/tree-sitter/tree-sitter-c" "master" "src")
-          (cpp "https://github.com/tree-sitter/tree-sitter-cpp" "master" "src")
-          (elisp "https://github.com/Wilfred/tree-sitter-elisp" "master" "src")
-          (go "https://github.com/tree-sitter/tree-sitter-go" "master" "src")
-          (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
-          (json "https://github.com/tree-sitter/tree-sitter-json" "master" "src")
-          (lua "https://github.com/tree-sitter/tree-sitter-lua" "master" "src")
-          (python "https://github.com/tree-sitter/tree-sitter-python" "master" "src")
-          (rust "https://github.com/tree-sitter/tree-sitter-rust" "master" "src")
-          (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")))
-  (setq treesit-include-language-in-error-message t)
-  (global-treesit-mode +1))
+(require 'treesit)
+(setq treesit-enabled-modes t)
 
+;; At 3 (the default), too many users think syntax highlighting is broken or
+;; simply "looks off."
+(setq treesit-font-lock-level 4)
+
+;; Associate .tsx files with typescript-ts-mode
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.jsx\\'" . js-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode))
+(setq major-mode-remap-alist '((python-mode . python-ts-mode)))
+
+;; Tree-sitter grammar recipes (not in built-in list)
+(setq treesit-language-source-alist
+      '((javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+        (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+        (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+        (python "https://github.com/tree-sitter/tree-sitter-python")
+        (bash "https://github.com/tree-sitter/tree-sitter-bash")
+        (json "https://github.com/tree-sitter/tree-sitter-json")
+        (yaml "https://github.com/ikatyang/tree-sitter-yaml")
+        (toml "https://github.com/tree-sitter/tree-sitter-toml")
+        (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+        (commonlisp "https://github.com/tree-sitter-grammars/tree-sitter-commonlisp")
+        (markdown "https://github.com/tree-sitter/tree-sitter-markdown")))
 (provide 'config-project)
+
 ;;; config-project.el ends here

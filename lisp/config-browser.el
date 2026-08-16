@@ -511,6 +511,7 @@ browser via wtype and reading the kill-ring."
 (defvar-local glide-profile nil
   "Friendly name of the Glide profile for this buffer (e.g. \"Personal\").\nSet by `glide-set-profile' from a Glide WindowLoaded autocmd.")
 
+
 (defun glide--profile-name-from-dir (dir)
   "Return the friendly profile name for profile directory DIR, or nil."
   (let ((found nil))
@@ -534,6 +535,39 @@ browser via wtype and reading the kill-ring."
   (with-current-buffer (window-buffer)
     (cond ((string= new-mode "insert") (evil-insert-state))
           ((string= new-mode "normal") (evil-normal-state)))))
+
+
+;; ── Doom modeline for Glide browser surfaces ───────────────────────
+
+(doom-modeline-def-segment glide-buffer-info
+  "Glide: show profile + page title."
+  (concat
+   (doom-modeline-spc)
+   (propertize
+    (format "<%s> %s" (or glide-profile "?")
+            (truncate-string-to-width (or ewm-surface-title "Untitled") 40 0 nil t))
+    'face 'doom-modeline-buffer-file)))
+
+(doom-modeline-def-segment glide-url-segment
+  "Glide: show full URL."
+  (when glide-url
+    (concat
+     (doom-modeline-spc)
+     (propertize (truncate-string-to-width glide-url 60 0 nil t)
+                 'face 'doom-modeline-info))))
+
+(doom-modeline-def-modeline 'glide
+  '(bar modals glide-buffer-info)
+  '(glide-url-segment))
+
+(defun glide--modeline-setup ()
+  "Switch to the 'glide modeline in Glide EWM surface buffers."
+  (when (and (boundp 'ewm-surface-app)
+             (string-prefix-p "glide" ewm-surface-app))
+    (doom-modeline-set-modeline 'glide)))
+
+(add-hook 'ewm-update-title-hook #'glide--modeline-setup)
+(add-hook 'ewm-surface-mode-hook #'glide--modeline-setup)
 
 (provide 'config-browser)
 ;;; config-browser.el ends here
