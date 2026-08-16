@@ -117,7 +117,7 @@
 ;; ── Tmux control mode ──────────────────────────────────────────────────
 
 (use-package tmux-control
-  :vc (:url "https://github.com/csheaff/tmux-control" :rev "6cba37a20c9e0eb3620cd1cd7aae757e4707cb9")
+  :vc (:url "https://github.com/csheaff/tmux-control" :rev "newest")
   :config
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"

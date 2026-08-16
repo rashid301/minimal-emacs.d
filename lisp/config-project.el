@@ -139,6 +139,22 @@ Caches result per DIR to avoid repeated ancestor walks."
         (elisp "https://github.com/Wilfred/tree-sitter-elisp")
         (commonlisp "https://github.com/tree-sitter-grammars/tree-sitter-commonlisp")
         (markdown "https://github.com/tree-sitter/tree-sitter-markdown")))
+;; ── HTTP / API testing (verb) ──────────────────────────────────────────
+
+(use-package verb
+  :ensure t
+  :defer t
+  :config
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((verb . t)))
+  (setq verb-suppress-load-unsecure-prelude-warning t))
+
+;; ── Quickrun ───────────────────────────────────────────────────────────
+
+(use-package quickrun
+  :ensure t)
+
 (provide 'config-project)
 
 ;;; config-project.el ends here

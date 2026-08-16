@@ -283,4 +283,33 @@ This only works with orderless and for the first component of the search."
     
     ))
 
+;; ── TRAMP ─────────────────────────────────────────────────────────────
+
+(use-package tramp
+  :ensure nil
+  :config
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path)
+  (setq tramp-use-ssh-controlmaster-options nil)
+  (setq tramp-inline-compress-start-size 10000)
+  (setq tramp-copy-size-limit 100000)
+  (setq vc-handled-backends '(git))
+  (setq remote-file-name-inhibit-cache nil)
+  (setq tramp-verbose 3))
+
+;; ── diminish (hide minor modes from modeline) ───────────────────────
+
+(use-package diminish
+  :ensure t)
+
+;; ── Autorevert (refresh buffers when files change on disk) ────────────
+(use-package autorevert
+  :ensure t
+  :config
+  (global-auto-revert-mode 1)
+  ;; Also refresh non-file buffers (magit, elfeed, gnus status) on the
+  ;; same cycle — no "File was modified" prompts for files agents and
+  ;; background tools rewrite continuously.
+  (setq global-auto-revert-non-file-buffers t
+        auto-revert-interval 2))  ; poll every 2s
+
 (provide 'config-editor)

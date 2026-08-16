@@ -137,7 +137,8 @@
   :ensure t
   :after nerd-icons
   :config
-  (nerd-icons-completion-mode 1))
+  (nerd-icons-completion-mode 1)
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
 
 (use-package ligature
   :ensure t

@@ -53,8 +53,7 @@
   :init
   (setq
    evil-collection-setup-minibuffer nil
-   evil-collection-repl-submit-state 'insert
-   )
+   evil-collection-repl-submit-state 'insert)
   :config
   ;; (setq evil-collection-mode-list
   ;;       (cl-set-difference evil-collection-mode-list
