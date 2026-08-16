@@ -57,45 +57,64 @@
     profile))
 
 
+(defvar glide--history-cache '()
+  "Cache of history queries: list of (PROFILE . (MTIMES . ROWS)).
+MTIMES is the pair of modification times of places.sqlite and its
+-wal file at query time; rows are reused until either file changes.")
+
+(defun glide--db-mtimes (src-db)
+  "Return (DB-MTIME . WAL-MTIME) for SRC-DB, or nil if the DB is missing."
+  (when (file-exists-p src-db)
+    (cons (nth 5 (file-attributes src-db))
+          (let ((wal (concat src-db "-wal")))
+            (if (file-exists-p wal)
+                (nth 5 (file-attributes wal))
+              0)))))
+
+(defun glide--history-query--live (src-db)
+  "Query SRC-DB for the 500 most recent http(s) history rows."
+  (let ((sql
+         "SELECT
+            p.title,
+            p.url,
+            datetime(MAX(h.visit_date)/1000000,'unixepoch') AS last_visit
+          FROM moz_places p
+          LEFT JOIN moz_historyvisits h
+                 ON p.id = h.place_id
+          WHERE p.url LIKE 'http%'
+          GROUP BY p.id
+          ORDER BY MAX(h.visit_date) DESC
+          LIMIT 500;"))
+    ;; Query the live DB read-only. immutable=1 lets us bypass the WAL lock
+    ;; held (or left stale) by a running Glide; we may miss very recent
+    ;; uncheckpointed history.
+    (split-string
+     (shell-command-to-string
+      (format "sqlite3 -separator '\t' 'file:%s?mode=ro&immutable=1' \"%s\""
+              src-db
+              sql))
+     "\n" t)))
+
 (defun glide--history-query (&optional profile)
   "Return browser history rows: title<TAB>url<TAB>last_visit.
-Returns nil if the profile or places.sqlite does not exist."
+Results are cached per profile and reused while places.sqlite (and its
+-wal file) are unmodified. Returns nil if the profile or DB is missing."
   (let* ((profile (or profile "Personal"))
          (profile-dir (glide-profile-path profile)))
     (when (and profile-dir
                (file-directory-p profile-dir))
-      (let* ((src-db (expand-file-name "places.sqlite" profile-dir)))
-        (when (file-exists-p src-db)
-          (let* ((tmp-db (make-temp-file "glide-history-" nil ".sqlite"))
-                 (wal (concat src-db "-wal"))
-                 (shm (concat src-db "-shm"))
-                 (tmp-wal (concat tmp-db "-wal"))
-                 (tmp-shm (concat tmp-db "-shm"))
-                 (sql
-                  "SELECT
-                     p.title,
-                     p.url,
-                     datetime(MAX(h.visit_date)/1000000,'unixepoch') AS last_visit
-                   FROM moz_places p
-                   LEFT JOIN moz_historyvisits h
-                          ON p.id = h.place_id
-                   WHERE p.url LIKE 'http%'
-                   GROUP BY p.id
-                   ORDER BY MAX(h.visit_date) DESC
-                   LIMIT 500;"))
-
-            ;; Copy DB + WAL safely
-            (copy-file src-db tmp-db t)
-            (when (file-exists-p wal) (copy-file wal tmp-wal t))
-            (when (file-exists-p shm) (copy-file shm tmp-shm t))
-
-            ;; Query
-            (split-string
-             (shell-command-to-string
-              (format "sqlite3 -separator '\t' %s \"%s\""
-                      (shell-quote-argument tmp-db)
-                      sql))
-             "\n" t)))))))
+      (let* ((src-db (expand-file-name "places.sqlite" profile-dir))
+             (mtimes (glide--db-mtimes src-db)))
+        (when mtimes
+          (let* ((entry (assoc-string profile glide--history-cache))
+                 (cached-rows (and entry (cddr entry))))
+            (if (equal mtimes (cdr entry))
+                cached-rows
+              (let ((rows (glide--history-query--live src-db)))
+                (setq glide--history-cache
+                      (cons (cons profile (cons mtimes rows))
+                            (remq profile glide--history-cache)))
+                rows))))))))
 
 
 (defun glide--open-url (url &optional profile)
@@ -286,28 +305,7 @@ Returns the title name (1st segment) or empty string."
      profile)))
 
 
-(require 'json)
 (require 'cl-lib)
-
-(setq consult--source-buku
-      `(:name     "Buku Bookmarks"
-                  :narrow   ?u
-                  :category buku
-                  :items    glide/consult-buku-candidates
-                  :action
-                  (lambda (cand)
-                    (let* ((url  (get-text-property 0 'buku-url cand))
-                           (tags (get-text-property 0 'buku-tags cand))
-                           (profile
-                            (cond
-                             ((member "personal" tags) "Personal")
-                             ((member "senzo" tags)    "Senzo")
-                             ((member "siddiqua" tags) "Siddiqua")
-                             ((member "brandjet" tags) "Brandjet")
-                             (t                        nil))))
-                      (my-handle-glide-url url profile)))
-                  :sort nil))
-
 
 (defun glide-launcher (&optional initial-query)
   "Unified launcher: open Glide windows, browser history, or new URL/search."
@@ -315,7 +313,6 @@ Returns the title name (1st segment) or empty string."
   (let* ((choice
           (consult--multi
            '(consult--glide-windows
-             consult--source-buku
              consult--glide-personal-history
              consult--glide-senzo-history
              consult--glide-siddiqua-history
@@ -375,23 +372,14 @@ TITLE is matched case-insensitively against moz_places.title."
     (when (and profile-dir (file-directory-p profile-dir))
       (let* ((src-db (expand-file-name "places.sqlite" profile-dir)))
         (when (file-exists-p src-db)
-          (let* ((tmp-db (make-temp-file "glide-bookmark-" nil ".sqlite"))
-                 (wal (concat src-db "-wal"))
-                 (shm (concat src-db "-shm"))
-                 (tmp-wal (concat tmp-db "-wal"))
-                 (tmp-shm (concat tmp-db "-shm")))
-            (copy-file src-db tmp-db t)
-            (when (file-exists-p wal) (copy-file wal tmp-wal t))
-            (when (file-exists-p shm) (copy-file shm tmp-shm t))
-            (let* ((escaped (replace-regexp-in-string "'" "''" title))
-                   (sql (format "SELECT p.url FROM moz_places p WHERE p.title LIKE '%%%s%%' AND p.url LIKE 'http%%' ORDER BY p.last_visit_date DESC LIMIT 1;" escaped))
-                   (sql-file (make-temp-file "glide-sql-" nil ".sql"))
-                   (result (progn
-                             (with-temp-file sql-file (insert sql))
-                             (with-temp-buffer
-                               (call-process "sqlite3" nil t nil (shell-quote-argument tmp-db) (shell-quote-argument sql-file))
-                               (buffer-string))))
-                   (_ (ignore-errors (delete-file sql-file))))
+          (let* ((escaped (replace-regexp-in-string "'" "''" title))
+                 (sql (format "SELECT p.url FROM moz_places p WHERE p.title LIKE '%%%s%%' AND p.url LIKE 'http%%' ORDER BY p.last_visit_date DESC LIMIT 1;" escaped)))
+            ;; Query the live DB read-only (immutable=1 bypasses WAL lock)
+            (let ((result
+                   (with-temp-buffer
+                     (call-process "sqlite3" nil t nil
+                                   (concat "file:" src-db "?mode=ro&immutable=1") sql)
+                     (buffer-string))))
               (when (> (length (string-trim result)) 0)
                 (string-trim result)))))))))
 
