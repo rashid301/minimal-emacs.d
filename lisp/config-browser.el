@@ -533,5 +533,38 @@ When enabled, EWW pipes page HTML through rdrview for cleaner rendering."
       (user-error "Could not retrieve URL from kill-ring")))
   )
 
+
+;; Glide -> Emacs mode sync entry point.
+;; Called from glide.ts via: emacsclient -e '(glide-mode-changed "old" "new")'
+(defvar-local glide-url nil
+  "Current URL of the Glide tab shown in this buffer.\nSet by `glide-url-enter' from a Glide UrlEnter autocmd.")
+
+(defvar-local glide-profile nil
+  "Friendly name of the Glide profile for this buffer (e.g. \"Personal\").\nSet by `glide-set-profile' from a Glide WindowLoaded autocmd.")
+
+(defun glide--profile-name-from-dir (dir)
+  "Return the friendly profile name for profile directory DIR, or nil."
+  (let ((found nil))
+    (dolist (p glide-profile-alist)
+      (when (string= (cdr p) dir)
+        (setq found (car p))))
+    found))
+
+(defun glide-url-enter (url)
+  "Set `glide-url' in the selected window's buffer. Called from glide.ts."
+  (with-current-buffer (window-buffer)
+    (setq glide-url url)))
+
+(defun glide-set-profile (profile-dir)
+  "Set `glide-profile' in the selected window's buffer. Called from glide.ts."
+  (with-current-buffer (window-buffer)
+    (setq glide-profile (glide--profile-name-from-dir profile-dir))))
+
+(defun glide-mode-changed (old-mode new-mode)
+  "Sync evil state in the selected window's buffer from a Glide mode change.\nCalled from glide.ts via: emacsclient -e '(glide-mode-changed \"old\" \"new\")'"
+  (with-current-buffer (window-buffer)
+    (cond ((string= new-mode "insert") (evil-insert-state))
+          ((string= new-mode "normal") (evil-normal-state)))))
+
 (provide 'config-browser)
 ;;; config-browser.el ends here

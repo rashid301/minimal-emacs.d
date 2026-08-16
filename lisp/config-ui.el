@@ -109,9 +109,10 @@
 
   :config
   ;; 2. Loop through the list and automatically bind the hide function to their hooks
-  (dolist (mode my-hidden-modeline-modes)
-    (let ((hook (intern (concat (symbol-name mode) "-hook"))))
-      (add-hook hook #'hide-mode-line-mode))))
+  ;; (dolist (mode my-hidden-modeline-modes)
+  ;;   (let ((hook (intern (concat (symbol-name mode) "-hook"))))
+  ;;     (add-hook hook #'hide-mode-line-mode)))
+  )
 
 ;; ── Visual line wrap ──────────────────────────────────────────────────
 
