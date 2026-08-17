@@ -122,7 +122,7 @@
   (setq tmux-control-default-host "desktop-pc"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
         tmux-control-default-session "main"
-        tmux-control-window-buffers nil)
+        tmux-control-window-buffers t)
 
   (defun my/desktop-pc ()
     "Connect to desktop-pc via tmux-control, prompting only for session."
@@ -140,6 +140,54 @@
     "od" '(my/desktop-pc :which-key "Tmux Desktop")
     "ol" '(my/laptop-pc :which-key "Tmux Laptop"))
 
+  ;; ── In-buffer bindings, scoped to tmux-control-mode-map only ──────────
+
+  (with-eval-after-load 'general
+    (general-create-definer my-tmux-leader
+      :states '(normal visual motion)
+      :prefix "SPC m"
+      :keymaps 'tmux-control-mode-map)
+
+    (my-tmux-leader
+      ;; windows
+      "wn" '(tmux-control-next-window :which-key "next window")
+      "wp" '(tmux-control-previous-window :which-key "prev window")
+      "wl" '(tmux-control-last-window :which-key "last window")
+      "ww" '(tmux-control-select-window :which-key "select window")
+      ;; panes
+      "po" '(tmux-control-other-pane :which-key "other pane")
+      "ps" '(tmux-control-split-pane-right :which-key "split right")
+      "pv" '(tmux-control-split-pane-below :which-key "split below")
+      "px" '(tmux-control-kill-pane :which-key "kill pane")
+      ;; session / connection
+      "ss" '(tmux-control-select-session :which-key "select session")
+      "sr" '(tmux-control-reconnect :which-key "reconnect")
+      "sd" '(tmux-control-disconnect :which-key "disconnect")
+      ;; misc
+      "te" '(tmux-control-scrollback :which-key "scrollback")
+      "tl" '(tmux-control-clear-and-repaint :which-key "clear/repaint")
+      "tf" '(tmux-control-toggle-flock :which-key "toggle flock")
+      "tt" '(tmux-control-toggle-tiling :which-key "toggle tiling"))
+
+    ;; M-<digit> window jumps (tmux-style), normal/visual/motion only
+    (dotimes (i 10)
+      (general-define-key
+       :states '(normal visual motion)
+       :keymaps 'tmux-control-mode-map
+       (format "M-%d" i) '(lambda () (interactive)(tmux-control-select-window ,i))))
+
+    (general-define-key
+     :states '(normal visual motion)
+     :keymaps 'tmux-control-mode-map
+     (kbd "M-1") '(lambda () (interactive) (tmux-control-select-window 1))
+     (kbd "M-2") '(lambda () (interactive) (tmux-control-select-window 2))
+     (kbd "M-3") '(lambda () (interactive) (tmux-control-select-window 3))
+     (kbd "M-4") '(lambda () (interactive) (tmux-control-select-window 4))
+     (kbd "M-5") '(lambda () (interactive) (tmux-control-select-window 5))
+     (kbd "M-6") '(lambda () (interactive) (tmux-control-select-window 6))
+     )
+
+    )
   ;; ── Bookmark support (like mu4e) ──────────────────────────────────────
 
   (defun my/tmux-control-bookmark-handler (bookmark)

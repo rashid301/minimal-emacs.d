@@ -251,6 +251,10 @@
     "b]" '(next-buffer :which-key "next buffer")
     "bd" '(kill-current-buffer :which-key "kill buffer")
 
+    ;; --- Bookmark bindings ---
+    "brm" '(set-bookmark :which-key "set bookmark")
+    "brb" '(consult-bookmark :which-key "jump to bookmark")
+
     ;; --- File bindings ---
     "ff" '(consult-find :which-key "find file")
     "fr" '(consult-recent-file :which-key "recent files")

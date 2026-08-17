@@ -2,13 +2,20 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("emacs-reddit"
-  ("*ewm:[www.reddit.com] M-x emacs-reddit — Personal — Glide Browser*")
+(("localLLama-reddit"
+  ("*ewm:LocalLlama — Personal — Glide Browser*")
   (handler . glide-bookmark--handler)
-  (filename . #1="https://www.reddit.com/r/emacs/")
-  (glide-title . "[www.reddit.com] M-x emacs-reddit — Personal — Glide Browser")
+  (filename . #1="https://www.reddit.com/r/LocalLLaMA/")
+  (glide-title . "LocalLlama — Personal — Glide Browser")
   (glide-url . #1#)
   (glide-profile . "Personal"))
+("emacs-reddit"
+ ("*ewm:[www.reddit.com] M-x emacs-reddit — Personal — Glide Browser*")
+ (handler . glide-bookmark--handler)
+ (filename . #1="https://www.reddit.com/r/emacs/")
+ (glide-title . "[www.reddit.com] M-x emacs-reddit — Personal — Glide Browser")
+ (glide-url . #1#)
+ (glide-profile . "Personal"))
 ("linkedin-posts"
  (filename . "~/Dropbox/notes/linkedin-posts/")
  (front-context-string . "post-17-ai-bench")
