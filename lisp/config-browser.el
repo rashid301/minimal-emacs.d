@@ -277,9 +277,16 @@ Returns the title name (1st segment) or empty string."
 (defun glide-launcher (&optional initial-query)
   "Unified launcher: open Glide windows, browser history, or new URL/search."
   (interactive)
-  (let* ((choice
+  (let* (
+         (choice
           (consult--multi
-           '(consult--glide-windows
+           `((:name "Current URL"
+                    :items (lambda ()
+                             (list (or (and (bound-and-true-p glide-url)
+                                            (not (string-empty-p glide-url))
+                                            glide-url)
+                                       ""))))
+             consult--glide-windows
              consult--glide-personal-history
              consult--glide-senzo-history
              consult--glide-siddiqua-history
@@ -421,6 +428,10 @@ Otherwise, look up the URL in places.sqlite and open it."
 (add-to-list 'marginalia-annotators
              '(glide glide/marginalia-annotator nil builtin none))
 
+
+(when (fboundp 'consult-buffer)
+  (add-to-list 'consult-bookmark-narrow `(?b "Browser" glide-bookmark--handler))
+  )
 ;; ── EWW (Emacs Web Wowser) configuration ───────────────────────────────
 
 (defun eww-rdrview-update-title ()

@@ -1,4 +1,4 @@
-;; post-init.el --- Modular Emacs configuration loader -*- lexical-binding: t; -*-
+; post-init.el --- Modular Emacs configuration loader -*- lexical-binding: t; -*-
 
 ;; Add lisp/ to load-path so `require` can find our modules
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))

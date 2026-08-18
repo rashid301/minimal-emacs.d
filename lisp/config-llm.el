@@ -134,27 +134,37 @@
 
   )
 
-(use-package agent-shell-bookmark
-  :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496")
+;; (use-package agent-shell-bookmark
+;;   :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496")
+;;   :config
+;; 
+;;   (defun my-agent-shell-bookmark--find-config (agent-identifier)
+;;     "Find config by identifier, supporting both maker symbols and alists."
+;;     (when agent-identifier (or
+;;                             ;; Newer style: maker function symbols
+;;                             (let ((maker
+;;                                    (seq-find (lambda (entry)
+;;                                                (and (symbolp entry) (string-match-p (format "-%s-" (symbol-name agent-identifier)) (symbol-name entry))))
+;;                                              agent-shell-agent-configs)))
+;;                               (when maker (funcall maker)))
+;;                             ;; Older style: realized config alists
+;;                             (seq-find (lambda (entry)
+;;                                         (and (listp entry)
+;;                                              (eq (alist-get :identifier entry) agent-identifier)))
+;;                                       agent-shell-agent-configs))))
+;; 
+;;   (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
+;;   )
+
+(use-package agent-shell-links
+  :vc (:url "https://github.com/ultronozm/agent-shell-links.el" :rev "newest")
   :config
-
-  (defun my-agent-shell-bookmark--find-config (agent-identifier)
-    "Find config by identifier, supporting both maker symbols and alists."
-    (when agent-identifier (or
-                            ;; Newer style: maker function symbols
-                            (let ((maker
-                                   (seq-find (lambda (entry)
-                                               (and (symbolp entry) (string-match-p (format "-%s-" (symbol-name agent-identifier)) (symbol-name entry))))
-                                             agent-shell-agent-configs)))
-                              (when maker (funcall maker)))
-                            ;; Older style: realized config alists
-                            (seq-find (lambda (entry)
-                                        (and (listp entry)
-                                             (eq (alist-get :identifier entry) agent-identifier)))
-                                      agent-shell-agent-configs))))
-
-  (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
-  )
+  (agent-shell-links-bookmark-setup)
+  (with-eval-after-load 'ol
+    (org-link-set-parameters
+     "agent-shell"
+     :follow #'agent-shell-links-org-follow
+     :store #'agent-shell-links-org-store)))
 
 ;; ── agent-recall (search/browse agent-shell transcripts) ───────────────
 

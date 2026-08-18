@@ -230,39 +230,31 @@ Empty string means no filter (all pending tasks)."
 (defun taskwarrior-gtd--format-date (date-str)
   "Format a Taskwarrior ISO date string to a human-readable form."
   (when (and date-str (stringp date-str) (length> date-str 7))
-    (let* ((s (substring date-str 0 10))
-           (date (condition-case nil
-                     (if (string-match-p "-" s)
-                         s
-                       (format "%s-%s-%s"
-                               (substring s 0 4)
-                               (substring s 4 6)
-                               (substring s 6 8)))
-                   (error nil)))
-           (task-dt (when date (parse-time-string date)))
-           (days (when task-dt
-                   (condition-case nil
-                       (let* ((now-dt (decode-time))
-                              (task-day (encode-time 12 0 0
-                                                     (nth 3 task-dt)
-                                                     (nth 4 task-dt)
-                                                     (nth 5 task-dt)))
-                              (now-day (encode-time 12 0 0
-                                                    (nth 3 now-dt)
-                                                    (nth 4 now-dt)
-                                                    (nth 5 now-dt))))
-                         (truncate (/ (float-time (time-subtract task-day now-day))
-                                      86400.0)))
-                     (error nil)))))
+    (let* ((ts (condition-case nil
+                   (parse-time-string date-str)
+                 (error nil)))
+           (days (when ts
+                   (let* ((now-dt     (decode-time))
+                          (target-day (encode-time 12 0 0
+                                                   (nth 3 ts) (nth 4 ts)
+                                                   (nth 5 ts)))
+                          (now-day    (encode-time 12 0 0
+                                                   (nth 3 now-dt)
+                                                   (nth 4 now-dt)
+                                                   (nth 5 now-dt))))
+                     (truncate (/ (float-time (time-subtract target-day now-day))
+                                  86400.0))))))
       (cond
-       ((or (not date) (not days)) date-str)
+       ((or (not ts) (not days)) date-str)
        ((= days 0) "today")
        ((= days 1) "tomorrow")
-       ((and days (> days 0) (<= days 7)) (format "in %dd" days))
-       ((and days (> days 7)) date)
+       ((and (> days 0) (<= days 7)) (format "in %dd" days))
+       ((> days 7) (format "%s-%s-%s"
+                           (nth 5 ts) (nth 4 ts) (nth 3 ts)))
        ((= days -1) "1d ago")
-       ((and days (< days 0)) (format "%dd ago" (- days)))
-       (t date)))))
+       ((and (< days 0) (>= days -7)) (format "%dd ago" (- days)))
+       (t (format "%s-%s-%s"
+                  (nth 5 ts) (nth 4 ts) (nth 3 ts)))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Column formatters

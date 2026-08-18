@@ -99,6 +99,8 @@
   (define-key ewm-mode-map (kbd "s-SPC") #'my-leader)
   (define-key ewm-mode-map (kbd "s-i") #'thanos/type)
   (define-key ewm-mode-map (kbd "s-o") #'visual-fill-column-mode)
+  (define-key ewm-mode-map (kbd "s-<") #'ewm-frame-left)
+  (define-key ewm-mode-map (kbd "s->") #'ewm-frame-right)
 
   (defun my/session-noc ()
     (interactive)

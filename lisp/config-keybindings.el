@@ -15,8 +15,8 @@
   :config
   (setq evil-mode-buffers nil)
   (setq evil-want-minibuffer nil)
-  (add-to-list 'evil-emacs-state-modes 'minibuffer-mode)
-  (add-to-list 'evil-emacs-state-modes 'minibuffer-inactive-mode)
+  ;; (add-to-list 'evil-emacs-state-modes 'minibuffer-mode)
+  ;; (add-to-list 'evil-emacs-state-modes 'minibuffer-inactive-mode)
   (evil-mode 1)
   (setq evil-search-module 'evil-search
         evil-respect-visual-line-mode t
@@ -35,7 +35,14 @@
   (define-key evil-normal-state-map (kbd "#") #'evil-search-word-backward)
 
   (define-key evil-normal-state-map (kbd "C-i") #'evil-jump-forward)
-  (evil-set-initial-state 'minibuffer-local-map 'emacs)
+  ;; (evil-set-initial-state 'minibuffer-local-map 'emacs)
+
+  ;; evil want buffer nil is not workin for some reason
+  (add-hook 'minibuffer-setup-hook
+            (defun my/off-evil ()
+              (evil-local-mode -1)
+              ) 100)
+
   )
 
 (use-package evil-escape
@@ -252,8 +259,8 @@
     "bd" '(kill-current-buffer :which-key "kill buffer")
 
     ;; --- Bookmark bindings ---
-    "brm" '(set-bookmark :which-key "set bookmark")
-    "brb" '(consult-bookmark :which-key "jump to bookmark")
+    "rm" '(bookmark-set :which-key "set bookmark")
+    "rb" '(consult-bookmark :which-key "jump to bookmark")
 
     ;; --- File bindings ---
     "ff" '(consult-find :which-key "find file")
@@ -450,102 +457,6 @@
     "ob" '(glide-launcher :which-key "eww")
     ))
 
-;; ── Activities (workspace management) ──────────────────────────────────
-
-(use-package activities
-  :ensure t
-  :init
-  (activities-mode 1)
-  :config
-  (setq activities-always-persist t)
-
-  (defun my/consult-buffer-list--activity ()
-    "Return buffers from the current activity's frame, or all buffers if none active."
-    (condition-case nil
-        (if-let ((activity (activities-current))
-                 (frame (activities--frame activity))
-                 ((frame-live-p frame)))
-            (cl-loop for buf in (frame-parameter frame 'buffer-list)
-                     collect (if (consp buf) (cdr buf) buf))
-          (buffer-list))
-      (error (buffer-list))))
-
-  (setq consult-buffer-list-function #'my/consult-buffer-list--activity)
-
-  (defun my/activity-buffer-p (buf)
-    "Return non-nil if BUF belongs to the current activity's frame."
-    (condition-case nil
-        (if-let ((activity (activities-current))
-                 (frame (activities--frame activity))
-                 ((frame-live-p frame)))
-            (memq buf (cl-loop for b in (frame-parameter frame 'buffer-list)
-                               collect (if (consp b) (cdr b) b)))
-          t)
-      (error t)))
-
-  ;; apply to future frames
-  (add-to-list 'default-frame-alist '(buffer-predicate . my/activity-buffer-p))
-  ;; and to the current one, since default-frame-alist only affects new frames
-  (set-frame-parameter nil 'buffer-predicate #'my/activity-buffer-p)
-  )
-
-;; ── Navigation ─────────────────────────────────────────────────────────
-
-;; Avy — jump to any location with 1-2 keystrokes
-(use-package avy
-  :bind (("C-;" . avy-goto-char-2)
-         :map evil-normal-state-map
-         ("s" . evil-avy-goto-char-2))
-  :config
-  (setq avy-style 'at-full
-        avy-background t
-        avy-all-windows t
-        avy-highlight-first t
-        avy-timeout-seconds 0.3
-        avy-keys '(?j ?k ?l ?u ?i ?o ?p ?m)))
-
-
-(with-eval-after-load 'dired
-  ;; dired binds SPC and ; by default — unbind so evil/general can handle them
-  (define-key dired-mode-map " " nil)
-  (define-key dired-mode-map ";" nil)
-
-  (general-def
-    :states '(motion normal)          ; Dired defaults to 'motion state in Evil
-    :keymaps 'dired-mode-map
-    "SPC" nil                ; Reclaims SPC globally or for your leader key
-    ";"   nil                ; Reclaims semicolon
-    "h"   'dired-up-directory
-    "l"   'dired-find-alternate-file)
-  (evil-define-key 'normal dired-mode-map
-    (kbd "h") 'dired-up-directory
-    (kbd "l") 'dired-find-alternate-file)
-
-  (require 'tramp-sshfs)
-  (defun my/tramp-aware-dired-open-advice (orig-fun &rest args)
-    (let* ((files (dired-get-marked-files nil (car args)))
-           (is-remote (file-remote-p default-directory))
-           (method (if is-remote (file-remote-p default-directory 'method) nil)))
-      (if (string-equal method "sshfs")
-          (dolist (file files)
-            (let ((local-fuse-path (tramp-fuse-local-file-name (expand-file-name file))))
-              (if (and local-fuse-path (file-exists-p local-fuse-path))
-                  (start-process "dired-tramp-external-open" nil "xdg-open" local-fuse-path)
-                (message "Error: Unable to resolve local FUSE mount path for %s" file))))
-        (apply orig-fun args))))
-  (advice-add 'dired-do-open :around #'my/tramp-aware-dired-open-advice)
-  )
-
-
-;; ── Which-key ──────────────────────────────────────────────────────────
-
-(use-package which-key
-  :diminish
-  :config
-  (which-key-mode)
-  (setq which-key-idle-delay 1.5)
-  )
-
 ;; ── Mouse and scroll keybindings ───────────────────────────────────────
 
 ;; Enable horizontal scrolling when tilting the mouse wheel
@@ -565,6 +476,7 @@
   (define-key eww-mode-map (kbd "=") #'text-scale-increase)
   (define-key eww-mode-map (kbd "-") #'text-scale-decrease)
   (define-key eww-mode-map (kbd "0") #'text-scale-adjust))
+
 
 (provide 'config-keybindings)
 ;; config-keybindings.el ends here

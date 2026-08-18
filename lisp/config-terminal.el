@@ -170,6 +170,13 @@
       "tt" '(tmux-control-toggle-tiling :which-key "toggle tiling"))
 
     ;; M-<digit> window jumps (tmux-style), normal/visual/motion only
+
+    (general-define-key
+     :states '(normal)
+     :keymaps 'tmux-control-mode-map
+     (kbd "H") #'tmux-control-previous-window
+     (kbd "L") #'tmux-control-next-window
+     )
     (dotimes (i 10)
       (general-define-key
        :states '(normal visual motion)
