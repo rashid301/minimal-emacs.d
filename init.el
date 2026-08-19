@@ -4,7 +4,7 @@
 ;; URL: https://github.com/jamescherti/minimal-emacs.d
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: maint
-;; Version: 1.5.0
+;; Version: 1.5.2
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;;; Commentary:
@@ -52,6 +52,7 @@
 (if (boundp 'use-short-answers)
     (setq use-short-answers t)
   (advice-add 'yes-or-no-p :override #'y-or-n-p))
+(setq revert-buffer-quick-short-answers t)
 
 ;;; package.el
 
@@ -161,7 +162,7 @@
 
 ;; Automatically rescan the buffer for Imenu entries when `imenu' is invoked
 ;; This ensures the index reflects recent edits.
-(setq imenu-auto-rescan t)
+(setq-default imenu-auto-rescan t)
 
 ;; Prevent truncation of long function names in `imenu' listings
 (setq imenu-max-item-length 160)
@@ -201,7 +202,7 @@
 
 ;;; comint (general command interpreter in a window)
 
-(setq ansi-color-for-comint-mode t
+(setq ansi-color-for-comint-mode t ; Renders native ANSI colors in the shell
       comint-prompt-read-only t
       comint-buffer-maximum-size 4096)
 
@@ -256,7 +257,7 @@
 (when noninteractive
   ;; The command line interface
   (setq enable-dir-local-variables nil)
-  (setq case-fold-search nil))
+  (setq-default case-fold-search nil))
 
 ;; Do not auto-disable auto-save after deleting large chunks of
 ;; text.
@@ -267,11 +268,27 @@
 (setq tramp-auto-save-directory
       (expand-file-name "tramp-autosave/" user-emacs-directory))
 
-(setq auto-save-file-name-transforms
-      `(("\\`/[^/]*:\\([^/]*/\\)*\\([^/]*\\)\\'"
-         ,(file-name-concat auto-save-list-file-prefix "tramp-\\2-") sha1)
-        ("\\`/\\([^/]+/\\)*\\([^/]+\\)\\'"
-         ,(file-name-concat auto-save-list-file-prefix "\\2-") sha1)))
+(defun minimal-emacs-setup-auto-save-transforms ()
+  "Configure `auto-save-file-name-transforms' for local and remote files.
+This should be called after changing `auto-save-list-file-prefix'."
+  (setq auto-save-file-name-transforms
+        `(("\\`/[^/]*:\\([^/]*/\\)*\\([^/]*\\)\\'"
+           ;; Redirect TRAMP (remote) file auto-saves to the local machine
+           ;; (prefixed with "tramp-") to prevent Emacs from hanging due to
+           ;; network latency during auto-save operations.
+           ,(file-name-concat auto-save-list-file-prefix "tramp-\\2-") sha1)
+          ("\\`/\\([^/]+/\\)*\\([^/]+\\)\\'"
+           ;; Redirect absolute file paths auto-saves to the
+           ;; `auto-save-list-file-prefix' directory. This appends the base
+           ;; filename to the prefix, avoiding #file.txt# files across the system.
+           ,(file-name-concat auto-save-list-file-prefix "\\2-") sha1)))
+
+  (when (memq system-type '(windows-nt cygwin ms-dos))
+    (push `("\\`\\(/\\|[a-zA-Z]:/\\|//\\)\\([^/]+/\\)*\\([^/]+\\)\\'"
+            ,(file-name-concat auto-save-list-file-prefix "\\3-") sha1)
+          auto-save-file-name-transforms)))
+
+(minimal-emacs-setup-auto-save-transforms)
 
 ;; Ensure the directory for auto-save session logs exists with restricted
 ;; permissions.
@@ -281,11 +298,19 @@
       (with-file-modes #o700
         (make-directory auto-save-dir t)))))
 
-;; Auto save options
 (setq kill-buffer-delete-auto-save-files t)
 
 ;; Remove duplicates from the kill ring to reduce clutter
 (setq kill-do-not-save-duplicates t)
+
+;; Preserve the system clipboard before Emacs delete/kill operations.
+;;
+;; By default, deleting text in Emacs overwrites your system clipboard. For
+;; example, if you copy a link from a browser, switch to Emacs, and delete some
+;; text, your copied link is lost. This setting fixes that by pushing the
+;; clipboard contents into your paste history right before the deletion,
+;; ensuring external data remains retrievable via `yank-pop'.
+(setq save-interprogram-paste-before-kill t)
 
 ;;; Auto revert
 ;; Auto-revert in Emacs is a feature that automatically updates the contents of
@@ -527,6 +552,10 @@
 ;; Activate Eglot in cross-referenced non-project files
 (setq eglot-extend-to-xref t)
 
+;; Disable margin indicators to prevent line-height shifts caused by emoji font
+;; rendering issues. This disables both `left-fringe' and `margin' indicators.
+(setq eglot-code-action-indications '(eldoc-hint))
+
 ;; Eglot optimization
 (if minimal-emacs-debug
     (setq eglot-events-buffer-config '(:size 2000000 :format full))
@@ -624,7 +653,7 @@
 (setq minimal-emacs--success t)
 
 ;; Local variables:
-;; byte-compile-warnings: (not obsolete free-vars)
+;; byte-compile-warnings: (not free-vars)
 ;; End:
 
 ;;; init.el ends here

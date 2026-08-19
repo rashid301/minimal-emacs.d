@@ -4,7 +4,7 @@
 ;; URL: https://github.com/jamescherti/minimal-emacs.d
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: maint
-;; Version: 1.5.0
+;; Version: 1.5.2
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;;; Commentary:
@@ -499,7 +499,7 @@ this stage of initialization."
   (minimal-emacs-load-user-init "post-early-init.el"))
 
 ;; Local variables:
-;; byte-compile-warnings: (not obsolete free-vars)
+;; byte-compile-warnings: (not free-vars)
 ;; End:
 
 ;;; early-init.el ends here
