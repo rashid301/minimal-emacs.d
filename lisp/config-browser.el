@@ -429,9 +429,6 @@ Otherwise, look up the URL in places.sqlite and open it."
              '(glide glide/marginalia-annotator nil builtin none))
 
 
-(when (fboundp 'consult-buffer)
-  (add-to-list 'consult-bookmark-narrow `(?b "Browser" glide-bookmark--handler))
-  )
 ;; ── EWW (Emacs Web Wowser) configuration ───────────────────────────────
 
 (defun eww-rdrview-update-title ()

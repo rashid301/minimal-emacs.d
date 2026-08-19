@@ -19,6 +19,7 @@
                            "~/notes/someday.org"))
   (setq org-default-notes-file (expand-file-name "inbox.org" org-directory))
   (setq org-log-done 'time)
+  (setq org-hide-emphasis-markers t)
   (setq org-log-into-drawer t)
   (setq org-startup-align-all-tables t)
   (setq org-startup-indented t)
@@ -98,8 +99,7 @@
         '((agenda . " %i %-12:c%?-12t% s")
           (todo   . " %i %-12:c")
           (tags   . " %i %-12:c")
-          (search . " %i %-12:c")))
-  )
+          (search . " %i %-12:c"))))
 
 (use-package evil-org
   :ensure t

@@ -2,20 +2,19 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("terminal-trunk-3d"
-  ("*ewm:[universaltraveller.com] Terminal Trunk Dummy (3D Preview Purpose) – Universal Traveller — Personal — Glide Browser<2>*")
-  (handler . glide-bookmark--handler)
-  (filename . #1="https://universaltraveller.com/products/terminal-trunk-dummy-3d-preview-purpose")
-  (glide-title . "[universaltraveller.com] Terminal Trunk Dummy (3D Preview Purpose) – Universal Traveller — Personal — Glide Browser")
-  (glide-url . #1#)
-  (glide-profile . "Personal"))
-("teest-me"
- (handler . agent-shell-bookmark-handler)
- (location . #1="/home/rashid/Dropbox/notes/linkedin-posts/")
- (session-id . "259285b4-b4c7-4520-acdd-ffa8036d3ca4")
- (agent-identifier . hermes)
- (buffer-name . "Hermes Agent @ linkedin-posts")
- (project-path . #1#))
+(("vc-git--program-version"
+  (filename . "~/emacs/lisp/progmodes/project.el")
+  (front-context-string . "               (")
+  (rear-context-string . " extra-ignores)\n")
+  (position . 32927)
+  (last-modified 27269 32780 737181 207000))
+("terminal-trunk-3d"
+ ("*ewm:[universaltraveller.com] Terminal Trunk Dummy (3D Preview Purpose) – Universal Traveller — Personal — Glide Browser<2>*")
+ (handler . glide-bookmark--handler)
+ (filename . #1="https://universaltraveller.com/products/terminal-trunk-dummy-3d-preview-purpose")
+ (glide-title . "[universaltraveller.com] Terminal Trunk Dummy (3D Preview Purpose) – Universal Traveller — Personal — Glide Browser")
+ (glide-url . #1#)
+ (glide-profile . "Personal"))
 ("whatsapp-web"
  ("*ewm:[web.whatsapp.com] (1) WhatsApp — Personal — Glide Browser*")
  (handler . glide-bookmark--handler)

@@ -16,6 +16,16 @@
   (setq dired-kill-when-openinging-new-dired-buffer t)
   )
 
+;; ── ace-window ────────────────────────────────────────────────────────
+
+(use-package ace-window
+  :ensure t
+  :config
+  (ace-window-display-mode 1)
+  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
+  :bind (
+         ("M-o" . ace-window)))
+
 ;; ── Smartparens ────────────────────────────────────────────────────────
 
 (use-package smartparens
@@ -68,8 +78,10 @@
   ;; Apply it globally to consult-find, consult-grep, and consult-ripgrep
   (setq consult--regexp-compiler #'consult--orderless-regexp-compiler)
 
+
   (setq consult-line-start-from-top nil)
 
+  ;;(add-to-list 'consult-bookmark-narrow `(?b "Browser" glide-bookmark--handler))
   
 
   (defun noct-consult-line-evil-history (&rest _)
@@ -352,9 +364,9 @@ This only works with orderless and for the first component of the search."
   ;; and to the current one, since default-frame-alist only affects new frames
   (set-frame-parameter nil 'buffer-predicate #'my/activity-buffer-p)
 
-  (when (fboundp 'consult-buffer)
-    (add-to-list 'consult-bookmark-narrow `(?a "Activities" activities-bookmark-handler))
-    )
+  ;; (when (fboundp 'consult-bookmark-narrow)
+  ;;   (add-to-list 'consult-bookmark-narrow `(?a "Activities" activities-bookmark-handler))
+  ;;   )
   )
 
 ;; ── Navigation ─────────────────────────────────────────────────────────

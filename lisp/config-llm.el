@@ -113,10 +113,16 @@
   
 
   (add-hook 'agent-shell-mode-hook #'agent-shell/setup)
+  (add-hook 'agent-shell-mode-hook
+            (lambda () (setq-local jit-lock-mode nil)))
 
   (with-eval-after-load 'evil-collection-agent-shell
     (agent-shell/setup)
     )
+
+  ;; (when (fboundp 'consult-buffer)
+  ;;   (add-to-list 'consult-bookmark-narrow `(?l "Agent Shell" agent-shell-links-bookmark-jump))
+  ;;   )
   )
 
 (use-package agent-shell-tramp

@@ -28,8 +28,16 @@
         ))
      (t (if my/ewm-activities-use-frame
             (pcase dir
-              ('left (ewm-frame-left))
-              ('right (ewm-frame-right)))
+              ('left
+               (unless (ewm-frame-left)
+                 (ewm-output-focus-left)
+                 )
+               )
+              ('right 
+               (unless (ewm-frame-right)
+                 (ewm-output-focus-right)
+                 )
+               ))
           (pcase dir
             ('left (tab-bar-switch-to-prev-tab))
             ('right (tab-bar-switch-to-next-tab))
@@ -133,6 +141,7 @@
   (setq ewm-unfocused-alpha 1.0)
 
   (setq ewm-edp1-side 'left)
+  (setq ewm-idle 300)
 
   (setopt ewm-output-config
           (if (eq ewm-edp1-side 'left)

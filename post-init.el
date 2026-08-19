@@ -15,6 +15,9 @@
 ;; Completion: Vertico, Corfu, Orderless, Marginalia
 (load "config-completion")
 
+;; Editor: Dirvish, Smartparens, Consult, Embark, Tridactyl, Thanos, TRAMP
+(load "config-editor")
+
 ;; Project: project.el, magit, eglot, apheleia, rg
 (load "config-project")
 
@@ -39,8 +42,6 @@
 ;; LLM integrations
 (load "config-llm")
 
-;; Editor: Dirvish, Smartparens, Consult, Embark, Tridactyl, Thanos, TRAMP
-(load "config-editor")
 
 ;; Apps: Elfeed, ement, link-hint, pdf-tools
 (load "config-apps")
@@ -51,12 +52,13 @@
 ;; ── EWM (Wayland compositor) integration ───────────────────────────────
 
 (if (getenv "EWM_MODULE_PATH")
-    (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
+    (progn (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
+           ;; Browser configuration (EWW + Glide)
+           (load "config-browser")
+           )
   (load-file (expand-file-name "lisp/config-i3.el" user-emacs-directory)))
 
 
-;; Browser configuration (EWW + Glide)
-(load "config-browser")
 
 
 (provide 'post-init)

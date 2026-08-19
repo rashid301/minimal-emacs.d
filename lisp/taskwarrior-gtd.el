@@ -242,8 +242,9 @@ Empty string means no filter (all pending tasks)."
                                                    (nth 3 now-dt)
                                                    (nth 4 now-dt)
                                                    (nth 5 now-dt))))
-                     (truncate (/ (float-time (time-subtract target-day now-day))
-                                  86400.0))))))
+                     ;; plus 1 bug. due to timezone
+                     (+ 1 (truncate (/ (float-time (time-subtract target-day now-day))
+                                       86400.0)))))))
       (cond
        ((or (not ts) (not days)) date-str)
        ((= days 0) "today")
@@ -253,8 +254,7 @@ Empty string means no filter (all pending tasks)."
                            (nth 5 ts) (nth 4 ts) (nth 3 ts)))
        ((= days -1) "1d ago")
        ((and (< days 0) (>= days -7)) (format "%dd ago" (- days)))
-       (t (format "%s-%s-%s"
-                  (nth 5 ts) (nth 4 ts) (nth 3 ts)))))))
+       (t (format "%s-%02d-%02d" (nth 5 ts) (nth 4 ts) (nth 3 ts)))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Column formatters

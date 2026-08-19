@@ -129,7 +129,7 @@
   :config
   (global-corfu-mode +1)
   (setq
-   corfu-preselect 'prompt
+   corfu-preselect 'first
    corfu-count 16
    corfu-max-width 120
    corfu-on-exact-match nil
