@@ -11,20 +11,24 @@
   (defvar my-project-git-root-cache (make-hash-table :test 'equal)
     "Cache of directory -> git project root, to avoid repeated locate-dominating-file walks over TRAMP.")
 
+
   (defun my-project-try-git (dir)
-    "Detect a Git project root by checking for a .git directory.
-Works over TRAMP without relying on `vc-handled-backends'.
+    "Detect a Git project root by checking for a .git file or directory.
+Works perfectly for worktrees and over TRAMP.
 Caches result per DIR to avoid repeated ancestor walks."
     (let ((cached (gethash dir my-project-git-root-cache 'not-found)))
       (if (not (eq cached 'not-found))
           cached
         (let ((result
-               (when-let ((root (locate-dominating-file dir ".git")))
-                 (when (file-directory-p (expand-file-name ".git" root))
-                   (list 'vc 'Git root)))))
+               (when-let ((dotgit-loc (locate-dominating-file dir ".git")))
+                 ;; Enforce that the root is the clean, literal directory holding the .git file
+                 (let ((root (file-name-as-directory (expand-file-name dotgit-loc))))
+                   (when (file-exists-p (expand-file-name ".git" root))
+                     (list 'vc 'Git root))))))
           (puthash dir result my-project-git-root-cache)
           result))))
 
+  ;; Put it at the front of the hook so Emacs doesn't use its broken fallback
   (add-hook 'project-find-functions #'my-project-try-git 'append))
 
 ;; ── Git ────────────────────────────────────────────────────────────────
