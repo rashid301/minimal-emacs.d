@@ -36,7 +36,7 @@
   (my/load-theme 'modus-operandi)
   ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
-                      :family "Iosevka Extended"
+                      :family "Iosevka Nerd Font"
                       :height (or font-size 140)
                       :weight 'normal))
 
@@ -131,7 +131,10 @@
 ;; ── Icons (nerd-icons) ────────────────────────────────────────────────
 
 (use-package nerd-icons
-  :ensure t)
+  :ensure t
+  :config
+  ;; Point nerd-icons at the Nerd Font actually installed on this system
+  (setq nerd-icons-font-family "Iosevka Nerd Font"))
 
 (use-package nerd-icons-completion
   :ensure t
@@ -227,7 +230,7 @@
 
 (defun my/popper-select-at-bottom (buffer &optional alist)
   (let ((window (display-buffer-below-selected buffer '((window-height . 0.3)))))
-    (select-window window)))
+    (if window (select-window window))))
 
 (use-package popper
   :ensure t

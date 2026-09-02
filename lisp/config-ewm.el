@@ -97,7 +97,7 @@
   (define-key ewm-mode-map (kbd "s-/") #'evil-window-vsplit)
   (define-key ewm-mode-map (kbd "s-q") #'kill-current-buffer)
   (define-key ewm-mode-map (kbd "s-b") #'consult-buffer)
-  (define-key ewm-mode-map (kbd "s-<return>") #'eshell)
+  (define-key ewm-mode-map (kbd "s-<return>") #'ghostel)
   (define-key ewm-mode-map (kbd "s-a") #'activities-resume)
   (define-key ewm-mode-map (kbd "s-p") #'previous-buffer)
   (define-key ewm-mode-map (kbd "s-n") #'next-buffer)
@@ -137,11 +137,11 @@
                     (run-hooks 'server-after-make-frame-hook))))))
 
   (setq tab-bar-select-tab-modifiers '(meta))
-  (setq ewm-focus-follows-mouse t)
-  (setq ewm-unfocused-alpha 1.0)
+  (setopt ewm-focus-follows-mouse t)
+  (setopt ewm-unfocused-alpha 1.0)
 
   (setq ewm-edp1-side 'left)
-  (setq ewm-idle 300)
+  (setq ewm-idle 600)
 
   (setopt ewm-output-config
           (if (eq ewm-edp1-side 'left)
@@ -150,9 +150,9 @@
             '(("DP-1" :scale 1.5)
               ("eDP-1" :x 2560 :y 0))))
 
-  (setq ewm-input-config
-        '((touchpad :natural-scroll t :tap t :dwt t)
-          (mouse :accel-profile "flat")))
+  (setopt ewm-input-config
+          '((touchpad :natural-scroll t :tap t :dwt t)
+            (mouse :accel-profile "flat")))
 
   (when my/ewm-activities-use-frame
     (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
@@ -170,6 +170,8 @@
 
   (with-eval-after-load 'consult
     (add-to-list 'consult-buffer-sources consult-source-xdg-apps t))
+
+  (add-to-list 'ewm-intercept-prefixes ?\M-q)
 
   ;; (setq ewm-intercept-prefixes
   ;;       (delq ?\C-u (copy-sequence ewm-intercept-prefixes)))

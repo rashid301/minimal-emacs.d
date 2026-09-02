@@ -228,3 +228,12 @@ BUFFER may be a buffer object or a buffer name (string)."
 (define-key evil-window-map (kbd "s") #'my/consult-send-to-side-slot) 
 (define-key evil-window-map (kbd "l") #'my/toggle-left-sidebar) 
 (define-key evil-window-map (kbd "r") #'my/toggle-right-sidebar) 
+
+
+(defun my/start-detached (cmd)
+  "Start CMD fully detached from Emacs using systemd --user."
+  (make-process
+   :name "detached"
+   :buffer nil
+   :command (list "systemd-run" "--user" "--scope" "sh" "-c" cmd)
+   :noquery t))

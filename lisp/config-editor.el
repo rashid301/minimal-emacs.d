@@ -304,7 +304,7 @@ This only works with orderless and for the first component of the search."
   (setq tramp-use-ssh-controlmaster-options nil)
   (setq tramp-inline-compress-start-size 10000)
   (setq tramp-copy-size-limit 100000)
-  (setq vc-handled-backends '(git))
+  (setq vc-handled-backends '(Git))
   (setq remote-file-name-inhibit-cache nil)
   (setq tramp-verbose 3))
 
@@ -334,6 +334,7 @@ This only works with orderless and for the first component of the search."
   :after consult
   :config
   (setq activities-always-persist t)
+  (setq activities-kill-buffers t)
 
   (defun my/consult-buffer-list--activity ()
     "Return buffers from the current activity's frame, or all buffers if none active."
@@ -375,7 +376,7 @@ This only works with orderless and for the first component of the search."
 (use-package avy
   :bind (("C-;" . avy-goto-char-2)
          :map evil-normal-state-map
-         ("s" . evil-avy-goto-char-2))
+         ("f" . evil-avy-goto-char-2))
   :config
   (setq avy-style 'at-full
         avy-background t

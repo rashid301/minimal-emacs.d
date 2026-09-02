@@ -12,25 +12,25 @@
   :config
   (setq gptel-api-key "your key")
   (setq gptel-default-mode 'org-mode)
-  (setq gptel-backend (gptel-make-openai "Beellama"             ;Any name of your choosing
-                        :protocol "http"
-                        :host "desktop-pc:8060"               ;Where it's running
-                        :stream t                             ;Stream responses
-                        :models '(Qwen3.6-27B-MTP-IQ4_KS.gguf))
-        )
+  (gptel-make-openai "Beellama"             ;Any name of your choosing
+    :protocol "http"
+    :host "desktop-pc:8060"               ;Where it's running
+    :stream t                             ;Stream responses
+    :models '(Qwen3.6-27B-MTP-IQ4_KS.gguf))
+  
   (gptel-make-openai "Ollama"             ;Any name of your choosing
     :protocol "http"
     :host "desktop-pc:11434"               ;Where it's running
     :stream t                             ;Stream responses
     :models '(muse-glimmer:30b hf.co/unsloth/Qwen3.8-27B-GGUF:Q4_K_M hf.co/unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_XL))
 
-  (gptel-make-openai "Qwen3.8"             ;Any name of your choosing
-    :protocol "http"
-    :host "desktop-pc:8086"               ;Where it's running
-    :stream t                             ;Stream responses
-    :models '(qwen3.8-27b))
-  
-  )
+  (setq gptel-backend
+        (gptel-make-openai "Qwen3.8"             
+          :protocol "http"
+          :host "desktop-pc:8090"               
+          :stream t                             
+          :models '(qwen3.8-27b))
+        ))
 
 (use-package gptel-agent
   :ensure t 
@@ -115,6 +115,10 @@
   (add-hook 'agent-shell-mode-hook #'agent-shell/setup)
   (add-hook 'agent-shell-mode-hook
             (lambda () (setq-local jit-lock-mode nil)))
+  ;; Disable chat mode: its prompt-label overlays make the live prompt
+  ;; marker vanish/flicker on single-line input
+  ;; (https://github.com/xenodium/agent-shell/issues/785).
+  (setq agent-shell-chat-mode-enabled nil)
 
   (with-eval-after-load 'evil-collection-agent-shell
     (agent-shell/setup)
@@ -344,6 +348,13 @@
         agent-recall-search-function 'consult-ripgrep
         agent-recall-browse-sort 'modified-desc))
 
+
+(use-package agent-shell-attention
+  :vc (:url "https://github.com/ultronozm/agent-shell-attention.el" :rev "main")
+  :config
+  (agent-shell-attention-mode 1)
+  (setopt agent-shell-attention-notify-function #'agent-shell-attention-notify-default)
+  )
 
 
 (provide 'config-llm)

@@ -130,6 +130,13 @@ Caches result per DIR to avoid repeated ancestor walks."
 (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode))
 (setq major-mode-remap-alist '((python-mode . python-ts-mode)))
 
+;; nix-ts-mode (external package, tree-sitter-based Nix mode)
+(use-package nix-ts-mode
+  :ensure t
+  :after treesit
+  :config
+  (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode)))
+
 ;; Tree-sitter grammar recipes (not in built-in list)
 (setq treesit-language-source-alist
       '((javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
@@ -142,6 +149,7 @@ Caches result per DIR to avoid repeated ancestor walks."
         (toml "https://github.com/tree-sitter/tree-sitter-toml")
         (elisp "https://github.com/Wilfred/tree-sitter-elisp")
         (commonlisp "https://github.com/tree-sitter-grammars/tree-sitter-commonlisp")
+        (nix "https://github.com/nix-community/tree-sitter-nix")
         (markdown "https://github.com/tree-sitter/tree-sitter-markdown")))
 ;; ── HTTP / API testing (verb) ──────────────────────────────────────────
 

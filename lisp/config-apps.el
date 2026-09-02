@@ -26,11 +26,28 @@
 
 ;; ── pdf-tools ─────────────────────────────────────────────────────────
 
+;; jka-compat is the C extension that pdf-view requires. The Nix store build
+;; of pdf-tools ships without it, so install via package.el (compiles against
+;; the running Emacs). Must load before pdf-tools.
+(use-package jka-compr
+  :ensure t)
+
 (use-package pdf-tools
-  :ensure t
+  ;; Provided by Nix (epkgs.pdf-tools in the EWM emacsPackage build).
+  ;; use-package-always-ensure is on globally, so :ensure nil is REQUIRED
+  ;; here — otherwise package.el would install a second copy from MELPA.
+  :ensure nil
   :mode ("\\.pdf\\'" . pdf-view-mode)
   :config
-  (pdf-tools-install t t))
+  ;; epdfinfo is NOT auto-discovered: pdf-info.el's default falls back to the
+  ;; relative name "epdfinfo", resolved against your cwd at runtime. Derive
+  ;; the path from the loaded library so Nix rebuilds (new store hash) don't
+  ;; break it.
+  (setq pdf-info-epdfinfo-program
+        (expand-file-name "epdfinfo"
+                          (file-name-directory
+                           (locate-library "pdf-tools"))))
+  )
 
 
 ;; ── ement ─────────────────────────────────────────────────────────────
@@ -80,5 +97,8 @@
     (kbd "<return>")   'my/ement-ret
     (kbd "RET")        'my/ement-ret))
 
+;; (use-package docker
+;;   :ensure t
+;;   )
 
 (provide 'config-apps)

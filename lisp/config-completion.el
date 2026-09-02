@@ -5,12 +5,12 @@
 (use-package vertico
   :ensure t
   :custom
-  (vertico-count 17)
+  (vertico-count 5)
   (vertico-resize nil)
   (vertico-cycle t)
   (vertico-scroll-margin 2)
   (vertico-buffer-display-action
-   '(display-buffer-in-direction (direction . below) (window-height . 20)))
+   '(display-buffer-in-direction (direction . below) (window-height . 10)))
   :config
   (vertico-mode 1)
   (vertico-buffer-mode 1)
@@ -109,14 +109,12 @@
 ;; ── Corfu — in-buffer completion ───────────────────────────────────────
 
 (use-package corfu
-  :after evil-collection
   :custom
   (corfu-auto t)
   (corfu-auto-delay 0.2)
   (read-extended-command-predicate #'command-completion-default-include-p)
   (text-mode-ispell-word-completion nil)
   (tab-always-indent 'complete)
-  (tab-always-indent nil)
   (corfu-preview-current 'insert)
   :bind (:map corfu-map
               ("<mouse-1>" . corfu-select)
@@ -127,7 +125,7 @@
               ("<tab>" . corfu-insert))
   
   :config
-  (global-corfu-mode +1)
+  ;;(global-corfu-mode +1)
   (setq
    corfu-preselect 'first
    corfu-count 16
@@ -135,9 +133,10 @@
    corfu-on-exact-match nil
    corfu-quit-at-boundary 'separator
    corfu-quit-no-match corfu-quit-at-boundary)
-
-  (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
-  (add-hook 'evil-insert-state-exit-hook #'corfu-quit))
+  
+  ;;(add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
+  (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
+  )
 
 ;; ── Expreg — expand region ─────────────────────────────────────────────
 

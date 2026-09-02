@@ -1,4 +1,4 @@
-; post-init.el --- Modular Emacs configuration loader -*- lexical-binding: t; -*-
+                                        ; post-init.el --- Modular Emacs configuration loader -*- lexical-binding: t; -*-
 
 ;; Add lisp/ to load-path so `require` can find our modules
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
@@ -12,8 +12,6 @@
 ;; Keybindings: evil, general, leader keys, navigation, activities
 (load "config-keybindings")
 
-;; Completion: Vertico, Corfu, Orderless, Marginalia
-(load "config-completion")
 
 ;; Editor: Dirvish, Smartparens, Consult, Embark, Tridactyl, Thanos, TRAMP
 (load "config-editor")
@@ -46,17 +44,26 @@
 ;; Apps: Elfeed, ement, link-hint, pdf-tools
 (load "config-apps")
 
+;; Completion: Vertico, Corfu, Orderless, Marginalia
+(load "config-completion")
 
 ;; ── Remaining configuration (not yet extracted) ─────────────────────────
 
 ;; ── EWM (Wayland compositor) integration ───────────────────────────────
 
-(if (getenv "EWM_MODULE_PATH")
+(defun is_ewm()
+  (or
+   (string-match-p "ewm" (or (getenv "XDG_CURRENT_DESKTOP") ""))
+   (string-match-p "wayland-ewm-vt1" (or (getenv "WAYLAND_DISPLAY") ""))
+   ))
+
+(if (is_ewm)
     (progn (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
            ;; Browser configuration (EWW + Glide)
            (load "config-browser")
            )
   (load-file (expand-file-name "lisp/config-i3.el" user-emacs-directory)))
+
 
 
 

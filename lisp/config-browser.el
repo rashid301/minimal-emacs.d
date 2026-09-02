@@ -11,16 +11,16 @@
 (setq glide-profile-dir "/home/rashid/.config/glide/glide")
 
 (setq glide-personal-profile-dir
-      (expand-file-name "f3s4ga1h.default-glide" glide-profile-dir)
+      (expand-file-name "owtcxfih.default-glide" glide-profile-dir)
 
       glide-senzo-profile-dir
-      (expand-file-name "zsrT9in0.Profile 1" glide-profile-dir)
+      (expand-file-name "fhrXyciH.Profile 1" glide-profile-dir)
 
       glide-siddiqua-profile-dir
-      (expand-file-name "9QWhOHMr.Profile 2" glide-profile-dir)
+      (expand-file-name "gZSyJNTS.Profile 2" glide-profile-dir)
 
       glide-brandjet-profile-dir
-      (expand-file-name "TfnOBXOS.Profile 3" glide-profile-dir))
+      (expand-file-name "PRXvfODr.Profile 3" glide-profile-dir))
 
 (setq glide-profile-alist
       `(("Personal"  . ,glide-personal-profile-dir)
@@ -121,13 +121,22 @@ Results are cached per profile and reused while places.sqlite (and its
   "Open URL in Glide as a truly new window."
   (let* ((profile-name (or profile "Personal"))
          (profile-dir (glide-profile-path profile-name)))
+
+    (message "Opening %s in %s - %s..." url profile profile-dir)
     (start-process
-     "glide" nil
-     "/usr/bin/glide-bin"
+     "glide" "*glide-browser*"
+     "glide"
      "--new-window"
      url
      "--profile"
-     profile-dir)))
+     profile-dir)
+
+
+    ;; (my/start-detached
+    ;;  (format
+    ;;   "glide --new-window %s --profile %s" url profile-dir))
+
+    ))
 
 
 (defun glide--ewm-list ()
@@ -536,6 +545,7 @@ browser via wtype and reading the kill-ring."
 (defun glide-set-profile (profile-dir)
   "Set `glide-profile' in the selected window's buffer. Called from glide.ts."
   (with-current-buffer (window-buffer)
+    ;; (message "%s-%s" profile-dir (glide--profile-name-from-dir profile-dir))
     (setq glide-profile (glide--profile-name-from-dir profile-dir))))
 
 (defun glide-mode-changed (old-mode new-mode)
