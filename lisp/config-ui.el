@@ -215,16 +215,16 @@
 (set-fringe-mode 4)
 (set-face-attribute 'fringe nil :background nil)
 
-(add-to-list 'display-buffer-alist
-             '((lambda (buf _)
-                 (with-current-buffer buf
-                   (and (bound-and-true-p ewm-surface-app)
-                        (member ewm-surface-app '("foot" "mpv")))))
-               (display-buffer-reuse-mode-window display-buffer-at-bottom)
-               (dedicated . t)
-               (window-height . 0.3)
-               (window-parameters . ((mode-line-format . none)))
-               (post-command-select-window . t)))
+;; (add-to-list 'display-buffer-alist
+;;              '((lambda (buf _)
+;;                  (with-current-buffer buf
+;;                    (and (bound-and-true-p ewm-surface-app)
+;;                         (member ewm-surface-app '("foot" "mpv")))))
+;;                (display-buffer-reuse-mode-window display-buffer-at-bottom)
+;;                (dedicated . t)
+;;                (window-height . 0.3)
+;;                (window-parameters . ((mode-line-format . none)))
+;;                (post-command-select-window . t)))
 
 ;; ── Popper (popup management) ──────────────────────────────────────────
 

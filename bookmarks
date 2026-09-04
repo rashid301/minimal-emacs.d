@@ -2,13 +2,42 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("clearco-background"
-  ("*ewm:Applicant Portal - Home — default-glide — Glide Browser*")
+(("brandjet-prod-bull-board"
+  ("*ewm:Bull Dashboard — brandjet — Glide Browser*")
   (handler . glide-bookmark--handler)
-  (filename . #1="https://allclearscreening.instascreen.net/is/app/applicantPortal/home?referenceNumber=343235")
-  (glide-title . "Applicant Portal - Home — default-glide — Glide Browser")
+  (filename . #1="https://api-prod.brandjet.ai/admin/bull-board/")
+  (glide-title . "Bull Dashboard — brandjet — Glide Browser")
   (glide-url . #1#)
-  (glide-profile . "Personal"))
+  (glide-profile . "Brandjet"))
+("desktop-pc-ssh"
+ (handler . ghostel-bookmark-handler)
+ (location . "/home/rashid/")
+ (buf-name . "desktop-pc-ssh")
+ (identity
+  (kind . term)
+  (name . "*ghostel*")
+  (instance . 2)))
+("slack"
+ ("*ewm:engineering (Channel) - BrandJet AI - Slack — default-glide — Glide Browser*")
+ (handler . glide-bookmark--handler)
+ (filename . #1="https://app.slack.com/client/T0AMCNX489H/C0BRUNARCFR")
+ (glide-title . "engineering (Channel) - BrandJet AI - Slack — default-glide — Glide Browser")
+ (glide-url . #1#)
+ (glide-profile . "Personal"))
+("media-testing-firefox"
+ ("*ewm:gUM Test Page — default-glide — Glide Browser*")
+ (handler . glide-bookmark--handler)
+ (filename . #1="https://mozilla.github.io/webrtc-landing/gum_test.html")
+ (glide-title . "gUM Test Page — default-glide — Glide Browser")
+ (glide-url . #1#)
+ (glide-profile . "Personal"))
+("clearco-background"
+ ("*ewm:Applicant Portal - Home — default-glide — Glide Browser*")
+ (handler . glide-bookmark--handler)
+ (filename . #1="https://allclearscreening.instascreen.net/is/app/applicantPortal/home?referenceNumber=343235")
+ (glide-title . "Applicant Portal - Home — default-glide — Glide Browser")
+ (glide-url . #1#)
+ (glide-profile . "Personal"))
 ("australia-pte"
  ("*ewm:My experience with NAATI CCL & PTE (90/90/90) : r/AusVisa — default-glide — Glide Browser*")
  (handler . glide-bookmark--handler)
@@ -32,7 +61,7 @@
  (filename . #1="https://meet.google.com/mrc-xxak-mpf")
  (glide-title . "Meet - mrc-xxak-mpf — default-glide — Glide Browser")
  (glide-url . #1#)
- (glide-profile . "Personal"))
+ (glide-profile . "Brandjet"))
 ("Activity: brandjet"
  (activities-name . "brandjet")
  (handler . activities-bookmark-handler))

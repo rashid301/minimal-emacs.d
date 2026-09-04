@@ -1,5 +1,15 @@
 ;;; config-completion.el --- Completion framework configuration -*- lexical-binding: t; -*-
 
+(setq completions-format 'one-column)
+(setq completions-header-format nil)
+(setq completions-max-height 10)
+(setq completion-auto-select nil)
+
+;; (define-key minibuffer-mode-map (kbd "C-n") 'minibuffer-next-completion)
+;; (define-key minibuffer-mode-map (kbd "C-p") 'minibuffer-previous-completion)
+;; (define-key completion-in-region-mode-map (kbd "C-n") 'minibuffer-next-completion)
+;; (define-key completion-in-region-mode-map (kbd "C-p") 'minibuffer-previous-completion)
+
 ;; ── Vertico — vertical completion UI ───────────────────────────────────
 
 (use-package vertico
@@ -127,6 +137,7 @@
   :config
   ;;(global-corfu-mode +1)
   (setq
+   global-corfu-minibuffer nil
    corfu-preselect 'first
    corfu-count 16
    corfu-max-width 120
@@ -137,6 +148,8 @@
   ;;(add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
   (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
   )
+
+
 
 ;; ── Expreg — expand region ─────────────────────────────────────────────
 

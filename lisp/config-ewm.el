@@ -2,6 +2,11 @@
 
 (setq my/ewm-activities-use-frame t)
 
+(defun my/toggle-handy()
+  (interactive)
+  (call-process "handy" nil 0 nil "--toggle-transcription")
+  )
+
 (defun my/emacs-ewm-swap (dir)
   (let ((other-window (windmove-find-other-window dir)))
     (cond
@@ -109,6 +114,7 @@
   (define-key ewm-mode-map (kbd "s-o") #'visual-fill-column-mode)
   (define-key ewm-mode-map (kbd "s-<") #'ewm-frame-left)
   (define-key ewm-mode-map (kbd "s->") #'ewm-frame-right)
+  (define-key ewm-mode-map (kbd "s-u") #'my/toggle-handy)
 
   (defun my/session-noc ()
     (interactive)
@@ -206,13 +212,17 @@
                           :name "noctalia"
                           :command '("noctalia" "--daemon")
                           :noquery t)
-            (make-process :buffer " *easyeffects*"
-                          :name "easyeffects"
-                          :command '("easyeffects" "--hide-window" "--service-mode")
-                          :noquery t)
+            ;; (make-process :buffer " *easyeffects*"
+            ;;               :name "easyeffects"
+            ;;               :command '("easyeffects" "--hide-window" "--service-mode")
+            ;; :noquery t)
             (make-process :buffer " *dropbox*"
                           :name "dropbox"
                           :command '("/home/rashid/.dropbox-dist/dropboxd")
+                          :noquery t)
+            (make-process :buffer " *handy*"
+                          :name "handy"
+                          :command '("handy" "--start-hidden")
                           :noquery t)
             (make-process :buffer " *enpass*"
                           :name "enpass"
