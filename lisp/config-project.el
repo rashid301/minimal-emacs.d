@@ -105,6 +105,7 @@ Caches result per DIR to avoid repeated ancestor walks."
   :init
   (apheleia-global-mode +1)
   :config
+  (setq apheleia-remote-algorithm 'remote)
   (setf (alist-get 'prettier apheleia-formatters)
         '("apheleia-npx" "prettier" "--stdin-filepath" filepath)))
 

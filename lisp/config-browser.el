@@ -20,19 +20,27 @@
       (expand-file-name "gZSyJNTS.Profile 2" glide-profile-dir)
 
       glide-brandjet-profile-dir
-      (expand-file-name "PRXvfODr.Profile 3" glide-profile-dir))
+      (expand-file-name "PRXvfODr.Profile 3" glide-profile-dir)
+
+      glide-clearco-profile-dir
+      (expand-file-name "z46m85k9.ClearCo" glide-profile-dir)
+      )
 
 (setq glide-profile-alist
       `(("Personal"  . ,glide-personal-profile-dir)
+        ("ClearCo"  . ,glide-clearco-profile-dir)
+        ("Brandjet"  . ,glide-brandjet-profile-dir)
         ("Senzo"     . ,glide-senzo-profile-dir)
         ("Siddiqua"  . ,glide-siddiqua-profile-dir)
-        ("Brandjet"  . ,glide-brandjet-profile-dir)))
+        ))
 
 (setq glide-profile-indexed-alist
       `(("1" . ("Personal"  . ,glide-personal-profile-dir))
-        ("2" . ("Senzo"     . ,glide-senzo-profile-dir))
-        ("3" . ("Siddiqua"  . ,glide-siddiqua-profile-dir))
-        ("4" . ("Brandjet"  . ,glide-brandjet-profile-dir))))
+        ("2" . ("ClearCo"     . ,glide-senzo-profile-dir))
+        ("3" . ("Brandjet"  . ,glide-brandjet-profile-dir))
+        ("4" . ("Senzo"     . ,glide-senzo-profile-dir))
+        ("5" . ("Siddiqua"  . ,glide-siddiqua-profile-dir))
+        ))
 
 
 (defun glide-profile-path (profile-name)
@@ -122,7 +130,7 @@ Results are cached per profile and reused while places.sqlite (and its
   (let* ((profile-name (or profile "Personal"))
          (profile-dir (glide-profile-path profile-name)))
 
-    (message "Opening %s in %s - %s..." url profile profile-dir)
+    ;; (message "Opening %s in %s - %s..." url profile profile-dir)
     (start-process
      "glide" "*glide-browser*"
      "glide"
@@ -406,7 +414,7 @@ Otherwise, look up the URL in places.sqlite and open it."
           (user-error "Glide bookmark '%s' has no title stored" (bookmark-name bmk)))
         (if url
             (progn
-              (message "Opening %s in %s..." url profile)
+              ;; (message "Opening %s in %s..." url profile)
               (glide--open-url url profile)
               (get-buffer-create "*scratch*"))
           (user-error "No URL found in %s's history for title: %s" profile title))))))
