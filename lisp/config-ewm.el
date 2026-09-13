@@ -7,6 +7,21 @@
   (call-process "handy" nil 0 nil "--toggle-transcription")
   )
 
+(defun my/toggle-window-maximize ()
+  "Toggle maximizing the current window at the frame level.
+Saves the window configuration in a frame parameter to restore it later."
+  (interactive)
+  (if (frame-parameter nil 'my/saved-window-configuration)
+      (progn
+        (set-window-configuration (frame-parameter nil 'my/saved-window-configuration))
+        (set-frame-parameter nil 'my/saved-window-configuration nil)
+        (message "Window configuration restored."))
+    (when (> (count-windows) 1)
+      (set-frame-parameter nil 'my/saved-window-configuration (current-window-configuration))
+      (delete-other-windows)
+      (message "Window maximized."))))
+
+
 (defun my/emacs-ewm-swap (dir)
   (let ((other-window (windmove-find-other-window dir)))
     (cond
@@ -115,6 +130,8 @@
   (define-key ewm-mode-map (kbd "s-<") #'ewm-frame-left)
   (define-key ewm-mode-map (kbd "s->") #'ewm-frame-right)
   (define-key ewm-mode-map (kbd "s-u") #'my/toggle-handy)
+  (define-key ewm-mode-map (kbd "s-f") #'my/toggle-window-maximize)
+  (define-key ewm-mode-map (kbd "s-F") #'my/toggle-frame-chrome )
 
   (defun my/session-noc ()
     (interactive)
@@ -143,7 +160,7 @@
                     (run-hooks 'server-after-make-frame-hook))))))
 
   (setq tab-bar-select-tab-modifiers '(meta))
-  (setopt ewm-focus-follows-mouse t)
+  (setopt ewm-focus-follows-mouse nil)
   (setopt ewm-unfocused-alpha 1.0)
 
   (setq ewm-edp1-side 'left)
@@ -204,10 +221,10 @@
             (setenv "LABWC_PID" (format "%s" (emacs-pid)))
             (setenv "NOCTALIA_PAM_SERVICE" "fingerprint")
             (setenv "QT_QPA_PLATFORM" "xcb")
-            (make-process :buffer " *gnome-keyring*"
-                          :name "gnome-keyring"
-                          :command '("gnome-keyring-daemon" "--daemonize" "--start")
-                          :noquery t)
+            ;; (make-process :buffer " *gnome-keyring*"
+            ;;               :name "gnome-keyring"
+            ;;               :command '("gnome-keyring-daemon" "--daemonize" "--start")
+            ;;               :noquery t)
             (make-process :buffer " *noctalia*"
                           :name "noctalia"
                           :command '("noctalia" "--daemon")
@@ -216,10 +233,10 @@
             ;;               :name "easyeffects"
             ;;               :command '("easyeffects" "--hide-window" "--service-mode")
             ;; :noquery t)
-            (make-process :buffer " *dropbox*"
-                          :name "dropbox"
-                          :command '("/home/rashid/.dropbox-dist/dropboxd")
-                          :noquery t)
+            ;; (make-process :buffer " *dropbox*"
+            ;;               :name "dropbox"
+            ;;               :command '("/home/rashid/.dropbox-dist/dropboxd")
+            ;;               :noquery t)
             (make-process :buffer " *handy*"
                           :name "handy"
                           :command '("handy" "--start-hidden")
@@ -232,6 +249,62 @@
 (defun my/activity-name ()
   (interactive)
   (message (activities-name-for (activities-current))))
+
+(defun my/toggle-frame-chrome (&optional frame)
+  "Toggle fringes, dividers, scrollbars, and mode-line on FRAME."
+  (interactive)
+
+  (ewm-floating-toggle)
+  (let* ((f (or frame (selected-frame)))
+         (saved (frame-parameter f 'my-saved-chrome)))
+    (if saved
+        ;; --- RESTORE CHROME ---
+        (progn
+          (modify-frame-parameters f saved)
+          (set-frame-parameter f 'my-saved-chrome nil)
+
+          (with-current-buffer (window-buffer (frame-selected-window f))
+            (setq left-margin-width 1
+                  right-margin-width 1)
+            (when (bound-and-true-p hide-mode-line-mode)
+              (hide-mode-line-mode -1))))
+      ;; --- STRIP CHROME ---
+      (let ((current-params
+             `((left-fringe . ,(frame-parameter f 'left-fringe))
+               (right-fringe . ,(frame-parameter f 'right-fringe))
+               (vertical-scroll-bars . ,(frame-parameter f 'vertical-scroll-bars))
+               (horizontal-scroll-bars . ,(frame-parameter f 'horizontal-scroll-bars))
+               (right-divider-width . ,(frame-parameter f 'right-divider-width))
+               (bottom-divider-width . ,(frame-parameter f 'bottom-divider-width)))))
+        ;; Save original parameters to the frame itself
+        (set-frame-parameter f 'my-saved-chrome current-params)
+
+        (setq left-margin-width 0
+              right-margin-width 0)
+        ;; Clear frame chrome
+        (modify-frame-parameters
+         f
+         '((left-fringe . 0)
+           (right-fringe . 0)
+           (vertical-scroll-bars . nil)
+           (horizontal-scroll-bars . nil)
+           (right-divider-width . 0)
+           (bottom-divider-width . 0)))
+        ;; Hide the buffer mode-line
+        (with-current-buffer (window-buffer (frame-selected-window f))
+          (hide-mode-line-mode 1))))))
+
+;; make mpv float by default
+(defun my/floating-frames (frame)
+  (let ((buf (window-buffer (frame-selected-window frame))))
+    (when (with-current-buffer buf
+            (and (bound-and-true-p ewm-surface-app)
+                 (member ewm-surface-app '("mpv" "Enpass" "Enpass Assistant" "enpass"))
+                 (not (frame-parameter frame 'ewm-floating))))
+      (with-selected-frame frame
+        (my/toggle-frame-chrome frame)))))
+
+(add-hook 'after-make-frame-functions #'my/floating-frames)
 
 (provide 'config-ewm)
 ;; config-ewm.el ends here

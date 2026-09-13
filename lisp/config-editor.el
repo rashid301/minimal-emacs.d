@@ -2,19 +2,19 @@
 
 ;; ── Dirvish (improved dired) ───────────────────────────────────────────
 
-(use-package dirvish
-  :ensure t
-  :defer t
-  :init
-  :config
-  (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
-  (require 'dirvish)
-  (require 'dirvish-icons)
-  (require 'dirvish-quick-access)
-  (require 'dirvish-yank)
-  (dirvish-override-dired-mode 1)
-  (setq dired-kill-when-openinging-new-dired-buffer t)
-  )
+;; (use-package dirvish
+;;   :ensure t
+;;   :defer t
+;;   :init
+;;   :config
+;;   (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
+;;   (require 'dirvish)
+;;   (require 'dirvish-icons)
+;;   (require 'dirvish-quick-access)
+;;   (require 'dirvish-yank)
+;;   (dirvish-override-dired-mode 1)
+;;   (setq dired-kill-when-openinging-new-dired-buffer t)
+;;   )
 
 ;; ── ace-window ────────────────────────────────────────────────────────
 
@@ -426,5 +426,10 @@ This only works with orderless and for the first component of the search."
   (which-key-mode)
   (setq which-key-idle-delay 1.5)
   )
+
+;; needed for project local configs
+(use-package envrc
+  :vc (:url "https://github.com/purcell/envrc" :rev "55a69ae6325c06fdde9a94b55c8f3dbc901686ff")
+  :hook (after-init . envrc-global-mode))
 
 (provide 'config-editor)

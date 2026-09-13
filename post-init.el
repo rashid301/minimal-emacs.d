@@ -57,10 +57,13 @@
    (string-match-p "wayland-ewm-vt1" (or (getenv "WAYLAND_DISPLAY") ""))
    ))
 
+;; Browser configuration (EWW + Glide common)
+(load "config-browser")
+
 (if (is_ewm)
     (progn (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
-           ;; Browser configuration (EWW + Glide)
-           (load "config-browser")
+           ;; Browser EWM integration
+           (load "browser-ewm")
            )
   (load-file (expand-file-name "lisp/config-i3.el" user-emacs-directory)))
 

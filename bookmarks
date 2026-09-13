@@ -2,12 +2,22 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("brandjet-discover-codex"
-  (handler . agent-shell-links-bookmark-jump)
-  (session-id . "01a076dd-10a1-7391-9566-b10f663fc226")
-  (agent . codex)
-  (filename . "/home/rashid/git/brandjet/brandbridgeai-backend-unibox-v2/")
-  (location . "audit this codebase/platform for scalability, maintenance, and bottlenecks"))
+(("Activity: ClearCo"
+  (activities-name . "ClearCo")
+  (handler . activities-bookmark-handler))
+("test-test"
+ (handler . agent-shell-bookmark-handler)
+ (location . #1="/home/rashid/dotfiles/")
+ (session-id . "0bfef3f5-fb84-4c2d-9d3d-e8982db2c489")
+ (agent-identifier . claude-code)
+ (buffer-name . "Claude Agent @ dotfiles<2>")
+ (project-path . #1#))
+("brandjet-discover-codex"
+ (handler . agent-shell-links-bookmark-jump)
+ (session-id . "01a076dd-10a1-7391-9566-b10f663fc226")
+ (agent . codex)
+ (filename . "/home/rashid/git/brandjet/brandbridgeai-backend-unibox-v2/")
+ (location . "audit this codebase/platform for scalability, maintenance, and bottlenecks"))
 ("brandjet-prod-bull-board"
  ("*ewm:Bull Dashboard — brandjet — Glide Browser*")
  (handler . glide-bookmark--handler)

@@ -225,15 +225,16 @@ BUFFER may be a buffer object or a buffer name (string)."
 ;; 5. Keybindings (Using general.el or standard Emacs)
 ;; If you use Evil/General (Common for SPC leader layouts):
 
-(define-key evil-window-map (kbd "s") #'my/consult-send-to-side-slot) 
-(define-key evil-window-map (kbd "l") #'my/toggle-left-sidebar) 
-(define-key evil-window-map (kbd "r") #'my/toggle-right-sidebar) 
+(define-key evil-window-map (kbd "s") #'my/consult-send-to-side-slot)
+(define-key evil-window-map (kbd "l") #'my/toggle-left-sidebar)
+(define-key evil-window-map (kbd "r") #'my/toggle-right-sidebar)
 
-
-(defun my/start-detached (cmd)
-  "Start CMD fully detached from Emacs using systemd --user."
+(defun my/start-detached (&rest args)
+  "Start an executable with ARGS detached via systemd --user."
   (make-process
    :name "detached"
    :buffer nil
-   :command (list "systemd-run" "--user" "--scope" "sh" "-c" cmd)
+   :command (append '("systemd-run" "--user") args)
    :noquery t))
+
+(provide 'config-utils)

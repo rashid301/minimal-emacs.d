@@ -52,9 +52,14 @@
   (load-theme theme t))
 
 ;; Only set font in GUI mode (not in terminal/batch)
-(when (display-graphic-p)
+;;(add-hook 'server-after-make-frame-hook #'my/set-font)
+(if (daemonp)
+    (add-hook 'after-make-frame-functions
+              (defun my-theme-daemon-init (frame)
+                (my/set-font)
+                (remove-hook 'after-make-frame-functions 'my-theme-daemon-init)))
   (my/set-font))
-(add-hook 'after-make-frame-functions #'my/set-font)
+
 (winner-mode)
 
 ;; ── Line numbers ───────────────────────────────────────────────────────
@@ -62,9 +67,9 @@
 (global-display-line-numbers-mode 1)
 (setq display-line-numbers-width 2)
 (set-fringe-mode 0)
-(setq-default top-margin-width 2)
-(setq-default left-margin-width 1)
-(setq-default right-margin-width 1)
+(setq-default top-margin-width 0)
+(setq-default left-margin-width 0)
+(setq-default right-margin-width 0)
 
 (defun turn-off-line-numbers ()
   (display-line-numbers-mode -1))
@@ -212,7 +217,7 @@
 ;;  '(window-divider ((t (:background "#333333")))))
 
 ;; Transparent fringes so wallpaper shows through pane edges
-(set-fringe-mode 4)
+(set-fringe-mode 0)
 (set-face-attribute 'fringe nil :background nil)
 
 ;; (add-to-list 'display-buffer-alist

@@ -217,9 +217,9 @@
 
   (defun my/open-links()
     (interactive)
-    (let ((browse-url-browser-function 'eww-browse-url))
-      (link-hint-open-link)
-      ))
+    ;;(let ((browse-url-browser-function 'eww-browse-url))
+    (link-hint-open-link))
+  ;; ))
   (define-key evil-window-map (kbd "u") #'winner-undo)
   (define-key evil-window-map (kbd "U") #'winner-redo) 
 
@@ -308,6 +308,7 @@
     "TAB d" '(activities-define :which-key "define activity")
     "TAB a" '(activities-resume :which-key "resume activity")
     "TAB b" '(activities-switch-buffer :which-key "switch buffer")
+    "TAB r" '(activities-ewm-remove-buffer-from-activity :which-key "remove buffer")
     "TAB s" '(activities-suspend :which-key "suspend activity")
     "TAB k" '(activities-kill :which-key "kill activity")
     "TAB l" '(activities-list :which-key "list activities")

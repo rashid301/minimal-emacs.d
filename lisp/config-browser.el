@@ -1,12 +1,12 @@
 ;;; config-browser.el -*- lexical-binding: t; -*-
 
-
-;;; ---- Glide browser integration (EWM) ----
+;;; ---- Glide browser integration (common, non-EWM) ----
 
 (require 'subr-x)
 (require 'consult)
 (require 'bookmark)
 
+;;; ---- Glide profile configuration ----
 
 (setq glide-profile-dir "/home/rashid/.config/glide/glide")
 
@@ -42,10 +42,21 @@
         ("5" . ("Siddiqua"  . ,glide-siddiqua-profile-dir))
         ))
 
-
 (defun glide-profile-path (profile-name)
   (cdr (assoc-string profile-name glide-profile-alist t)))
 
+(defun glide--open-url (url &optional profile)
+  "Open URL in Glide as a truly new window."
+  (let* ((profile-name (or profile "Personal"))
+         (profile-dir (glide-profile-path profile-name)))
+
+    (my/start-detached "glide" "--new-window" url "--profile" profile-dir)
+    ))
+
+(defun my-handle-glide-url (url &optional profile)
+  "Prompt for Glide profile and open URL in Glide."
+  (let ((profile (or profile (glide--select-profile))))
+    (glide--open-url url profile)))
 
 (defun glide--select-profile ()
   (let* ((candidates
@@ -63,6 +74,7 @@
          (profile (cadr (assoc key glide-profile-indexed-alist)))
          )
     profile))
+
 
 
 (defvar glide--history-cache '()
@@ -125,38 +137,6 @@ Results are cached per profile and reused while places.sqlite (and its
                 rows))))))))
 
 
-(defun glide--open-url (url &optional profile)
-  "Open URL in Glide as a truly new window."
-  (let* ((profile-name (or profile "Personal"))
-         (profile-dir (glide-profile-path profile-name)))
-
-    ;; (message "Opening %s in %s - %s..." url profile profile-dir)
-    (start-process
-     "glide" "*glide-browser*"
-     "glide"
-     "--new-window"
-     url
-     "--profile"
-     profile-dir)
-
-
-    ;; (my/start-detached
-    ;;  (format
-    ;;   "glide --new-window %s --profile %s" url profile-dir))
-
-    ))
-
-
-(defun glide--ewm-list ()
-  "List EWM buffers that belong to Glide Browser."
-  (require 'ewm)
-  (cl-remove-if-not
-   (lambda (buf)
-     (with-current-buffer buf
-       (string-prefix-p "glide" (or ewm-surface-app ""))))
-   (hash-table-values ewm--surfaces)))
-
-
 (defun glide--looks-like-url-p (s)
   "Return t if S looks like a URL."
   (or
@@ -175,24 +155,6 @@ Results are cached per profile and reused while places.sqlite (and its
    ;; bare domains like example.com or sub.domain.co
    (string-match-p "\\`[^ ]+\\.[^ ]+\\'" s)))
 
-
-
-(defun glide--ewm-candidate (buf)
-  (with-current-buffer buf
-    (let* ((title (or ewm-surface-title "Untitled"))
-           ;; prefer the buffer-local set by Glide's WindowLoaded autocmd,
-           ;; fall back to parsing the window title
-           (profile (or glide-profile (glide--extract-profile title)))
-           (domain (glide--extract-domain (or glide-url "")))
-           )
-      (propertize
-       (truncate-string-to-width title 50 0 nil t)
-       'glide-profile profile
-       'glide-title title
-       'glide-domain domain
-       'ewm-buffer buf
-       'ewm-app 'glide
-       ))))
 
 (defun glide--extract-profile (title)
   "Extract profile name from EWM title.
@@ -235,19 +197,6 @@ Returns the title name (1st segment) or empty string."
      )))
 
 
-(setq consult--glide-windows
-      `(:name "Glide Windows"
-              :narrow ?g
-              :category glide
-              :require-match t
-              :action ,(lambda (cand)
-                         (let ((buf (get-text-property 0 'ewm-buffer cand)))
-                           (when buf (switch-to-buffer buf))))
-              :items
-              ,(lambda ()
-                 (delq nil (mapcar #'glide--ewm-candidate (glide--ewm-list))))))
-
-
 (setq consult--glide-personal-history
       `(:name     "History (Personal)"
                   :narrow   ?p
@@ -255,6 +204,14 @@ Returns the title name (1st segment) or empty string."
                   :require-match t
                   :action ,(lambda (value) (glide--open-url (get-text-property 0 'glide-url value)))
                   :items ,(lambda () (glide--history-candidates "Personal"))))
+
+(setq consult--glide-clearco-history
+      `(:name     "History (ClearCo)"
+                  :narrow   ?c
+                  :category glide
+                  :require-match t
+                  :action ,(lambda (value) (glide--open-url (get-text-property 0 'glide-url value) "ClearCo"))
+                  :items ,(lambda () (glide--history-candidates "ClearCo"))))
 
 (setq consult--glide-senzo-history
       `(:name     "History (Senzo)"
@@ -294,20 +251,22 @@ Returns the title name (1st segment) or empty string."
 (defun glide-launcher (&optional initial-query)
   "Unified launcher: open Glide windows, browser history, or new URL/search."
   (interactive)
-  (let* (
+  (let* ((sources
+          (append
+           ;; EWM-specific sources (only if defined)
+           (when (boundp 'consult--glide-current-url)
+             (list consult--glide-current-url))
+           (when (boundp 'consult--glide-windows)
+             (list consult--glide-windows))
+           ;; History sources
+           (list consult--glide-personal-history
+                 consult--glide-clearco-history
+                 consult--glide-brandjet-history
+                 consult--glide-siddiqua-history
+                 consult--glide-senzo-history)))
          (choice
           (consult--multi
-           `((:name "Current URL"
-                    :items (lambda ()
-                             (list (or (and (bound-and-true-p glide-url)
-                                            (not (string-empty-p glide-url))
-                                            glide-url)
-                                       ""))))
-             consult--glide-windows
-             consult--glide-personal-history
-             consult--glide-senzo-history
-             consult--glide-siddiqua-history
-             consult--glide-brandjet-history)
+           sources
            :prompt "Glide: "
            :initial (or initial-query "")
            :default nil
@@ -337,11 +296,6 @@ Returns the title name (1st segment) or empty string."
          (glide--history-query profile))))
 
 
-(defun my-handle-glide-url (url &optional profile)
-  "Prompt for Glide profile and open URL in Glide."
-  (let ((profile (or profile (glide--select-profile))))
-    (glide--open-url url profile)))
-
 ;;; ---- Glide bookmark support ----
 
 (defun glide--sql-literal (s)
@@ -353,7 +307,7 @@ Returns the title name (1st segment) or empty string."
 Returns the most recently visited matching URL, or nil if not found.
 TITLE is matched case-insensitively against moz_places.title.
 DAYS bounds the scan to the last N days (default 90) so the LIKE
-query stays fast as history grows." 
+query stays fast as history grows."
   (let* ((profile-dir (glide-profile-path profile)))
     (when (and profile-dir (file-directory-p profile-dir))
       (let* ((src-db (expand-file-name "places.sqlite" profile-dir)))
@@ -372,62 +326,6 @@ query stays fast as history grows."
                      (buffer-string))))
               (when (> (length (string-trim result)) 0)
                 (string-trim result)))))))))
-
-(defun glide-bookmark--ewm-buffer-alive-p (title)
-  "Return the EWM buffer for a Glide window with TITLE, or nil." 
-  (let ((buf-name (concat "*ewm:" title "*")))
-    (get-buffer buf-name)))
-
-(defun glide-bookmark--make-record (&optional _always-create bmk-name)
-  "Create a bookmark record for Glide EWM buffers."
-  (when (boundp 'ewm-surface-title)
-    (let* ((title ewm-surface-title)
-           ;; prefer buffer-locals set by Glide autocmds, fall back to
-           ;; title parsing + places.sqlite lookup
-           (profile (or glide-profile (glide--extract-profile title)))
-           (url (or glide-url
-                    (glide--lookup-url-by-title (glide--extract-history-title title) profile))))
-      (unless url
-        (user-error "No URL found in %s's history for title: %s" profile title)
-        )
-      `((,(or bmk-name (buffer-name)))
-        (handler . glide-bookmark--handler)
-        (filename . ,url)
-        (glide-title . ,title)
-        (glide-url . ,url)
-        (glide-profile . ,(or profile "Personal"))))))
-
-(defun glide-bookmark--handler (bmk)
-  "Jump to a Glide bookmark.
-If the EWM buffer still exists, switch to it.
-Otherwise, look up the URL in places.sqlite and open it." 
-  (let* ((title (bookmark-prop-get bmk 'glide-title))
-         (profile (bookmark-prop-get bmk 'glide-profile))
-         (url (bookmark-prop-get bmk 'glide-url))
-         (buf (glide-bookmark--ewm-buffer-alive-p title)))
-    (if buf
-        (progn
-          (switch-to-buffer buf)
-          buf)
-      (progn
-        (unless title
-          (user-error "Glide bookmark '%s' has no title stored" (bookmark-name bmk)))
-        (if url
-            (progn
-              ;; (message "Opening %s in %s..." url profile)
-              (glide--open-url url profile)
-              (get-buffer-create "*scratch*"))
-          (user-error "No URL found in %s's history for title: %s" profile title))))))
-
-(defun glide-bookmark--setup ()
-  "Set up bookmark support for Glide EWM buffers." 
-  (when (and (boundp 'ewm-surface-title)
-             (string-prefix-p "glide" (or ewm-surface-app "")))
-    (make-local-variable 'bookmark-make-record-function)
-    (setq bookmark-make-record-function #'glide-bookmark--make-record)))
-
-(add-hook 'ewm-update-title-hook #'glide-bookmark--setup)
-(add-hook 'ewm-surface-mode-hook #'glide-bookmark--setup)
 
 
 ;; Glide browser window annotator
@@ -562,38 +460,6 @@ browser via wtype and reading the kill-ring."
     (cond ((string= new-mode "insert") (evil-insert-state))
           ((string= new-mode "normal") (evil-normal-state)))))
 
-
-;; ── Doom modeline for Glide browser surfaces ───────────────────────
-
-(doom-modeline-def-segment glide-buffer-info
-  "Glide: show profile + page title."
-  (concat
-   (doom-modeline-spc)
-   (propertize
-    (format "<%s> %s" (or glide-profile "?")
-            (truncate-string-to-width (or ewm-surface-title "Untitled") 40 0 nil t))
-    'face 'doom-modeline-buffer-file)))
-
-(doom-modeline-def-segment glide-url-segment
-  "Glide: show full URL."
-  (when glide-url
-    (concat
-     (doom-modeline-spc)
-     (propertize (truncate-string-to-width glide-url 60 0 nil t)
-                 'face 'doom-modeline-info))))
-
-(doom-modeline-def-modeline 'glide
-  '(bar modals glide-buffer-info)
-  '(glide-url-segment))
-
-(defun glide--modeline-setup ()
-  "Switch to the 'glide modeline in Glide EWM surface buffers."
-  (when (and (boundp 'ewm-surface-app)
-             (string-prefix-p "glide" ewm-surface-app))
-    (doom-modeline-set-modeline 'glide)))
-
-(add-hook 'ewm-update-title-hook #'glide--modeline-setup)
-(add-hook 'ewm-surface-mode-hook #'glide--modeline-setup)
 
 (provide 'config-browser)
 ;;; config-browser.el ends here

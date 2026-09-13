@@ -64,70 +64,6 @@
 
 ;; ── agent-shell + notifications + bookmarks ────────────────────────────
 
-(use-package agent-shell
-  :hook (agent-shell-mode . rs/shell-scroll-setup)
-  :ensure t
-  :defer t
-  :config
-  (setq agent-shell-anthropic-claude-environment
-        (agent-shell-make-environment-variables
-         "AWS_PROFILE" "hermes"
-         )
-        agent-shell-opencode-environment
-        (agent-shell-make-environment-variables
-         "OPENCODE_ENABLE_EXA" "1"
-         )
-        agent-shell-pi-environment
-        (agent-shell-make-environment-variables
-         ;; "PI_ACP_PI_COMMAND" "little-coder"
-         "LITTLE_CODER_BASH_ALLOW" "docker ,npm ,tmux, emacsclient"
-         ))
-  (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
-  (setq agent-shell-confirm-interrupt nil
-        agent-shell-header-style 'graphical
-        agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
-  ;; (add-hook 'diff-mode-hook
-  ;;           (lambda ()
-  ;;             (when (string-match-p "\\*agent-shell-diff\\*" (buffer-name))
-  ;;               (evil-emacs-state))))
-  ;; Mode-specific keys — only active in agent-shell-mode buffers
-  ;; (general-define-key
-  ;;  :states 'normal
-  ;;  :keymaps 'agent-shell-mode-map
-  ;;  "["   #'agent-shell-previous-item
-  ;;  "]"   #'agent-shell-next-item
-  ;;  "TAB" #'agent-shell-ui-toggle-fragment
-  ;;  "q"   #'agent-shell-toggle
-  ;;  "c"   #'agent-shell-prompt-compose
-  ;;  "x"   #'agent-shell-interrupt)
-  ;; 
-  (defun agent-shell/setup ()
-    (evil-collection-unimpaired-mode -1)
-    (evil-commentary-mode -1)
-    (evil-define-key 'normal agent-shell-mode-map
-      [tab]       #'agent-shell-ui-toggle-fragment
-      (kbd "TAB") #'agent-shell-ui-toggle-fragment
-      (kbd "]")   #'agent-shell-next-item
-      (kbd "[")   #'agent-shell-previous-item)
-    )
-  
-
-  (add-hook 'agent-shell-mode-hook #'agent-shell/setup)
-  (add-hook 'agent-shell-mode-hook
-            (lambda () (setq-local jit-lock-mode nil)))
-  ;; Disable chat mode: its prompt-label overlays make the live prompt
-  ;; marker vanish/flicker on single-line input
-  ;; (https://github.com/xenodium/agent-shell/issues/785).
-  (setq agent-shell-chat-mode-enabled nil)
-
-  (with-eval-after-load 'evil-collection-agent-shell
-    (agent-shell/setup)
-    )
-
-  ;; (when (fboundp 'consult-buffer)
-  ;;   (add-to-list 'consult-bookmark-narrow `(?l "Agent Shell" agent-shell-links-bookmark-jump))
-  ;;   )
-  )
 
 (use-package agent-shell-tramp
   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "14560d42440c17d9b59fc18d304687641ddf06e5")
@@ -142,28 +78,6 @@
   ;;  'remote-direct-async-process)
 
 
-  )
-
-(use-package agent-shell-bookmark
-  :vc (:url "https://github.com/chuxubank/agent-shell-bookmark/tree/fix/resolve-agent-config-makers" :rev "85bf48c4a7b00c08de573e7397838041f58de11d")
-  :config
-
-  (defun my-agent-shell-bookmark--find-config (agent-identifier)
-    "Find config by identifier, supporting both maker symbols and alists."
-    (when agent-identifier (or
-                            ;; Newer style: maker function symbols
-                            (let ((maker
-                                   (seq-find (lambda (entry)
-                                               (and (symbolp entry) (string-match-p (format "-%s-" (symbol-name agent-identifier)) (symbol-name entry))))
-                                             agent-shell-agent-configs)))
-                              (when maker (funcall maker)))
-                            ;; Older style: realized config alists
-                            (seq-find (lambda (entry)
-                                        (and (listp entry)
-                                             (eq (alist-get :identifier entry) agent-identifier)))
-                                      agent-shell-agent-configs))))
-
-  ;;  (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
   )
 
 (use-package agent-shell-links
@@ -252,9 +166,7 @@
   :defer t
   :config
   (setq agent-shell-anthropic-claude-environment
-        (agent-shell-make-environment-variables
-         "AWS_PROFILE" "hermes"
-         )
+        (agent-shell-make-environment-variables :inherit-env t)
         agent-shell-opencode-environment
         (agent-shell-make-environment-variables
          "OPENCODE_ENABLE_EXA" "1"
@@ -301,21 +213,6 @@
     )
   )
 
-(use-package agent-shell-tramp
-  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "14560d42440c17d9b59fc18d304687641ddf06e5")
-  :config
-  (agent-shell-tramp-mode 1)
-  ;; (connection-local-set-profile-variables
-  ;;  'remote-direct-async-process
-  ;;  '((tramp-direct-async-process . t)))
-  ;; 
-  ;; (connection-local-set-profiles
-  ;;  '(:application tramp)
-  ;;  'remote-direct-async-process)
-
-
-  )
-
 (use-package agent-shell-bookmark
   :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496")
   :config
@@ -337,16 +234,6 @@
 
   (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
   )
-
-;; ── agent-recall (search/browse agent-shell transcripts) ───────────────
-
-(use-package agent-recall
-  :ensure t
-  :hook (agent-shell-mode . agent-recall-track-sessions)
-  :config
-  (setq agent-recall-search-paths '("~/Dropbox" "~/.config/emacs" "~/projects" "~/work" "~/.agent-shell")
-        agent-recall-search-function 'consult-ripgrep
-        agent-recall-browse-sort 'modified-desc))
 
 
 (use-package agent-shell-attention

@@ -82,9 +82,7 @@
 
 (defun my/close-window-or-frame ()
   (interactive)
-  (condition-case nil
-      (evil-window-delete)
-    (error (delete-frame))))
+  (kill-current-buffer))
 
 
 (defun my/emacs-sway-integration (command)
@@ -219,6 +217,58 @@
     ("split v" (evil-window-split))
     ("kill" (my/close-window-or-frame))
     (- (niri-msg (format command)))))
+
+;; -------------------------------
+;; KDE/Polonium Window Manager Support
+;; -------------------------------
+
+(defun kde-msg (shortcut)
+  "Invoke a KDE global shortcut via qdbus."
+  (start-process
+   "emacs-kde-polonium" nil
+   "qdbus" "org.kde.kglobalaccel" "/component/kwin"
+   "invokeShortcut" shortcut))
+
+(defun my/emacs-kde-windmove (dir)
+  (let ((other-window (windmove-find-other-window dir)))
+    (if (or (null other-window) (window-minibuffer-p other-window))
+        (kde-msg (pcase dir
+                   ('left "PoloniumActivateLeft")
+                   ('right "PoloniumActivateRight")
+                   ('up "PoloniumActivateAbove")
+                   ('down "PoloniumActivateBelow")))
+      (windmove-do-window-select dir))))
+
+(defun my/emacs-kde-move-window (dir)
+  (let ((other-window (windmove-find-other-window dir))
+        (other-direction (my/emacs-i3-direction-exists-p
+                          (pcase dir
+                            ('up 'width)
+                            ('down 'width)
+                            ('left 'height)
+                            ('right 'height)))))
+    (cond
+     ((and other-window (not (window-minibuffer-p other-window)))
+      (window-swap-states (selected-window) other-window))
+     (other-direction
+      (evil-move-window dir))
+     (t (kde-msg (pcase dir
+                   ('left "PoloniumPlaceLeft")
+                   ('right "PoloniumPlaceRight")
+                   ('up "PoloniumPlaceAbove")
+                   ('down "PoloniumPlaceBelow")))))))
+
+(defun my/emacs-kde-integration (command)
+  (evil-echo "kde:%s" command)
+  (pcase command
+    ((rx bos "focus")
+     (my/emacs-kde-windmove
+      (intern (elt (split-string command) 1))))
+    ((rx bos "move")
+     (my/emacs-kde-move-window
+      (intern (elt (split-string command) 1))))
+    ("kill" (my/close-window-or-frame))
+    (- (message "kde: unknown command %s" command))))
 
 (defun my/emacs-i3-direction-exists-p (dir)
   (let* ((predicate
