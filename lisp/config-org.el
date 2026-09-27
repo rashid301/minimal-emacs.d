@@ -126,7 +126,7 @@
            :target (file+head "%<%Y-%m-%d>.org"
                               "#+title: %<%Y-%m-%d>\n#+startup: shrink\n"))))
   ;;(org-roam-dailies-setup)
-  (org-roam-db-autosync-mode)
+  ;;(org-roam-db-autosync-mode)
   )
 
 (use-package org-modern

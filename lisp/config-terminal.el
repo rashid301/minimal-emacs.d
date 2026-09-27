@@ -8,6 +8,32 @@
 (defun rs/shell-scroll-setup ()
   (setq-local scroll-conservatively 101))
 
+;; windows
+
+(when (eq system-type 'windows-nt)
+  ;; Define the exact path to your Git Bash executable
+  (let ((git-bash-path "C:/Program Files/Git/bin/bash.exe"))
+    
+    (when (file-exists-p git-bash-path)
+      ;; Set the default shell for M-x shell
+      (setq shell-file-name git-bash-path)
+      (setq explicit-shell-file-name git-bash-path)
+      
+      ;; Tell Emacs to pass the correct arguments to Git Bash
+      (setq explicit-bash.exe-args '("--login" "-i"))
+      
+      ;; Force the environment variable for sub-processes
+      (setenv "SHELL" git-bash-path)
+      
+      ;; Add Git binaries to Emacs' internal path so tools like grep work
+      ;; (add-to-list 'exec-path "C:/Program Files/Git/bin")
+      ;; (add-to-list 'exec-path "C:/Program Files/Git/usr/bin")
+      
+      ;; Fix line-ending issues (Windows CR-LF vs Unix LF)
+      (add-hook 'shell-mode-hook
+                (lambda ()
+                  (set-buffer-process-coding-system 'utf-8-unix 'utf-8-unix))))))
+
 ;; ── Eshell ─────────────────────────────────────────────────────────────
 
 (use-package eshell
@@ -235,6 +261,10 @@
          ("M" . ghostel-project-list-buffers))
   :config
   (setq ghostel-tramp-shell-integration t)
+
+  (when (eq system-type 'windows-nt)
+    (setq ghostel-shell "C:/Program Files/Git/bin/bash.exe")
+    )
 
   (defun my/ghostel-send-C-k-and-kill ()
     "Send `C-k' to ghostel.

@@ -34,9 +34,6 @@
 ;; Terminal: Eshell, Eat, shell utilities
 (load "config-terminal")
 
-;; Activities EWM bridge
-(load "activities-ewm")
-
 ;; LLM integrations
 (load "config-llm")
 
@@ -61,11 +58,10 @@
     (progn (load-file (expand-file-name "lisp/config-ewm.el" user-emacs-directory))
            ;; Browser configuration (EWW + Glide)
            (load "config-browser")
+           ;; Activities EWM bridge
+           (load "activities-ewm")
+
            )
   (load-file (expand-file-name "lisp/config-i3.el" user-emacs-directory)))
-
-
-
-
 
 (provide 'post-init)

@@ -2,12 +2,18 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("brandjet-discover-codex"
-  (handler . agent-shell-links-bookmark-jump)
-  (session-id . "01a076dd-10a1-7391-9566-b10f663fc226")
-  (agent . codex)
-  (filename . "/home/rashid/git/brandjet/brandbridgeai-backend-unibox-v2/")
-  (location . "audit this codebase/platform for scalability, maintenance, and bottlenecks"))
+(("Activity: web-clearcompany"
+  (activities-name . "web-clearcompany")
+  (handler . activities-bookmark-handler))
+("Activity: clearcompany"
+ (activities-name . "clearcompany")
+ (handler . activities-bookmark-handler))
+("brandjet-discover-codex"
+ (handler . agent-shell-links-bookmark-jump)
+ (session-id . "01a076dd-10a1-7391-9566-b10f663fc226")
+ (agent . codex)
+ (filename . "/home/rashid/git/brandjet/brandbridgeai-backend-unibox-v2/")
+ (location . "audit this codebase/platform for scalability, maintenance, and bottlenecks"))
 ("brandjet-prod-bull-board"
  ("*ewm:Bull Dashboard — brandjet — Glide Browser*")
  (handler . glide-bookmark--handler)
@@ -59,13 +65,6 @@
  (handler . glide-bookmark--handler)
  (filename . #1="https://app.pen.dev/s/U2Ho4ssmnbpqGUk_ZLP0C0xe49qnl1mOdoYJcmvVuiE")
  (glide-title . "pen.dev - 2471c02cd7ab0e4f3aa8044dc8cbfe03919b9bf7 — brandjet — Glide Browser")
- (glide-url . #1#)
- (glide-profile . "Brandjet"))
-("brandjet-standup"
- ("*ewm:Meet - mrc-xxak-mpf — default-glide — Glide Browser*")
- (handler . glide-bookmark--handler)
- (filename . #1="https://meet.google.com/mrc-xxak-mpf")
- (glide-title . "Meet - mrc-xxak-mpf — default-glide — Glide Browser")
  (glide-url . #1#)
  (glide-profile . "Brandjet"))
 ("Activity: brandjet"

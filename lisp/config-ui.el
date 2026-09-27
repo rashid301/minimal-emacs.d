@@ -36,8 +36,8 @@
   (my/load-theme 'modus-operandi)
   ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
-                      :family "Iosevka Nerd Font"
-                      :height (or font-size 140)
+                      :family "Iosevka NF"
+                      :height (or font-size 105)
                       :weight 'normal))
 
 (defun my/load-theme (theme)
@@ -134,7 +134,7 @@
   :ensure t
   :config
   ;; Point nerd-icons at the Nerd Font actually installed on this system
-  (setq nerd-icons-font-family "Iosevka Nerd Font"))
+  (setq nerd-icons-font-family "Iosevka NF"))
 
 (use-package nerd-icons-completion
   :ensure t
@@ -182,9 +182,9 @@
     (if is-noctalia
         (call-process "noctalia" nil 0 nil "msg" "theme-mode-toggle")
       (progn
-        (call-process "noctalia" nil 0 nil
-                      "msg" "theme-mode-set"
-                      rs/theme-mode)
+        (ignore-errors (call-process "noctalia" nil 0 nil
+                                     "msg" "theme-mode-set"
+                                     rs/theme-mode))
 
         (my/load-theme th)
 
@@ -282,6 +282,26 @@
   (popper-mode +1)
   (popper-echo-mode +1) ; Shows popup status cleanly in the minibuffer
   )
+
+(use-package windmove
+  :ensure nil ; Built-in package
+  :config
+  ;; Enable wrapping (e.g., jumping left from the leftmost window wraps to the right)
+  (setq windmove-wrap-around t) 
+  
+  ;; Bind Super + hjkl
+  (global-set-key (kbd "s-h") 'windmove-left)
+  (global-set-key (kbd "s-j") 'windmove-down)
+  (global-set-key (kbd "s-k") 'windmove-up)
+  (global-set-key (kbd "s-l") 'windmove-right)
+  (when (eq system-type 'windows-nt)
+    (setq w32-pass-lwindow-to-system nil) ; Stop Left Win from opening Start Menu
+    (setq w32-lwindow-modifier 'super)     ; assign left win to super
+    (setq w32-pass-rwindow-to-system nil) ; Stop Right Win from passing out
+    (setq w32-rwindow-modifier 'super))    ; Assign Right Win to Super
+
+  )
+
 
 (provide 'config-ui)
 ;; config-ui.el ends here

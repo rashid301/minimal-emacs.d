@@ -4,7 +4,6 @@
 
 (use-package dirvish
   :ensure t
-  :defer t
   :init
   :config
   (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
@@ -12,8 +11,14 @@
   (require 'dirvish-icons)
   (require 'dirvish-quick-access)
   (require 'dirvish-yank)
+  (require 'dirvish-side)
   (dirvish-override-dired-mode 1)
-  (setq dired-kill-when-openinging-new-dired-buffer t)
+  (setq dired-kill-when-opening-new-dired-buffer t)
+
+  ;; `SPC p' is bound to `project-prefix-map' directly (see
+  ;; config-keybindings.el), so bind dirvish-side at `SPC p t'.
+  (with-eval-after-load 'project
+    (define-key project-prefix-map "t" #'dirvish-side))
   )
 
 ;; ── ace-window ────────────────────────────────────────────────────────
@@ -336,6 +341,13 @@ This only works with orderless and for the first component of the search."
   (setq activities-always-persist t)
   (setq activities-kill-buffers t)
 
+
+  (when (eq system-type 'windows-nt)
+    (progn (activities-tabs-mode 1)
+           (setopt tab-bar-select-tab-modifiers '(meta))
+           ))
+
+
   (defun my/consult-buffer-list--activity ()
     "Return buffers from the current activity's frame, or all buffers if none active."
     (condition-case nil
@@ -365,9 +377,6 @@ This only works with orderless and for the first component of the search."
   ;; and to the current one, since default-frame-alist only affects new frames
   (set-frame-parameter nil 'buffer-predicate #'my/activity-buffer-p)
 
-  ;; (when (fboundp 'consult-bookmark-narrow)
-  ;;   (add-to-list 'consult-bookmark-narrow `(?a "Activities" activities-bookmark-handler))
-  ;;   )
   )
 
 ;; ── Navigation ─────────────────────────────────────────────────────────

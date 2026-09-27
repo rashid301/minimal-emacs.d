@@ -52,7 +52,10 @@
 (use-package exec-path-from-shell
   :ensure t
   :config
-  (exec-path-from-shell-initialize)
+  ;; Only initialize if we are NOT on Windows
+  (unless (eq system-type 'windows-nt)
+    (exec-path-from-shell-initialize))
+
   )
 
 ;; (use-package pinentry
@@ -63,108 +66,6 @@
   :ensure t)
 
 ;; ── agent-shell + notifications + bookmarks ────────────────────────────
-
-(use-package agent-shell
-  :hook (agent-shell-mode . rs/shell-scroll-setup)
-  :ensure t
-  :defer t
-  :config
-  (setq agent-shell-anthropic-claude-environment
-        (agent-shell-make-environment-variables
-         "AWS_PROFILE" "hermes"
-         )
-        agent-shell-opencode-environment
-        (agent-shell-make-environment-variables
-         "OPENCODE_ENABLE_EXA" "1"
-         )
-        agent-shell-pi-environment
-        (agent-shell-make-environment-variables
-         ;; "PI_ACP_PI_COMMAND" "little-coder"
-         "LITTLE_CODER_BASH_ALLOW" "docker ,npm ,tmux, emacsclient"
-         ))
-  (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
-  (setq agent-shell-confirm-interrupt nil
-        agent-shell-header-style 'graphical
-        agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
-  ;; (add-hook 'diff-mode-hook
-  ;;           (lambda ()
-  ;;             (when (string-match-p "\\*agent-shell-diff\\*" (buffer-name))
-  ;;               (evil-emacs-state))))
-  ;; Mode-specific keys — only active in agent-shell-mode buffers
-  ;; (general-define-key
-  ;;  :states 'normal
-  ;;  :keymaps 'agent-shell-mode-map
-  ;;  "["   #'agent-shell-previous-item
-  ;;  "]"   #'agent-shell-next-item
-  ;;  "TAB" #'agent-shell-ui-toggle-fragment
-  ;;  "q"   #'agent-shell-toggle
-  ;;  "c"   #'agent-shell-prompt-compose
-  ;;  "x"   #'agent-shell-interrupt)
-  ;; 
-  (defun agent-shell/setup ()
-    (evil-collection-unimpaired-mode -1)
-    (evil-commentary-mode -1)
-    (evil-define-key 'normal agent-shell-mode-map
-      [tab]       #'agent-shell-ui-toggle-fragment
-      (kbd "TAB") #'agent-shell-ui-toggle-fragment
-      (kbd "]")   #'agent-shell-next-item
-      (kbd "[")   #'agent-shell-previous-item)
-    )
-  
-
-  (add-hook 'agent-shell-mode-hook #'agent-shell/setup)
-  (add-hook 'agent-shell-mode-hook
-            (lambda () (setq-local jit-lock-mode nil)))
-  ;; Disable chat mode: its prompt-label overlays make the live prompt
-  ;; marker vanish/flicker on single-line input
-  ;; (https://github.com/xenodium/agent-shell/issues/785).
-  (setq agent-shell-chat-mode-enabled nil)
-
-  (with-eval-after-load 'evil-collection-agent-shell
-    (agent-shell/setup)
-    )
-
-  ;; (when (fboundp 'consult-buffer)
-  ;;   (add-to-list 'consult-bookmark-narrow `(?l "Agent Shell" agent-shell-links-bookmark-jump))
-  ;;   )
-  )
-
-(use-package agent-shell-tramp
-  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "14560d42440c17d9b59fc18d304687641ddf06e5")
-  :config
-  (agent-shell-tramp-mode 1)
-  ;; (connection-local-set-profile-variables
-  ;;  'remote-direct-async-process
-  ;;  '((tramp-direct-async-process . t)))
-  ;; 
-  ;; (connection-local-set-profiles
-  ;;  '(:application tramp)
-  ;;  'remote-direct-async-process)
-
-
-  )
-
-(use-package agent-shell-bookmark
-  :vc (:url "https://github.com/chuxubank/agent-shell-bookmark/tree/fix/resolve-agent-config-makers" :rev "85bf48c4a7b00c08de573e7397838041f58de11d")
-  :config
-
-  (defun my-agent-shell-bookmark--find-config (agent-identifier)
-    "Find config by identifier, supporting both maker symbols and alists."
-    (when agent-identifier (or
-                            ;; Newer style: maker function symbols
-                            (let ((maker
-                                   (seq-find (lambda (entry)
-                                               (and (symbolp entry) (string-match-p (format "-%s-" (symbol-name agent-identifier)) (symbol-name entry))))
-                                             agent-shell-agent-configs)))
-                              (when maker (funcall maker)))
-                            ;; Older style: realized config alists
-                            (seq-find (lambda (entry)
-                                        (and (listp entry)
-                                             (eq (alist-get :identifier entry) agent-identifier)))
-                                      agent-shell-agent-configs))))
-
-  ;;  (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
-  )
 
 (use-package agent-shell-links
   :vc (:url "https://github.com/ultronozm/agent-shell-links.el" :rev "newest")
@@ -231,12 +132,6 @@
 
 ;; ── agent-shell ecosystem ─────────────────────────────────────────────
 
-(use-package exec-path-from-shell
-  :ensure t
-  :config
-  (exec-path-from-shell-initialize)
-  )
-
 ;; (use-package pinentry
 ;;   :ensure t)
 
@@ -251,22 +146,19 @@
   :ensure t
   :defer t
   :config
-  (setq agent-shell-anthropic-claude-environment
-        (agent-shell-make-environment-variables
-         "AWS_PROFILE" "hermes"
-         )
-        agent-shell-opencode-environment
-        (agent-shell-make-environment-variables
-         "OPENCODE_ENABLE_EXA" "1"
-         )
-        agent-shell-pi-environment
-        (agent-shell-make-environment-variables
-         ;; "PI_ACP_PI_COMMAND" "little-coder"
-         "LITTLE_CODER_BASH_ALLOW" "docker ,npm ,tmux, emacsclient"
-         ))
+  (setq 
+   agent-shell-opencode-environment
+   (agent-shell-make-environment-variables
+    "OPENCODE_ENABLE_EXA" "1"
+    )
+   agent-shell-pi-environment
+   (agent-shell-make-environment-variables
+    ;; "PI_ACP_PI_COMMAND" "little-coder"
+    "LITTLE_CODER_BASH_ALLOW" "docker ,npm ,tmux, emacsclient"
+    ))
   (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
   (setq agent-shell-confirm-interrupt nil
-        agent-shell-header-style 'graphical
+        agent-shell-header-style 'text
         agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
   ;; (add-hook 'diff-mode-hook
   ;;           (lambda ()
@@ -352,10 +244,89 @@
 (use-package agent-shell-attention
   :vc (:url "https://github.com/ultronozm/agent-shell-attention.el" :rev "main")
   :config
-  (agent-shell-attention-mode 1)
+  (unless (eq system-type 'windows-nt)
+    (agent-shell-attention-mode 1))
   (setopt agent-shell-attention-notify-function #'agent-shell-attention-notify-default)
   )
 
+;; (use-package agent-shell-sidebar
+;;   :after agent-shell
+;;   :vc (:url "https://github.com/rashid301/agent-shell-sidebar")
+;;   :custom
+;;   ;; Default minimum-width (80 columns) was overriding `agent-shell-sidebar-width'
+;;   ;; ("25%"), since 25% of this frame (191 cols) is only ~48 columns.  Lower the
+;;   ;; floor so the percentage actually applies.
+;;   (agent-shell-sidebar-minimum-width 40)
+;;   :config
+;;   ;; Newer agent-shell defaults `agent-shell-agent-configs' to a list of
+;;   ;; config MAKER functions (see `agent-shell-default-agent-config-makers')
+;;   ;; rather than realized config alists.  `agent-shell-sidebar--select-config'
+;;   ;; predates that convention and calls `map-elt' directly on each entry,
+;;   ;; which throws `cl-no-applicable-method' when an entry is a raw function
+;;   ;; symbol (e.g. `agent-shell-antigravity-make-agent-config').  Override it
+;;   ;; to realize maker-function entries (and a function-valued
+;;   ;; `agent-shell-agent-configs' itself) before treating them as alists.
+;;   (defun my/agent-shell-sidebar--select-config ()
+;;     "Select an agent config for the sidebar, resolving maker functions."
+;;     (or agent-shell-sidebar-default-config
+;;         (let* ((configs (if (functionp agent-shell-agent-configs)
+;;                             (funcall agent-shell-agent-configs)
+;;                           agent-shell-agent-configs))
+;;                (resolved (mapcar (lambda (entry)
+;;                                    (if (functionp entry) (funcall entry) entry))
+;;                                  configs))
+;;                (choices (mapcar (lambda (config)
+;;                                   (cons (or (map-elt config :mode-line-name)
+;;                                             (map-elt config :buffer-name)
+;;                                             "Unknown Agent")
+;;                                         config))
+;;                                 resolved))
+;;                (selected-name (completing-read "Select agent: " choices nil t)))
+;;           (map-elt choices selected-name))))
+;; 
+;;   (advice-add 'agent-shell-sidebar--select-config :override #'my/agent-shell-sidebar--select-config)
+;; 
+;;   ;; `agent-shell-sidebar--start-session' copies CONFIG and tries to add
+;;   ;; brand-new `:no-focus' / `:new-session' keys via `map-put!'.  On this
+;;   ;; Emacs's `map.el', `map-put!' can only mutate an alist in place when the
+;;   ;; key already exists (it does a `setcdr' on the existing cons); adding a
+;;   ;; new key means prepending a cons, which isn't an in-place operation, so
+;;   ;; it signals `map-not-inplace' instead of silently doing nothing.  Since
+;;   ;; agent config alists never carry these two keys, override the function to
+;;   ;; prepend them directly rather than relying on `map-put!' to grow the list.
+;;   (cl-defun my/agent-shell-sidebar--start-session (&key config project-root)
+;;     "Start new agent-shell sidebar session using CONFIG in PROJECT-ROOT."
+;;     (let* ((state (agent-shell-sidebar--project-state project-root))
+;;            (existing-buffer (map-elt state :buffer)))
+;; 
+;;       (when (and existing-buffer (buffer-live-p existing-buffer))
+;;         (kill-buffer existing-buffer))
+;; 
+;;       (let* ((sidebar-config (append '((:no-focus . t) (:new-session . t)) config))
+;;              (shell-buffer (agent-shell-start :config sidebar-config)))
+;;         (with-current-buffer shell-buffer
+;;           (setq-local agent-shell-sidebar--is-sidebar t)
+;;           (add-hook 'kill-buffer-hook #'agent-shell-sidebar--clean-up nil t))
+;; 
+;;         (map-put! state :buffer shell-buffer)
+;;         (map-put! state :config config)
+;; 
+;;         shell-buffer)))
+;; 
+;;   (advice-add 'agent-shell-sidebar--start-session :override #'my/agent-shell-sidebar--start-session)
+;; 
+;;   ;; `SPC p' is bound to `project-prefix-map' directly (see
+;;   ;; config-keybindings.el), so bind the sidebar toggle at `SPC p a' by
+;;   ;; adding to that keymap rather than the leader definer.
+;;   (with-eval-after-load 'project
+;;     (define-key project-prefix-map "a" #'agent-shell-sidebar-toggle)))
+
+
+;; (use-package agent-shell-workspace
+;;   :vc (:url "https://github.com/gveres/agent-shell-workspace")
+;;   :ensure t
+;;   :after agent-shell
+;;   )
 
 (provide 'config-llm)
 ;;; config-llm.el ends here

@@ -107,7 +107,16 @@ Caches result per DIR to avoid repeated ancestor walks."
   :config
   (setq apheleia-remote-algorithm 'remote)
   (setf (alist-get 'prettier apheleia-formatters)
-        '("apheleia-npx" "prettier" "--stdin-filepath" filepath)))
+        '("apheleia-npx" "prettier" "--stdin-filepath" filepath))
+
+(when (eq system-type 'windows-nt)
+  ;; Add Git's Unix utilities directory to Emacs's executable path
+  (let ((git-path "C:/Program Files/Git/usr/bin"))
+    (when (file-directory-p git-path)
+      (add-to-list 'exec-path git-path)
+      (setenv "PATH" (concat git-path ";" (getenv "PATH"))))))
+
+  )
 
 ;; ── rg (ripgrep integration) ───────────────────────────────────────────
 
