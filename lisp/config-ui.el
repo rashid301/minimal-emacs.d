@@ -187,9 +187,9 @@
     (if is-noctalia
         (call-process "noctalia" nil 0 nil "msg" "theme-mode-toggle")
       (progn
-        (call-process "noctalia" nil 0 nil
-                      "msg" "theme-mode-set"
-                      rs/theme-mode)
+        (ignore-errors (call-process "noctalia" nil 0 nil
+                                     "msg" "theme-mode-set"
+                                     rs/theme-mode))
 
         (my/load-theme th)
 
