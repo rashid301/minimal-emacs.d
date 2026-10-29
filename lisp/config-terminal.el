@@ -249,7 +249,11 @@ Like normal Emacs `C-k'.  Kill to end of line and put content in kill-ring."
 
 (use-package evil-ghostel
   :after (ghostel evil)
-  :hook (ghostel-mode . evil-ghostel-mode))
+  :hook (ghostel-mode . evil-ghostel-mode)
+  :config
+  (setopt evil-ghostel-escape 'evil)
+
+  )
 
 (provide 'config-terminal)
 ;;; config-terminal.el ends here

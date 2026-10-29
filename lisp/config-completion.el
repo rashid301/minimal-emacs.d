@@ -23,7 +23,7 @@
    '(display-buffer-in-direction (direction . below) (window-height . 10)))
   :config
   (vertico-mode 1)
-  (vertico-buffer-mode 1)
+  (vertico-flat-mode 1)
 
   ;; Clean up shadowed path syntax (e.g. ~/foo/bar/// → /)
   (add-hook 'rfn-eshadow-update-overlay-hook #'vertico-directory-tidy)

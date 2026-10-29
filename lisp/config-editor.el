@@ -336,6 +336,9 @@ This only works with orderless and for the first component of the search."
   (setq activities-always-persist t)
   (setq activities-kill-buffers t)
 
+  (activities-tabs-mode )
+  (setopt tab-bar-select-tab-modifiers '(meta))
+
   (defun my/consult-buffer-list--activity ()
     "Return buffers from the current activity's frame, or all buffers if none active."
     (condition-case nil
