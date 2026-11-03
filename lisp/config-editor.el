@@ -336,7 +336,7 @@ This only works with orderless and for the first component of the search."
   :ensure t
   :init
   (activities-mode 1)
-  :after consult
+  ;;:after consult
   :config
   (setq activities-always-persist t)
   (setq activities-kill-buffers t)

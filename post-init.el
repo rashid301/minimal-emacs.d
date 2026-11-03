@@ -1,8 +1,17 @@
-                                        ; post-init.el --- Modular Emacs configuration loader -*- lexical-binding: t; -*-
+;; post-init.el --- Modular Emacs configuration loader -*- lexical-binding: t; -*-
 
 ;; Add lisp/ to load-path so `require` can find our modules
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 
+;; Force native Gpg4win
+(setq epg-gpg-program "C:/Program Files/GnuPG/bin/gpg.exe")
+;;(setq package-check-signature nil)
+
+;; Dedicated package keyring
+(setq package-gnupghome-dir
+      (expand-file-name "elpa/gnupg/" user-emacs-directory))
+
+(make-directory package-gnupghome-dir t)
 
 ;; ── Load modules ─────────────────────────────────────────────────────────
 

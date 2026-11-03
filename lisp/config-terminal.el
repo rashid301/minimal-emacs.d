@@ -10,10 +10,12 @@
 
 ;; windows
 
+
 (when (eq system-type 'windows-nt)
   ;; Define the exact path to your Git Bash executable
   (let ((git-bash-path "C:/Program Files/Git/bin/bash.exe"))
     
+
     (when (file-exists-p git-bash-path)
       ;; Set the default shell for M-x shell
       (setq shell-file-name git-bash-path)
@@ -264,6 +266,18 @@
 
   (when (eq system-type 'windows-nt)
     (setq ghostel-shell "C:/Program Files/Git/bin/bash.exe")
+
+    ;; Force the system-name function to always return the full DNS name
+    (defun system-name ()
+      "rashid-thinkbook")
+
+
+    (add-hook 'ghostel-mode-hook
+              (lambda ()
+                (setq-local tramp-completion-mode nil)
+                (shell-dirtrack-mode -1)
+                ))
+
     )
 
   (defun my/ghostel-send-C-k-and-kill ()
@@ -275,11 +289,32 @@ Like normal Emacs `C-k'.  Kill to end of line and put content in kill-ring."
 
   (add-to-list 'project-switch-commands '(ghostel-project "Ghostel") t)
   (add-to-list 'project-switch-commands '(ghostel-project-list-buffers "Ghostel buffers") t)
-  (add-to-list 'ghostel-eval-cmds '("magit-status-setup-buffer" magit-status-setup-buffer)))
+  (add-to-list 'ghostel-eval-cmds '("magit-status-setup-buffer" magit-status-setup-buffer))
+
+  (with-eval-after-load 'ghostel
+    (defun ghostel--windows-local-path (path)
+      "test Force translation of POSIX-style paths to Windows paths without directory gates."
+      (message "%s" path)
+      (if (string-match-p "\\`/[[:alpha:]]:[/\\]" path)
+          (substring path 1)
+        (let ((translated
+               (and (string-match
+                     "\\`\\(?:/cygdrive\\)?/\\([[:alpha:]]\\)\\(/.*\\)?\\'" path)
+                    (concat (match-string 1 path) ":"
+                            (or (match-string 2 path) "/")))))
+          ;; REMOVED the (file-directory-p translated) gate requirement
+          (or translated path)))))
+
+
+  )
 
 (use-package evil-ghostel
   :after (ghostel evil)
-  :hook (ghostel-mode . evil-ghostel-mode))
+  :hook (ghostel-mode . evil-ghostel-mode)
+  :config
+  (setopt evil-ghostel-escape 'evil)
+  )
+
 
 (provide 'config-terminal)
 ;;; config-terminal.el ends here

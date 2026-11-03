@@ -2,9 +2,18 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("Activity: web-clearcompany"
-  (activities-name . "web-clearcompany")
+(("Activity: .emacs.d.new-window"
+  (activities-name . ".emacs.d.new-window")
   (handler . activities-bookmark-handler))
+("Activity: .emacs.d.worktrunk-test"
+ (activities-name . ".emacs.d.worktrunk-test")
+ (handler . activities-bookmark-handler))
+("Activity: employee-events"
+ (activities-name . "employee-events")
+ (handler . activities-bookmark-handler))
+("Activity: web-clearcompany"
+ (activities-name . "web-clearcompany")
+ (handler . activities-bookmark-handler))
 ("Activity: clearcompany"
  (activities-name . "clearcompany")
  (handler . activities-bookmark-handler))

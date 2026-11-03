@@ -37,7 +37,7 @@
   ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka NF"
-                      :height (or font-size 105)
+                      :height (or font-size 165)
                       :weight 'normal))
 
 (defun my/load-theme (theme)
@@ -116,7 +116,7 @@
 
 ;; ── Visual line wrap ──────────────────────────────────────────────────
 
-;;(global-visual-line-mode 1)
+(global-visual-line-mode 1)
 (global-visual-wrap-prefix-mode 1)
 
 ;; ── Visual-fill-column (SPC t c to toggle) ────────────────────────────
@@ -134,7 +134,11 @@
   :ensure t
   :config
   ;; Point nerd-icons at the Nerd Font actually installed on this system
-  (setq nerd-icons-font-family "Iosevka NF"))
+  (setq nerd-icons-font-family "Iosevka NF")
+
+  (when (eq system-type 'windows-nt)
+    (set-fontset-font t 'emoji "Segoe UI Emoji" nil 'prepend))
+  )
 
 (use-package nerd-icons-completion
   :ensure t
@@ -300,8 +304,8 @@
     (setq w32-pass-rwindow-to-system nil) ; Stop Right Win from passing out
     (setq w32-rwindow-modifier 'super))    ; Assign Right Win to Super
 
-  )
 
+  )
 
 (provide 'config-ui)
 ;; config-ui.el ends here

@@ -49,102 +49,20 @@
 
 ;; ── agent-shell ecosystem ─────────────────────────────────────────────
 
-(use-package exec-path-from-shell
-  :ensure t
-  :config
-  ;; Only initialize if we are NOT on Windows
-  (unless (eq system-type 'windows-nt)
-    (exec-path-from-shell-initialize))
-
-  )
-
 ;; (use-package pinentry
 ;;   :ensure t)
 
 ;; ── acp (agent client protocol) ───────────────────────────────────────────
-(use-package acp
-  :ensure t)
-
-;; ── agent-shell + notifications + bookmarks ────────────────────────────
-
-(use-package agent-shell-links
-  :vc (:url "https://github.com/ultronozm/agent-shell-links.el" :rev "newest")
-  :config
-  ;;(agent-shell-links-bookmark-setup)
-  (with-eval-after-load 'ol
-    (org-link-set-parameters
-     "agent-shell"
-     :follow #'agent-shell-links-org-follow
-     :store #'agent-shell-links-org-store)))
-
-;; ── agent-recall (search/browse agent-shell transcripts) ───────────────
-
-(use-package agent-recall
-  :ensure t
-  :hook (agent-shell-mode . agent-recall-track-sessions)
-  :config
-  (setq agent-recall-search-paths '("~/Dropbox" "~/.config/emacs" "~/projects" "~/work" "~/.agent-shell")
-        agent-recall-search-function 'consult-ripgrep
-        agent-recall-browse-sort 'modified-desc))
-
-;; ── Aidermacs (Aider integration) ─────────────────────────────────────
-(use-package aidermacs
-  :ensure t
-  :bind (("C-c a" . aidermacs-transient-menu))
-  :config
-  ;; Pre-run hook to configure Ollama host for Aider via env vars
-  (add-hook 'aidermacs-before-run-backend-hook
-            (defun my/aider-setup ()
-              (setenv "OLLAMA_API_BASE" "http://desktop-pc:11434")
-              (setenv "AWS_PROFILE" "hermes")
-              ))
-  (setq 
-   ;;aidermacs-default-model "ollama_chat/muse-glimmer:30b"
-   aidermacs-default-model "bedrock/converse/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-   ;;aidermacs-editor-model "ollama_chat/muse-glimmer:30b"
-   aidermacs-editor-model "bedrock/converse/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-   aidermacs-editor-model "ollama_chat/muse-glimmer:30b"
-   aidermacs-default-chat-mode 'code
-   aidermacs-extra-args '("--no-show-model-warnings")
-   )
-  :custom
-  ;; Keep changes explicit, no auto-commits by default
-  (aidermacs-auto-commits nil)
-  (aidermacs-show-diff-after-change t)
-  (aidermacs-backend 'comint))
-
-;; ── Launch aidermacs with qwen3.8-27b via llama.cpp:8086 ─────────────
-(defun my/aider-qwen38--env-setup ()
-  "Set env vars for llama.cpp:8086 backend."
-  (setenv "OPENAI_BASE_URL" "http://desktop-pc:8086/v1")
-  (setenv "OPENAI_API_KEY" "llama"))
-
-(defun my/aider-qwen38 ()
-  "Launch aidermacs using qwen3.8-27b served at desktop-pc:8086."
-  (interactive)
-  (let ((aidermacs-default-model "openai/qwen3.8-27b")
-        (aidermacs-editor-model "openai/qwen3.8-27b")
-        (aidermacs-extra-args '("--no-show-model-warnings" "--yes-always")))
-    (add-hook 'aidermacs-before-run-backend-hook #'my/aider-qwen38--env-setup)
-    (unwind-protect
-        (aidermacs-run)
-      (remove-hook 'aidermacs-before-run-backend-hook #'my/aider-qwen38--env-setup))))
-
-;; ── agent-shell ecosystem ─────────────────────────────────────────────
-
-;; (use-package pinentry
+;; (use-package acp
 ;;   :ensure t)
 
-;; ── acp (agent client protocol) ───────────────────────────────────────────
-(use-package acp
-  :ensure t)
-
 ;; ── agent-shell + notifications + bookmarks ────────────────────────────
 
+
+;;(use-package agent-shell)
 (use-package agent-shell
   :hook (agent-shell-mode . rs/shell-scroll-setup)
   :ensure t
-  :defer t
   :config
   (setq 
    agent-shell-opencode-environment
@@ -193,61 +111,61 @@
     )
   )
 
-(use-package agent-shell-tramp
-  :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "14560d42440c17d9b59fc18d304687641ddf06e5")
-  :config
-  (agent-shell-tramp-mode 1)
-  ;; (connection-local-set-profile-variables
-  ;;  'remote-direct-async-process
-  ;;  '((tramp-direct-async-process . t)))
-  ;; 
-  ;; (connection-local-set-profiles
-  ;;  '(:application tramp)
-  ;;  'remote-direct-async-process)
+;; (use-package agent-shell-tramp
+;;   :vc (:url "https://github.com/junyi-hou/agent-shell-tramp" :rev "14560d42440c17d9b59fc18d304687641ddf06e5")
+;;   :config
+;;   (agent-shell-tramp-mode 1)
+;;   ;; (connection-local-set-profile-variables
+;;   ;;  'remote-direct-async-process
+;;   ;;  '((tramp-direct-async-process . t)))
+;;   ;; 
+;;   ;; (connection-local-set-profiles
+;;   ;;  '(:application tramp)
+;;   ;;  'remote-direct-async-process)
+;; 
+;; 
+;;   )
 
-
-  )
-
-(use-package agent-shell-bookmark
-  :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496")
-  :config
-
-  (defun my-agent-shell-bookmark--find-config (agent-identifier)
-    "Find config by identifier, supporting both maker symbols and alists."
-    (when agent-identifier (or
-                            ;; Newer style: maker function symbols
-                            (let ((maker
-                                   (seq-find (lambda (entry)
-                                               (and (symbolp entry) (string-match-p (format "-%s-" (symbol-name agent-identifier)) (symbol-name entry))))
-                                             agent-shell-agent-configs)))
-                              (when maker (funcall maker)))
-                            ;; Older style: realized config alists
-                            (seq-find (lambda (entry)
-                                        (and (listp entry)
-                                             (eq (alist-get :identifier entry) agent-identifier)))
-                                      agent-shell-agent-configs))))
-
-  (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
-  )
+;; (use-package agent-shell-bookmark
+;;   :vc (:url "https://github.com/dcluna/agent-shell-bookmark" :rev "c1eab34bff4f35bf929885ed5045c6100afcf496")
+;;   :config
+;; 
+;;   (defun my-agent-shell-bookmark--find-config (agent-identifier)
+;;     "Find config by identifier, supporting both maker symbols and alists."
+;;     (when agent-identifier (or
+;;                             ;; Newer style: maker function symbols
+;;                             (let ((maker
+;;                                    (seq-find (lambda (entry)
+;;                                                (and (symbolp entry) (string-match-p (format "-%s-" (symbol-name agent-identifier)) (symbol-name entry))))
+;;                                              agent-shell-agent-configs)))
+;;                               (when maker (funcall maker)))
+;;                             ;; Older style: realized config alists
+;;                             (seq-find (lambda (entry)
+;;                                         (and (listp entry)
+;;                                              (eq (alist-get :identifier entry) agent-identifier)))
+;;                                       agent-shell-agent-configs))))
+;; 
+;;   (advice-add 'agent-shell-bookmark--find-config :override #'my-agent-shell-bookmark--find-config)
+;;   )
 
 ;; ── agent-recall (search/browse agent-shell transcripts) ───────────────
 
-(use-package agent-recall
-  :ensure t
-  :hook (agent-shell-mode . agent-recall-track-sessions)
-  :config
-  (setq agent-recall-search-paths '("~/Dropbox" "~/.config/emacs" "~/projects" "~/work" "~/.agent-shell")
-        agent-recall-search-function 'consult-ripgrep
-        agent-recall-browse-sort 'modified-desc))
-
-
-(use-package agent-shell-attention
-  :vc (:url "https://github.com/ultronozm/agent-shell-attention.el" :rev "main")
-  :config
-  (unless (eq system-type 'windows-nt)
-    (agent-shell-attention-mode 1))
-  (setopt agent-shell-attention-notify-function #'agent-shell-attention-notify-default)
-  )
+;; (use-package agent-recall
+;;   :ensure t
+;;   :hook (agent-shell-mode . agent-recall-track-sessions)
+;;   :config
+;;   (setq agent-recall-search-paths '("~/Dropbox" "~/.config/emacs" "~/projects" "~/work" "~/.agent-shell")
+;;         agent-recall-search-function 'consult-ripgrep
+;;         agent-recall-browse-sort 'modified-desc))
+;; 
+;; 
+;; (use-package agent-shell-attention
+;;   :vc (:url "https://github.com/ultronozm/agent-shell-attention.el" :rev "main")
+;;   :config
+;;   (unless (eq system-type 'windows-nt)
+;;     (agent-shell-attention-mode 1))
+;;   (setopt agent-shell-attention-notify-function #'agent-shell-attention-notify-default)
+;;   )
 
 ;; (use-package agent-shell-sidebar
 ;;   :after agent-shell
@@ -327,6 +245,17 @@
 ;;   :ensure t
 ;;   :after agent-shell
 ;;   )
+
+
+(use-package claude-code-ide
+  :vc (:url "https://github.com/manzaltu/claude-code-ide.el" :rev :newest)
+  :config
+  (setq claude-code-ide-terminal-backend 'ghostel)
+
+  (with-eval-after-load 'project
+    (define-key project-prefix-map "c" #'claude-code-ide-menu))
+
+  ) 
 
 (provide 'config-llm)
 ;;; config-llm.el ends here

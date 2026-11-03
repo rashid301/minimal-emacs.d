@@ -60,12 +60,12 @@ Caches result per DIR to avoid repeated ancestor walks."
    "[[" #'magit-section-backward-sibling)
   (add-hook 'git-commit-setup-hook #'evil-insert-state))
 
-(use-package forge
-  :ensure t
-  :if (locate-library "forge")
-  :after magit
-  :config
-  (setq forge-add-default-bindings nil))
+;; (use-package forge
+;;   :ensure t
+;;   :if (locate-library "forge")
+;;   :after magit
+;;   :config
+;;   (setq forge-add-default-bindings nil))
 
 (use-package transient
   :ensure nil
@@ -109,12 +109,12 @@ Caches result per DIR to avoid repeated ancestor walks."
   (setf (alist-get 'prettier apheleia-formatters)
         '("apheleia-npx" "prettier" "--stdin-filepath" filepath))
 
-(when (eq system-type 'windows-nt)
-  ;; Add Git's Unix utilities directory to Emacs's executable path
-  (let ((git-path "C:/Program Files/Git/usr/bin"))
-    (when (file-directory-p git-path)
-      (add-to-list 'exec-path git-path)
-      (setenv "PATH" (concat git-path ";" (getenv "PATH"))))))
+  (when (eq system-type 'windows-nt)
+    ;; Add Git's Unix utilities directory to Emacs's executable path
+    (let ((git-path "C:/Program Files/Git/usr/bin"))
+      (when (file-directory-p git-path)
+        (add-to-list 'exec-path git-path)
+        (setenv "PATH" (concat git-path ";" (getenv "PATH"))))))
 
   )
 
