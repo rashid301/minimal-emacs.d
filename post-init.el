@@ -19,6 +19,11 @@
 ;; Project: project.el, magit, eglot, apheleia, rg
 (load "config-project")
 
+;; Worktrunk: git-wt wrapper + one activity per worktree
+(add-to-list 'load-path (expand-file-name "lisp/util" user-emacs-directory))
+(require 'worktrunk)
+(require 'worktrunk-activities)
+
 ;; Email: mu4e + org email (loads org first)
 ;;(load "config-email")
 
