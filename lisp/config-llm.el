@@ -38,6 +38,11 @@
 
 ;; ── shell-maker (create custom shells in eshell) ──────────────────────
 
+(use-package exec-path-from-shell
+  :ensure t
+  :config
+  (exec-path-from-shell-initialize))
+
 (use-package shell-maker
   :ensure t
   :config
@@ -245,6 +250,16 @@
 ;;   :ensure t
 ;;   :after agent-shell
 ;;   )
+
+(use-package claude-code-ide
+  :vc (:url "https://github.com/manzaltu/claude-code-ide.el" :rev :newest)
+  :config
+  (setq claude-code-ide-terminal-backend 'ghostel)
+
+  (with-eval-after-load 'project
+    (define-key project-prefix-map "c" #'claude-code-ide-menu))
+
+  ) 
 
 (provide 'config-llm)
 ;;; config-llm.el ends here

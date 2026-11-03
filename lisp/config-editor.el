@@ -2,20 +2,24 @@
 
 ;; ── Dirvish (improved dired) ───────────────────────────────────────────
 
-;; (use-package dirvish
-;;   :ensure t
-;;   :defer t
-;;   :init
-;;   :config
-;;   (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
-;;   (require 'dirvish)
-;;   (require 'dirvish-icons)
-;;   (require 'dirvish-quick-access)
-;;   (require 'dirvish-yank)
-;;   (dirvish-override-dired-mode 1)
-;;   (setq dired-kill-when-openinging-new-dired-buffer t)
-;;   )
+(use-package dirvish
+  :ensure t
+  :init
+  :config
+  (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
+  (require 'dirvish)
+  (require 'dirvish-icons)
+  (require 'dirvish-quick-access)
+  (require 'dirvish-yank)
+  (require 'dirvish-side)
+  (dirvish-override-dired-mode 1)
+  (setq dired-kill-when-opening-new-dired-buffer t)
 
+  ;; `SPC p' is bound to `project-prefix-map' directly (see
+  ;; config-keybindings.el), so bind dirvish-side at `SPC p t'.
+  (with-eval-after-load 'project
+    (define-key project-prefix-map "t" #'dirvish-side))
+  )
 ;; ── ace-window ────────────────────────────────────────────────────────
 
 (use-package ace-window
