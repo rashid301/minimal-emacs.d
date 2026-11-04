@@ -1,3 +1,6 @@
+(require 'subr-x)
+(require 'seq)
+
 (defun my/pdf-decrypt ()
   "Create an unencrypted copy of the current PDF using qpdf."
   (interactive)
@@ -237,3 +240,55 @@ BUFFER may be a buffer object or a buffer name (string)."
    :buffer nil
    :command (list "systemd-run" "--user" "--scope" "sh" "-c" cmd)
    :noquery t))
+
+
+
+
+
+(defconst my/unwrap-keep-line-regexp
+  "\\`\\(?:[-*+] \\|[0-9]+[.)] \\|[ \t]\\|[#>|`]\\)"
+  "Lines (after dedent) matching this start a new line instead of being joined.
+Covers list items, further-indented lines (code), headings, quotes, tables, fences.")
+
+(defun my/unwrap-text (text)
+  "Dedent TEXT, strip trailing spaces, and join hard-wrapped lines.
+Blank lines (paragraph breaks) are preserved.  List items and indented
+lines are kept on their own lines."
+  (let* ((lines (mapcar (lambda (l) (string-trim-right l))
+                        (split-string text "\n")))
+         (nonblank (seq-remove #'string-empty-p lines))
+         (indent (if nonblank
+                     (apply #'min (mapcar (lambda (l)
+                                            (- (length l)
+                                               (length (string-trim-left l))))
+                                          nonblank))
+                   0))
+         (out '())
+         (cur nil))
+    (dolist (l lines)
+      (let ((l (if (string-empty-p l) l (substring l indent))))
+        (cond
+         ((string-empty-p l)
+          (when cur (push cur out) (setq cur nil))
+          (unless (equal (car out) "") (push "" out)))
+         ((and cur (not (string-match-p my/unwrap-keep-line-regexp l)))
+          (setq cur (concat cur " " l)))
+         (t
+          (when cur (push cur out))
+          (setq cur l)))))
+    (when cur (push cur out))
+    (string-trim (mapconcat #'identity (nreverse out) "\n"))))
+
+(defun my/clean-copy (beg end)
+  "Copy region BEG..END to the kill ring, unwrapped and dedented."
+  (interactive "r")
+  (kill-new (my/unwrap-text (filter-buffer-substring beg end)))
+  (deactivate-mark)
+  (message "Copied cleaned text"))
+
+(defun my/clean-kill-ring-head ()
+  "Replace the latest kill-ring entry with its cleaned version."
+  (interactive)
+  (let ((new (my/unwrap-text (current-kill 0 t))))
+    (kill-new new t)
+    (message "Cleaned latest kill")))

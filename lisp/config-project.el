@@ -177,6 +177,22 @@ Caches result per DIR to avoid repeated ancestor walks."
 (use-package quickrun
   :ensure t)
 
+
+(defun my/fix-gh-repo (dir username)
+  "Pin USERNAME as the git credential username in the project at DIR.
+  Prompts for a project via project.el and a GitHub username, then sets
+  the repo-local credential.https://github.com.username so Git Credential
+  Manager stops asking which account to use."
+  (interactive (list (project-prompt-project-dir)
+                     (read-string "GitHub username: " "rashid-cc")))
+  (let ((default-directory (file-name-as-directory dir))
+        (key "credential.https://github.com.username"))
+    (unless (file-exists-p (expand-file-name ".git" default-directory))
+      (user-error "%s is not a git repo root" default-directory))
+    (if (zerop (call-process "git" nil nil nil "config" key username))
+        (message "Pinned %s in %s" username default-directory)
+      (user-error "git config failed in %s" default-directory))))
+
 (provide 'config-project)
 
 ;;; config-project.el ends here
