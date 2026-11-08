@@ -28,9 +28,11 @@
   "Emacs front end for the Worktrunk CLI."
   :group 'tools)
 
-(defcustom worktrunk-executable "git-wt"
+(defcustom worktrunk-executable
+  (if (eq system-type 'windows-nt) "git-wt" "wt")
   "Worktrunk executable.
-Use `git-wt', not `wt': on Windows `wt' is Windows Terminal."
+On Windows this is `git-wt', because there `wt' is Windows Terminal.
+Everywhere else it is `wt'."
   :type 'string)
 
 (defcustom worktrunk-auto-approve-hooks nil
