@@ -131,11 +131,15 @@
   :bind (:map emacs-lisp-mode-map
               ("C-c e" . macrostep-expand)))
 
+(use-package markdown-ts-mode
+  :ensure nil
+  :mode ("\\.md\\'" . markdown-ts-mode))
 
-(use-package markdown-mode
-  :mode ("\\.md\\'" . markdown-mode)
-  :config
-  (setq markdown-command "pandoc")) 
+(use-package markdown-ts-appear
+  :ensure t
+  :pin nongnu
+  :hook (markdown-ts-mode . markdown-ts-appear-mode))
+
 
 ;; ── Evil goodies ───────────────────────────────────────────────────────
 
@@ -449,7 +453,7 @@
     "og" '(taskwarrior-gtd :which-key "GTD dashboard")
     "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
     "oj" '(my/open-todays-journal :which-key "today's journal")
-     "o-" '(dired-jump :which-key "dired")
+    "o-" '(dired-jump :which-key "dired")
     ;;"o-" '(dirvish-dwim :which-key "dirvish")
     "om" '(my/mu4e :which-key "mu4e")
     "on" '(elfeed :which-key "elfeed")
