@@ -2,9 +2,24 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("Activity: clearcompany.feature-DEV-33453-routing-roules-frontend-updates"
-  (activities-name . "clearcompany.feature-DEV-33453-routing-roules-frontend-updates")
+(("Activity: agents"
+  (activities-name . "agents")
   (handler . activities-bookmark-handler))
+("Activity: clearcompany.feature-DEV-32924-bgc-child-client-order-routing"
+ (activities-name . "clearcompany.feature-DEV-32924-bgc-child-client-order-routing")
+ (handler . activities-bookmark-handler))
+("Activity: clearcompany.feature-DEV-33030-tazworks-routing-rules-errors"
+ (activities-name . "clearcompany.feature-DEV-33030-tazworks-routing-rules-errors")
+ (handler . activities-bookmark-handler))
+("Activity: dev-tools"
+ (activities-name . "dev-tools")
+ (handler . activities-bookmark-handler))
+("Activity: .emacs.d"
+ (activities-name . ".emacs.d")
+ (handler . activities-bookmark-handler))
+("Activity: clearcompany.feature-DEV-33453-routing-roules-frontend-updates"
+ (activities-name . "clearcompany.feature-DEV-33453-routing-roules-frontend-updates")
+ (handler . activities-bookmark-handler))
 ("Activity: clearcompany.feature-DEV-33498-pendo-clean-changes-cc"
  (activities-name . "clearcompany.feature-DEV-33498-pendo-clean-changes-cc")
  (handler . activities-bookmark-handler))

@@ -348,29 +348,35 @@ This only works with orderless and for the first component of the search."
            ))
 
 
-  (defun my/consult-buffer-list--activity ()
-    "Return buffers from the current activity's frame, or all buffers if none active."
+  (defun my/activity-buffers ()
+    "Return live buffers of the current activity, or nil if there is none.
+With `activities-tabs-mode' (one frame, many tabs) this is the tab's
+`activities-buffer-list'; otherwise it is the activity frame's buffer list."
     (condition-case nil
-        (if-let ((activity (activities-current))
-                 (frame (activities--frame activity))
-                 ((frame-live-p frame)))
+        (if (bound-and-true-p activities-tabs-mode)
+            (when-let ((tab (tab-bar--current-tab-find))
+                       ((alist-get 'activity (cdr tab))))
+              (seq-filter #'buffer-live-p
+                          (alist-get 'activities-buffer-list (cdr tab))))
+          (when-let ((activity (activities-current))
+                     (frame (activities--frame activity))
+                     ((frame-live-p frame)))
             (cl-loop for buf in (frame-parameter frame 'buffer-list)
-                     collect (if (consp buf) (cdr buf) buf))
-          (buffer-list))
-      (error (buffer-list))))
+                     collect (if (consp buf) (cdr buf) buf))))
+      (error nil)))
+
+  (defun my/consult-buffer-list--activity ()
+    "Return buffers of the current activity, or all buffers if none active."
+    (or (my/activity-buffers) (buffer-list)))
 
   (setq consult-buffer-list-function #'my/consult-buffer-list--activity)
 
   (defun my/activity-buffer-p (buf)
-    "Return non-nil if BUF belongs to the current activity's frame."
-    (condition-case nil
-        (if-let ((activity (activities-current))
-                 (frame (activities--frame activity))
-                 ((frame-live-p frame)))
-            (memq buf (cl-loop for b in (frame-parameter frame 'buffer-list)
-                               collect (if (consp b) (cdr b) b)))
-          t)
-      (error t)))
+    "Return non-nil if BUF belongs to the current activity.
+Used as the frame `buffer-predicate', so `next-buffer' and
+`previous-buffer' stay inside the workspace."
+    (let ((bufs (my/activity-buffers)))
+      (or (null bufs) (and (memq buf bufs) t))))
 
   ;; apply to future frames
   (add-to-list 'default-frame-alist '(buffer-predicate . my/activity-buffer-p))

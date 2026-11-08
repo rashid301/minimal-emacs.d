@@ -32,6 +32,11 @@
 (add-to-list 'load-path (expand-file-name "lisp/util" user-emacs-directory))
 (require 'worktrunk)
 (require 'worktrunk-activities)
+(worktrunk-activities-project-mode 1)
+
+(require 'agent-shell-manager)
+;; Options: 'left, 'right, 'top, 'bottom, or nil
+(setq agent-shell-manager-side 'left)
 
 ;; Email: mu4e + org email (loads org first)
 ;;(load "config-email")
