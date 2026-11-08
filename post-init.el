@@ -23,6 +23,7 @@
 (add-to-list 'load-path (expand-file-name "lisp/util" user-emacs-directory))
 (require 'worktrunk)
 (require 'worktrunk-activities)
+(worktrunk-activities-project-mode 1)
 
 ;; Email: mu4e + org email (loads org first)
 ;;(load "config-email")

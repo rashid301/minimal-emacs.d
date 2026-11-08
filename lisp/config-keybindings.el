@@ -132,10 +132,14 @@
               ("C-c e" . macrostep-expand)))
 
 
-(use-package markdown-mode
-  :mode ("\\.md\\'" . markdown-mode)
-  :config
-  (setq markdown-command "pandoc")) 
+(use-package markdown-ts-mode
+  :ensure nil
+  :mode ("\\.md\\'" . markdown-ts-mode))
+
+(use-package markdown-ts-appear
+  :ensure t
+  :pin nongnu
+  :hook (markdown-ts-mode . markdown-ts-appear-mode))
 
 ;; ── Evil goodies ───────────────────────────────────────────────────────
 

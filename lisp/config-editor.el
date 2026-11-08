@@ -26,6 +26,7 @@
   :ensure t
   :config
   (ace-window-display-mode 1)
+  (aw-dispatch-always t)
   (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
   :bind (
          ("M-o" . ace-window)))

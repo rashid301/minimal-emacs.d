@@ -255,5 +255,9 @@ Like normal Emacs `C-k'.  Kill to end of line and put content in kill-ring."
 
   )
 
+(add-to-list 'load-path "~/.emacs.d/elpa/emacs-term-sessions")
+(require 'term-sessions)
+(setq term-sessions-preferred-frontend 'ghostel) ; built in
+
 (provide 'config-terminal)
 ;;; config-terminal.el ends here

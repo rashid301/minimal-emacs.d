@@ -37,7 +37,7 @@
   ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka Nerd Font"
-                      :height (or font-size 115)
+                      :height (or font-size 200)
                       :weight 'normal))
 
 (defun my/load-theme (theme)
@@ -273,7 +273,6 @@
      "\\*Flycheck errors\\*"
      "^\\*eglot"
      "^\\*tree-view\\*"
-     "^\\*v?term.*"
      "\\*Buffer List\\*"
      "\\*Ibuffer\\*"
      "\\*Apropos\\*"

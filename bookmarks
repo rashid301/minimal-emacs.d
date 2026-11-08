@@ -2,9 +2,12 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("Activity: ClearCo"
-  (activities-name . "ClearCo")
+(("Activity: .emacs.d"
+  (activities-name . ".emacs.d")
   (handler . activities-bookmark-handler))
+("Activity: ClearCo"
+ (activities-name . "ClearCo")
+ (handler . activities-bookmark-handler))
 ("test-test"
  (handler . agent-shell-bookmark-handler)
  (location . #1="/home/rashid/dotfiles/")

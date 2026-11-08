@@ -151,7 +151,7 @@ Caches result per DIR to avoid repeated ancestor walks."
         (elisp "https://github.com/Wilfred/tree-sitter-elisp")
         (commonlisp "https://github.com/tree-sitter-grammars/tree-sitter-commonlisp")
         (nix "https://github.com/nix-community/tree-sitter-nix")
-        (markdown "https://github.com/tree-sitter/tree-sitter-markdown")))
+        ))
 ;; ── HTTP / API testing (verb) ──────────────────────────────────────────
 
 (use-package verb
