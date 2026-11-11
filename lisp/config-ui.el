@@ -232,8 +232,26 @@
 
 ;; ── Popper (popup management) ──────────────────────────────────────────
 
+(defun my/task-buffer-p (buffer)
+  "Return non-nil if BUFFER is a `ghostel-tasks' buffer (*task:...*)."
+  (string-prefix-p "*task:" (buffer-name (get-buffer buffer))))
+
+(defun my/display-task-left (buffer &optional _alist)
+  "Show task BUFFER in a left side window, 25% of the frame wide.
+Each task gets its own slot, so several tasks stack in the same column
+instead of replacing one another.  Does not select the window."
+  (let ((slot (or (cl-position buffer
+                               (sort (seq-filter #'my/task-buffer-p (buffer-list))
+                                     (lambda (a b) (string< (buffer-name a)
+                                                            (buffer-name b)))))
+                  0)))
+    (display-buffer-in-side-window
+     buffer `((side . left) (slot . ,slot) (window-width . 0.25)))))
+
 (defun my/popper-select-at-bottom (buffer &optional alist)
-  (let ((window (display-buffer-below-selected buffer '((window-height . 0.3)))))
+  (let ((window (if (my/task-buffer-p buffer)
+                    (my/display-task-left buffer alist)
+                  (display-buffer-below-selected buffer '((window-height . 0.3))))))
     (if window (select-window window))))
 
 (use-package popper
@@ -269,6 +287,7 @@
      "\\*Process List\\*"
      "\\*eldoc\\*"
      "\\*prodigy\\*"
+     "^\\*task:"
      "\\*Flycheck errors\\*"
      "^\\*eglot"
      "^\\*tree-view\\*"

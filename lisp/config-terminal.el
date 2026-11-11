@@ -296,6 +296,25 @@ Like normal Emacs `C-k'.  Kill to end of line and put content in kill-ring."
 
   (add-to-list 'project-switch-commands '(ghostel-project "Ghostel") t)
   (add-to-list 'project-switch-commands '(ghostel-project-list-buffers "Ghostel buffers") t)
+
+  ;; Per-project dev servers (see lisp/util/ghostel-tasks.el).
+  (require 'ghostel-tasks)
+  ;; Show tasks in the left popper column (see `my/display-task-left').
+  (setq ghostel-tasks-display-action '(my/display-task-left))
+  (setq ghostel-tasks-projects
+        '(("clearcompany"
+           ;; workers/ is git-excluded, so it only exists in the main
+           ;; checkout; hence the absolute :dir.  Use Git's bash, since
+           ;; `bash' on PATH can be the WSL launcher.
+           ("cc-workers-ghostel"
+            :command ("C:/Program Files/Git/bin/bash.exe"
+                      "./runparallel.sh" "bgc-by-cc.csv")
+            :dir "D:/repos/clearcompany/workers")
+           ("cc-webapp-ghostel"
+            :command "npm run dev"
+            :dir "D:/repos/web-clearcompany/clearco-webapp"))))
+  (add-to-list 'project-switch-commands '(ghostel-tasks-start-all "Start tasks") t)
+  (add-to-list 'project-switch-commands '(ghostel-tasks-switch "Task buffers") t)
   (add-to-list 'ghostel-eval-cmds '("magit-status-setup-buffer" magit-status-setup-buffer))
 
   (with-eval-after-load 'ghostel
