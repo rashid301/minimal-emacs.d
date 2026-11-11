@@ -240,7 +240,7 @@
     "h"  '(nil :which-key "help")
     "t"  '(nil :which-key "toggle")
     "w"  '(nil :which-key "window")
-    "SPC" '(consult-buffer :which-key "switch buffer")
+    "SPC" '(activities-switch-buffer :which-key "switch buffer")
     "u"  #'universal-argument
 
     ;; --- help ---
@@ -256,7 +256,7 @@
     "ht" '(consult-theme :which-key "Load theme")
 
     ;; --- Buffer bindings ---
-    "bb" '(consult-buffer :which-key "switch buffer")
+    "bb" '(activities-switch-buffer :which-key "switch buffer")
     "br" '(revert-buffer :which-key "revert buffer")
     "b[" '(previous-buffer :which-key "previous buffer")
     "b]" '(next-buffer :which-key "next buffer")

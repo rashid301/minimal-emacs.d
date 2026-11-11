@@ -28,8 +28,12 @@ the right.  Nil means no terminal."
   :group 'worktrunk)
 
 (defun worktrunk-activities--name (path)
-  "Return the activity name for worktree PATH: its folder name."
-  (file-name-nondirectory (directory-file-name path)))
+  "Return the activity name for worktree PATH: its folder name.
+For a remote (TRAMP) PATH the host is prefixed, so
+/ssh:hostname:~/project becomes \"hostname:project\"."
+  (let ((folder (file-name-nondirectory (directory-file-name path)))
+        (host (file-remote-p path 'host)))
+    (if host (concat host ":" folder) folder)))
 
 (defun worktrunk-activities--create (name path)
   "Create activity NAME for the worktree at PATH in a new tab or frame.

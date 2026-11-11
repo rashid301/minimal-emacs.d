@@ -2,24 +2,24 @@
 
 ;; ── Dirvish (improved dired) ───────────────────────────────────────────
 
-(use-package dirvish
-  :ensure t
-  :init
-  :config
-  (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
-  (require 'dirvish)
-  (require 'dirvish-icons)
-  (require 'dirvish-quick-access)
-  (require 'dirvish-yank)
-  (require 'dirvish-side)
-  (dirvish-override-dired-mode 1)
-  (setq dired-kill-when-opening-new-dired-buffer t)
-
-  ;; `SPC p' is bound to `project-prefix-map' directly (see
-  ;; config-keybindings.el), so bind dirvish-side at `SPC p t'.
-  (with-eval-after-load 'project
-    (define-key project-prefix-map "t" #'dirvish-side))
-  )
+;; (use-package dirvish
+;;   :ensure t
+;;   :init
+;;   :config
+;;   (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
+;;   (require 'dirvish)
+;;   (require 'dirvish-icons)
+;;   (require 'dirvish-quick-access)
+;;   (require 'dirvish-yank)
+;;   (require 'dirvish-side)
+;;   (dirvish-override-dired-mode 1)
+;;   (setq dired-kill-when-opening-new-dired-buffer t)
+;; 
+;;   ;; `SPC p' is bound to `project-prefix-map' directly (see
+;;   ;; config-keybindings.el), so bind dirvish-side at `SPC p t'.
+;;   (with-eval-after-load 'project
+;;     (define-key project-prefix-map "t" #'dirvish-side))
+;;   )
 
 ;; ── ace-window ────────────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@
   :ensure t
   :config
   (ace-window-display-mode 1)
+  (setopt aw-dispatch-always t)
   (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
   :bind (
          ("M-o" . ace-window)))
@@ -312,6 +313,112 @@ This only works with orderless and for the first component of the search."
   (setq vc-handled-backends '(Git))
   (setq remote-file-name-inhibit-cache nil)
   (setq tramp-verbose 3))
+
+;; ── TRAMP: WSL ────────────────────────────────────────────────────────
+;; Windows Emacs -> WSL2 distro.  Open files as /wsl:<distro>:/path
+;; (e.g. /wsl:cc-local:/home/dev/proj/).  git, rg, fd, gcc, node ... all run
+;; inside the distro.
+;;
+;; Why it is built this way (each point was a real failure on this machine):
+;; 1. Tramp types `exec wsl.exe ... || exit' into the local shell, which on
+;;    Windows is cmd.exe, and cmd.exe has no `exec'.  Listing the local host
+;;    in `tramp-restricted-shell-hosts-alist' makes Tramp send `... && exit'.
+;; 2. --exec makes wsl.exe skip the distro's default shell (zsh here).
+;; 3. Tramp does not quote %l, so `script -qc %l' splits it into separate
+;;    args.  `pipetty %l' (Debian package colorized-logs) takes a command plus
+;;    args, so it needs no quoting.
+(with-eval-after-load 'tramp
+  (when (eq system-type 'windows-nt)
+    (add-to-list 'tramp-restricted-shell-hosts-alist
+                 (concat "\\`" (regexp-quote tramp-system-name) "\\'")))
+
+  (add-to-list 'tramp-methods
+               '("wsl"
+                 (tramp-login-program "wsl.exe")
+                 (tramp-login-args    (("-d" "%h") ("--user" "%u")
+                                       ("--exec") ("pipetty" "%l")))
+                 (tramp-remote-shell  "/bin/sh")))
+
+  ;; Tramp runs /bin/sh, which never reads ~/.zshrc, so nvm / brew / asdf /
+  ;; bun dirs would be missing.  WSL also appends the whole Windows PATH
+  ;; (/mnt/c/...).  So ask the distro's real zsh for its PATH once per
+  ;; distro, drop every /mnt/ entry, and give that to Tramp for wsl
+  ;; connections.  Result: binaries come from the distro only, and picking
+  ;; up a new nvm node version needs no config change (M-x
+  ;; my/wsl-refresh-path after installing tools).
+  (defvar my/wsl-path-cache (make-hash-table :test #'equal)
+    "(USER . DISTRO) -> list of Linux PATH dirs.")
+
+  (defun my/wsl-linux-path (user distro)
+    "PATH dirs of DISTRO's interactive zsh for USER, without /mnt/ entries."
+    (let ((key (cons user distro)))
+      (or (gethash key my/wsl-path-cache)
+          (let* ((default-directory temporary-file-directory)
+                 (args (append (list "-d" distro)
+                               (and user (list "--user" user))
+                               (list "--exec" "zsh" "-ic"
+                                     "print -r -- __WSLPATH__$PATH")))
+                 (out (with-output-to-string
+                        (with-current-buffer standard-output
+                          (apply #'call-process "wsl.exe" nil '(t nil) nil args))))
+                 (dirs (and (string-match "__WSLPATH__\\([^\r\n]+\\)" out)
+                            (seq-remove (lambda (d) (string-prefix-p "/mnt/" d))
+                                        (split-string (match-string 1 out) ":" t)))))
+            (when dirs (puthash key dirs my/wsl-path-cache))
+            dirs))))
+
+  (defun my/wsl-refresh-path ()
+    "Forget cached WSL PATHs and drop Tramp connections so they are re-read."
+    (interactive)
+    (clrhash my/wsl-path-cache)
+    (tramp-cleanup-all-connections))
+
+  (define-advice tramp-get-remote-path (:around (orig vec) my/wsl)
+    (if (equal (tramp-file-name-method vec) "wsl")
+        (let ((tramp-remote-path
+               (or (my/wsl-linux-path (tramp-file-name-user vec)
+                                      (tramp-file-name-host vec))
+                   ;; zsh query failed: plain Linux dirs, still no /mnt/c
+                   '("~/.local/bin" "/usr/local/bin" "/usr/bin" "/bin"
+                     "/usr/local/sbin" "/usr/sbin" "/sbin"))))
+          (funcall orig vec))
+      (funcall orig vec)))
+
+  ;; `M-x shell' prefers the global `explicit-shell-file-name' (set to pwsh.exe
+  ;; in config-terminal.el) over Tramp's connection-local `shell-file-name',
+  ;; so it tried to run the Windows pwsh path inside WSL.  Override it for
+  ;; wsl connections only; local shells keep using pwsh.
+  (connection-local-set-profile-variables
+   'my/wsl-shell-profile
+   '((explicit-shell-file-name . "/usr/bin/zsh")
+     (explicit-zsh-args        . ("-i"))))
+  (connection-local-set-profiles
+   '(:application tramp :protocol "wsl") 'my/wsl-shell-profile)
+
+  (connection-local-set-profile-variables
+   'remote-zsh-profile
+   '((tramp-remote-shell . "/usr/bin/zsh")))
+
+  (connection-local-set-profiles
+   '(:application tramp :machine "desktop-ee")
+   'remote-zsh-profile)
+
+
+  ;; The global default is utf-8-dos, so new files created under /wsl: were
+  ;; saved with CRLF (breaks `#!/bin/bash^M' scripts, noisy git diffs).  Decode
+  ;; with eol auto-detect (existing CRLF files stay CRLF) and encode LF for
+  ;; new files.  Only applies to /wsl: paths.
+  (add-to-list 'file-coding-system-alist '("\\`/wsl:" . (utf-8 . utf-8-unix)))
+
+  ;; ~/.zshrc appends the vterm "OSC 51;A" directory-tracking sequence to
+  ;; every prompt (not gated on vterm), which `M-x shell' prints as literal
+  ;; "]51;A...".  Strip it from comint output.
+  (defun my/comint-strip-osc51 (output)
+    (replace-regexp-in-string "\e\\]51;[^\e\a]*\\(?:\e\\\\\\|\a\\)" "" output))
+  (add-hook 'shell-mode-hook
+            (lambda ()
+              (add-hook 'comint-preoutput-filter-functions
+                        #'my/comint-strip-osc51 nil t))))
 
 ;; ── diminish (hide minor modes from modeline) ───────────────────────
 

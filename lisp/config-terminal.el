@@ -154,7 +154,7 @@
 (use-package tmux-control
   :vc (:url "https://github.com/csheaff/tmux-control" :rev "main")
   :config
-  (setq tmux-control-default-host "desktop-pc"
+  (setq tmux-control-default-host "desktop-ee"
         tmux-control-default-socket-name "/tmp/tmux-1000/default"
         tmux-control-default-session "main"
         tmux-control-window-buffers t)
@@ -162,7 +162,7 @@
   (defun my/desktop-pc ()
     "Connect to desktop-pc via tmux-control, prompting only for session."
     (interactive)
-    (let ((session (tmux-control--read-session "desktop-pc" "default")))
+    (let ((session (tmux-control--read-session "desktop-ee" "default")))
       (tmux-control-connect "desktop-pc" "default" session))
     )
   (defun my/laptop-pc ()
@@ -212,22 +212,22 @@
      (kbd "H") #'tmux-control-previous-window
      (kbd "L") #'tmux-control-next-window
      )
-    (dotimes (i 10)
-      (general-define-key
-       :states '(normal visual motion)
-       :keymaps 'tmux-control-mode-map
-       (format "M-%d" i) '(lambda () (interactive)(tmux-control-select-window ,i))))
+    ;; (dotimes (i 10)
+    ;;   (general-define-key
+    ;;    :states '(normal visual motion)
+    ;;    :keymaps 'tmux-control-mode-map
+    ;;    (format "M-%d" i) '(lambda () (interactive)(tmux-control-select-window ,i))))
 
-    (general-define-key
-     :states '(normal visual motion)
-     :keymaps 'tmux-control-mode-map
-     (kbd "M-1") '(lambda () (interactive) (tmux-control-select-window 1))
-     (kbd "M-2") '(lambda () (interactive) (tmux-control-select-window 2))
-     (kbd "M-3") '(lambda () (interactive) (tmux-control-select-window 3))
-     (kbd "M-4") '(lambda () (interactive) (tmux-control-select-window 4))
-     (kbd "M-5") '(lambda () (interactive) (tmux-control-select-window 5))
-     (kbd "M-6") '(lambda () (interactive) (tmux-control-select-window 6))
-     )
+    ;; (general-define-key
+    ;;  :states '(normal visual motion)
+    ;;  :keymaps 'tmux-control-mode-map
+    ;;  (kbd "M-1") '(lambda () (interactive) (tmux-control-select-window 1))
+    ;;  (kbd "M-2") '(lambda () (interactive) (tmux-control-select-window 2))
+    ;;  (kbd "M-3") '(lambda () (interactive) (tmux-control-select-window 3))
+    ;;  (kbd "M-4") '(lambda () (interactive) (tmux-control-select-window 4))
+    ;;  (kbd "M-5") '(lambda () (interactive) (tmux-control-select-window 5))
+    ;;  (kbd "M-6") '(lambda () (interactive) (tmux-control-select-window 6))
+    ;;  )
 
     )
   ;; ── Bookmark support (like mu4e) ──────────────────────────────────────
@@ -269,6 +269,7 @@
          ("m" . ghostel-project)
          ("M" . ghostel-project-list-buffers))
   :config
+  (setq ghostel-shell-integration t)
   (setq ghostel-tramp-shell-integration t)
 
   (when (eq system-type 'windows-nt)
@@ -346,6 +347,12 @@ Like normal Emacs `C-k'.  Kill to end of line and put content in kill-ring."
   :config
   (setopt evil-ghostel-escape 'evil)
   )
+
+
+(add-to-list 'load-path (concat user-emacs-directory "elpa/emacs-term-sessions"))
+(require 'term-sessions)
+(setq term-sessions-preferred-frontend 'ghostel) ; built in
+
 
 (provide 'config-terminal)
 ;;; config-terminal.el ends here

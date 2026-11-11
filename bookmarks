@@ -2,9 +2,24 @@
 ;;; This format is meant to be slightly human-readable;
 ;;; nevertheless, you probably don't want to edit it.
 ;;; -*- End Of Bookmark File Format Version Stamp -*-
-(("Activity: agents"
-  (activities-name . "agents")
+(("Activity: clearcompany.feature-DEV-33555-limit-resend-invite-to-one-per-order-every-24-hours"
+  (activities-name . "clearcompany.feature-DEV-33555-limit-resend-invite-to-one-per-order-every-24-hours")
   (handler . activities-bookmark-handler))
+("Activity: cc-local:recruiting-port"
+ (activities-name . "cc-local:recruiting-port")
+ (handler . activities-bookmark-handler))
+("Activity: desktop-ee:recruiting-port"
+ (activities-name . "desktop-ee:recruiting-port")
+ (handler . activities-bookmark-handler))
+("Activity: cc-local:employee-events"
+ (activities-name . "cc-local:employee-events")
+ (handler . activities-bookmark-handler))
+("Activity: recruiting-port"
+ (activities-name . "recruiting-port")
+ (handler . activities-bookmark-handler))
+("Activity: agents"
+ (activities-name . "agents")
+ (handler . activities-bookmark-handler))
 ("Activity: clearcompany.feature-DEV-32924-bgc-child-client-order-routing"
  (activities-name . "clearcompany.feature-DEV-32924-bgc-child-client-order-routing")
  (handler . activities-bookmark-handler))

@@ -35,7 +35,7 @@
   :group 'ghostel)
 
 (defcustom ghostel-claude-display-action
-  '(display-buffer-in-side-window (side . right) (window-width . 0.4))
+  '(display-buffer-in-side-window (side . right) (window-width . 0.5))
   "Display action used to show a Claude buffer."
   :type 'sexp
   :group 'ghostel)

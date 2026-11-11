@@ -37,9 +37,10 @@
   ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka NF"
-                      :height (or font-size 165)
+                      :height (or font-size 115)
                       :weight 'normal))
 
+(load-theme 'newcomers-presets)
 (defun my/load-theme (theme)
   "Completely disable all active themes before loading THEME safely."
   (interactive
@@ -49,7 +50,9 @@
   (dolist (active-theme custom-enabled-themes)
     (disable-theme active-theme))
   ;; 2. Load the fresh theme cleanly without layering onto old faces
-  (load-theme theme t))
+
+  (load-theme theme t)
+  )
 
 ;; Only set font in GUI mode (not in terminal/batch)
 (when (display-graphic-p)
@@ -276,7 +279,6 @@ instead of replacing one another.  Does not select the window."
      "\\*emacs-float\\*"
      "\\*Warnings\\*"
      "\\*compilation\\*"
-     "\\*Completions\\*"
      "\\*Compile-Log\\*"
      "\\*Help\\*"
      helpful-mode
@@ -291,7 +293,7 @@ instead of replacing one another.  Does not select the window."
      "\\*Flycheck errors\\*"
      "^\\*eglot"
      "^\\*tree-view\\*"
-     "^\\*v?term.*"
+     ;;"^\\*v?term.*"
      "\\*Buffer List\\*"
      "\\*Ibuffer\\*"
      "\\*Apropos\\*"
