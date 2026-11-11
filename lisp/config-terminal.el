@@ -315,6 +315,12 @@ Like normal Emacs `C-k'.  Kill to end of line and put content in kill-ring."
             :dir "D:/repos/web-clearcompany/clearco-webapp"))))
   (add-to-list 'project-switch-commands '(ghostel-tasks-start-all "Start tasks") t)
   (add-to-list 'project-switch-commands '(ghostel-tasks-switch "Task buffers") t)
+
+  ;; Claude Code as the process of a project ghostel buffer
+  ;; (see lisp/util/ghostel-claude.el).  C-x p C; C-u starts another.
+  (require 'ghostel-claude)
+  (define-key project-prefix-map "C" #'ghostel-claude)
+  (add-to-list 'project-switch-commands '(ghostel-claude "Claude") t)
   (add-to-list 'ghostel-eval-cmds '("magit-status-setup-buffer" magit-status-setup-buffer))
 
   (with-eval-after-load 'ghostel

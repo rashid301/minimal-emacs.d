@@ -53,6 +53,10 @@
 ;; Terminal: Eshell, Eat, shell utilities
 (load "config-terminal")
 
+;; WSL helpers (Windows only)
+(when (eq system-type 'windows-nt)
+  (load "config-wsl"))
+
 ;; LLM integrations
 (load "config-llm")
 
