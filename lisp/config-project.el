@@ -29,7 +29,42 @@ Caches result per DIR to avoid repeated ancestor walks."
           result))))
 
   ;; Put it at the front of the hook so Emacs doesn't use its broken fallback
-  (add-hook 'project-find-functions #'my-project-try-git 'append))
+  (add-hook 'project-find-functions #'my-project-try-git 'append)
+
+  ;; ── Per-project compile command ──────────────────────────────────────
+  ;; `project-compile' (C-x p c) opens its prompt prefilled with the command
+  ;; set here for the current project, so RET runs it.  Other projects keep
+  ;; the usual `compile-command'.
+
+  (defvar compile-command)  ; special, so the `let' in the advice binds dynamically
+
+  (defcustom my/project-compile-commands
+    '(("clearcompany"
+       . "pwsh -NoProfile -File D:/repos/clearcompany/ccbuild.ps1 -NoPause"))
+    "Compile command per project, as an alist of (PROJECT . COMMAND).
+PROJECT is the project's folder name or its root directory."
+    :type '(alist :key-type string :value-type string)
+    :group 'project)
+
+  (defun my/project-compile-command (root)
+    "Return the configured compile command for the project at ROOT, or nil."
+    (let ((dir (directory-file-name (expand-file-name root))))
+      (cdr (seq-find
+            (lambda (entry)
+              (or (equal (car entry) (file-name-nondirectory dir))
+                  (equal (directory-file-name (expand-file-name (car entry))) dir)))
+            my/project-compile-commands))))
+
+  ;; Name the compile buffer after the project (*clearcompany-compilation*),
+  ;; so each project keeps its own output instead of sharing *compilation*.
+  (setq project-compilation-buffer-name-function #'project-prefixed-buffer-name)
+
+  (define-advice project-compile (:around (orig &rest args) my/command)
+    "Use the project's own compile command as the default."
+    (let ((compile-command (or (my/project-compile-command
+                                (project-root (project-current t)))
+                               compile-command)))
+      (apply orig args))))
 
 ;; ── Git ────────────────────────────────────────────────────────────────
 
