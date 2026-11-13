@@ -1,0 +1,15 @@
+#!/bin/sh
+# winnotify TITLE [BODY [LAUNCH-URL]] -- show a Windows toast from WSL (no modules needed).
+# With LAUNCH-URL, clicking the toast opens that URL (protocol activation).
+t=${1:-Claude Code}; b=${2:-}; u=${3:-}
+esc() { printf %s "$1" | sed 's/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/"/\&quot;/g' | sed "s/'/\&apos;/g;s/'/''/g"; }
+T=$(esc "$t"); B=$(esc "$b"); U=$(esc "$u")
+if [ -n "$U" ]; then ATTR=" activationType=\"protocol\" launch=\"$U\""; else ATTR=""; fi
+powershell.exe -NoProfile -NonInteractive -Command "
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType=WindowsRuntime] | Out-Null
+\$x = New-Object Windows.Data.Xml.Dom.XmlDocument
+\$x.LoadXml('<toast$ATTR><visual><binding template=\"ToastGeneric\"><text>$T</text><text>$B</text></binding></visual></toast>')
+\$id = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(\$id).Show([Windows.UI.Notifications.ToastNotification]::new(\$x))
+" </dev/null >/dev/null 2>&1

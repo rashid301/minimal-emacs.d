@@ -109,7 +109,8 @@ there is none.  With prefix argument NEW, start an additional Claude."
 ;;;; Workspace: sidebar of all Claudes in an "agents" tab / activity
 
 ;; The sidebar groups Claudes under the tab that shows them.
-;; Keys:  RET / click on a Claude  show it in the main (right) window
+;; Keys:  RET / click on a Claude  show it in the main (right) window (focus stays),
+;;        o  same and move focus to it
 ;;        RET / click on a tab header, or t  jump to that tab
 ;;        j/k (n/p) move, r refresh, q close.
 ;; State comes from the terminal title Claude sets: a spinner glyph means it
@@ -144,6 +145,8 @@ there is none.  With prefix argument NEW, start an additional Claude."
   "State face: Claude is working." :group 'ghostel)
 (defface ghostel-claude-done '((t :inherit success :weight bold))
   "State face: Claude finished while you were elsewhere." :group 'ghostel)
+(defface ghostel-claude-needs '((t :inherit error :weight bold))
+  "State face: Claude is waiting for you." :group 'ghostel)
 (defface ghostel-claude-idle '((t :inherit shadow))
   "State face: Claude is idle." :group 'ghostel)
 
@@ -153,6 +156,8 @@ there is none.  With prefix argument NEW, start an additional Claude."
   "Claude buffer -> last seen state.")
 (defvar ghostel-claude-workspace--unread (make-hash-table :test #'eq)
   "Claude buffer -> non-nil if it finished while unseen.")
+(defvar ghostel-claude-workspace--needs (make-hash-table :test #'eq)
+  "Claude buffer -> non-nil if it asked for you (permission / question).")
 (defvar-local ghostel-claude-workspace--signature nil)
 
 (defun ghostel-claude-workspace--claudes ()
@@ -215,8 +220,12 @@ there is none.  With prefix argument NEW, start an additional Claude."
               (old (gethash b ghostel-claude-workspace--last)))
           (when (and (eq old 'working) (eq new 'idle))
             (puthash b t ghostel-claude-workspace--unread))
+          ;; A new turn started: whatever it asked for was answered.
+          (when (and (eq new 'working) old (not (eq old 'working)))
+            (remhash b ghostel-claude-workspace--needs))
           (when (eq b (window-buffer (selected-window)))
-            (remhash b ghostel-claude-workspace--unread))
+            (remhash b ghostel-claude-workspace--unread)
+            (remhash b ghostel-claude-workspace--needs))
           (puthash b new ghostel-claude-workspace--last)))
       (ghostel-claude-workspace--refresh sidebar claudes))))
 
@@ -232,7 +241,9 @@ there is none.  With prefix argument NEW, start an additional Claude."
          (title (ghostel-claude-workspace--title buf))
          (state (ghostel-claude-workspace--state buf))
          (unread (gethash buf ghostel-claude-workspace--unread))
-         (label (cond ((eq state 'working) (propertize "● work" 'face 'ghostel-claude-working))
+         (label (cond ((gethash buf ghostel-claude-workspace--needs)
+                       (propertize "? need" 'face 'ghostel-claude-needs))
+                      ((eq state 'working) (propertize "● work" 'face 'ghostel-claude-working))
                       (unread (propertize "✓ done" 'face 'ghostel-claude-done))
                       ((eq state 'starting) (propertize "… start" 'face 'ghostel-claude-idle))
                       (t (propertize "· idle" 'face 'ghostel-claude-idle)))))
@@ -276,7 +287,7 @@ The agents tab itself is ignored, tab order is kept."
         (let ((tab (car g)))
           (insert (propertize
                    (format "%s %s  (%d)\n" "▾"
-                           (if tab (ghostel-claude-workspace--shorten tab) "not shown in a tab")
+                           (if tab (replace-regexp-in-string "\\`α: " "" tab) "not shown in a tab")
                            (length (cdr g)))
                    'face 'bold 'ghostel-claude-tab tab 'ghostel-claude-header t
                    'mouse-face 'highlight
@@ -331,6 +342,7 @@ The agents tab itself is ignored, tab order is kept."
     (define-key m (kbd "RET") #'ghostel-claude-agents-open)
     (define-key m [mouse-1] #'ghostel-claude-agents-click)
     (define-key m (kbd "t") #'ghostel-claude-agents-jump-tab)
+    (define-key m (kbd "o") #'ghostel-claude-agents-open-and-select)
     (define-key m (kbd "r") #'ghostel-claude-workspace--refresh)
     (define-key m (kbd "j") #'next-line)
     (define-key m (kbd "k") #'previous-line)
@@ -354,6 +366,7 @@ The agents tab itself is ignored, tab order is kept."
     (evil-define-key* 'motion ghostel-claude-agents-mode-map
       (kbd "RET") #'ghostel-claude-agents-open
       (kbd "t") #'ghostel-claude-agents-jump-tab
+      (kbd "o") #'ghostel-claude-agents-open-and-select
       (kbd "r") #'ghostel-claude-workspace--refresh
       (kbd "q") #'quit-window)))
 
@@ -370,17 +383,25 @@ The agents tab itself is ignored, tab order is kept."
   (get-text-property (line-beginning-position) 'ghostel-claude-tab))
 
 (defun ghostel-claude-agents-open ()
-  "On an agent: show it in the main window.  On a tab header: jump to the tab."
+  "On an agent: show it in the main window, keeping focus in the sidebar.
+On a tab header: jump to the tab."
   (interactive)
   (let ((buf (get-text-property (line-beginning-position) 'ghostel-claude-agent)))
     (if (null buf)
         (ghostel-claude-agents-jump-tab)
       (unless (buffer-live-p buf) (user-error "That Claude is gone"))
-      (let ((win (ghostel-claude-agents--main-window)))
-        (set-window-buffer win buf)
-        (remhash buf ghostel-claude-workspace--unread)
-        (select-window win)
-        (ghostel-claude-workspace--tick)))))
+      (set-window-buffer (ghostel-claude-agents--main-window) buf)
+      (remhash buf ghostel-claude-workspace--unread)
+      (remhash buf ghostel-claude-workspace--needs)
+      (ghostel-claude-workspace--tick))))
+
+(defun ghostel-claude-agents-open-and-select ()
+  "Like `ghostel-claude-agents-open' but also move focus to the Claude."
+  (interactive)
+  (ghostel-claude-agents-open)
+  (when-let* ((buf (get-text-property (line-beginning-position) 'ghostel-claude-agent))
+              (w (get-buffer-window buf)))
+    (select-window w)))
 
 (defun ghostel-claude-agents-click (event)
   "Open the agent clicked, or jump to the clicked tab header."
@@ -397,6 +418,53 @@ The agents tab itself is ignored, tab order is kept."
     (tab-bar-select-tab-by-name tab)
     (when-let* ((w (and buf (get-buffer-window buf))))
       (select-window w))))
+
+;;;; Claude Code hooks (Notification / Stop) -> sidebar state + Windows toast
+
+(defun ghostel-claude-workspace--by-pids (pids)
+  "Claude buffer whose process is one of PIDS, or nil."
+  (seq-find (lambda (b)
+              (let ((p (buffer-local-value 'ghostel--process b)))
+                (and p (memq (process-id p) pids))))
+            (ghostel-claude-workspace--claudes)))
+
+;;;###autoload
+(defun ghostel-claude-workspace-event (pids event message)
+  "Called by the Claude hook script (via emacsclient).
+PIDS are the hook's ancestor process ids, EVENT is \"Notification\" or
+\"Stop\".  Mark the matching buffer and return \"SHORT\\nBUFFER\\nTOAST\"
+where TOAST is 1 unless you are already looking at that Claude."
+  (ignore message)
+  (if-let* ((buf (ghostel-claude-workspace--by-pids pids)))
+      (let ((looking (and (eq buf (window-buffer (selected-window)))
+                          (eq (frame-focus-state) t))))
+        (unless looking
+          (if (equal event "Notification")
+              (puthash buf t ghostel-claude-workspace--needs)
+            (puthash buf t ghostel-claude-workspace--unread)))
+        (ghostel-claude-workspace--tick)
+        (format "%s\n%s\n%s"
+                (ghostel-claude-workspace--shorten (buffer-name buf))
+                (buffer-name buf) (if looking 0 1)))
+    ""))
+
+;;;###autoload
+(defun ghostel-claude-workspace-focus (buffer-name)
+  "Go to the Claude BUFFER-NAME (toast click): its tab, else the agents tab."
+  (when-let* ((buf (get-buffer buffer-name)))
+    (let* ((here (ghostel-claude-workspace--agents-tab-name))
+           (tabs (remove here (ghostel-claude-workspace--tabs buf))))
+      (if tabs
+          (progn (tab-bar-select-tab-by-name (car tabs))
+                 (when-let* ((w (get-buffer-window buf))) (select-window w)))
+        (ghostel-claude-workspace)
+        (let ((w (ghostel-claude-agents--main-window)))
+          (set-window-buffer w buf) (select-window w)))
+      (remhash buf ghostel-claude-workspace--unread)
+      (remhash buf ghostel-claude-workspace--needs)
+      (select-frame-set-input-focus (selected-frame))
+      (ghostel-claude-workspace--tick)
+      t)))
 
 ;;;; Entry point
 

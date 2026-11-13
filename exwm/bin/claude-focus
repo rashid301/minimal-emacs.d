@@ -1,0 +1,7 @@
+#!/bin/sh
+# claude-focus claude-focus://<urlencoded buffer name>  (Windows toast click handler)
+# Jump to that Claude in Emacs and bring the Xephyr window to the front.
+buf=$(python3 -c 'import sys,urllib.parse as u; print(u.unquote(sys.argv[1].split("://",1)[1].rstrip("/")))' "$1")
+lisp=$(python3 -c 'import sys,json; print(json.dumps(sys.argv[1]))' "$buf")
+emacsclient -e "(ghostel-claude-workspace-focus $lisp)" >/dev/null 2>&1
+powershell.exe -NoProfile -NonInteractive -Command "(New-Object -ComObject WScript.Shell).AppActivate('Xephyr') | Out-Null" </dev/null >/dev/null 2>&1
