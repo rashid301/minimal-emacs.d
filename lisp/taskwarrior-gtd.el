@@ -412,6 +412,8 @@ Empty string means no filter (all pending tasks)."
     (define-key map (kbd "u") #'taskwarrior-gtd-action-undo)
     (define-key map (kbd "t") #'taskwarrior-gtd-action-toggle-start)
     (define-key map (kbd "s") #'taskwarrior-gtd-action-search)
+    (define-key map (kbd "S") #'taskwarrior-gtd-action-saved-search)
+    (define-key map (kbd "W") #'taskwarrior-gtd-action-save-search)
     map)
   "Keymap for `gtd-list-mode'.")
 
@@ -424,7 +426,10 @@ Empty string means no filter (all pending tasks)."
     (kbd "G") #'end-of-buffer
     (kbd "gt") #'taskwarrior-gtd-action-jump
     (kbd "e") #'taskwarrior-gtd-action-edit
-    (kbd "t") #'taskwarrior-gtd-action-toggle-start))
+    (kbd "t") #'taskwarrior-gtd-action-toggle-start
+    ;; evil-collection binds S to `tabulated-list-sort' in normal state.
+    (kbd "S") #'taskwarrior-gtd-action-saved-search
+    (kbd "W") #'taskwarrior-gtd-action-save-search))
 
 (define-derived-mode gtd-list-mode tabulated-list-mode "GTD"
   "Single-buffer GTD list for Taskwarrior."
@@ -521,26 +526,87 @@ going to the top."
 ;; Search
 ;; ---------------------------------------------------------------------------
 
+(defun taskwarrior-gtd--run-search (filter)
+  "Show the results of raw Taskwarrior FILTER in the GTD buffer."
+  (let ((buf (if (buffer-live-p taskwarrior-gtd--buffer)
+                 taskwarrior-gtd--buffer
+               (get-buffer-create "*gtd*"))))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'gtd-list-mode)
+        (gtd-list-mode))
+      (make-local-variable 'taskwarrior-gtd--current-filter)
+      (setq taskwarrior-gtd--current-filter "search")
+      (make-local-variable 'taskwarrior-gtd--search-filter)
+      (setq taskwarrior-gtd--search-filter filter)
+      (taskwarrior-gtd--populate)
+      (tabulated-list-print t)
+      (taskwarrior-gtd--update-header-line))
+    (setq taskwarrior-gtd--buffer buf)
+    (switch-to-buffer buf)))
+
 (defun taskwarrior-gtd-action-search ()
   "Search tasks using a Taskwarrior filter expression.
 E.g: project:Home due:today +urgent \"buy milk\""
   (interactive)
   (let ((filter (read-string "Search (taskwarrior filter): ")))
     (when (length> filter 0)
-      (let ((buf (or taskwarrior-gtd--buffer
-                     (get-buffer-create "*gtd*"))))
-        (with-current-buffer buf
-          (unless (derived-mode-p 'gtd-list-mode)
-            (gtd-list-mode))
-          (make-local-variable 'taskwarrior-gtd--current-filter)
-          (setq taskwarrior-gtd--current-filter "search")
-          (make-local-variable 'taskwarrior-gtd--search-filter)
-          (setq taskwarrior-gtd--search-filter filter)
-          (taskwarrior-gtd--populate)
-          (tabulated-list-print t)
-          (taskwarrior-gtd--update-header-line))
-        (setq taskwarrior-gtd--buffer buf)
-        (switch-to-buffer buf)))))
+      (taskwarrior-gtd--run-search filter))))
+
+;; ---------------------------------------------------------------------------
+;; Saved searches
+;; ---------------------------------------------------------------------------
+
+(defcustom taskwarrior-gtd-saved-searches
+  '(("clearco" . "status:pending project:Work.ClearCo"))
+  "Alist of saved search names and raw Taskwarrior filter strings."
+  :type '(alist :key-type string :value-type string)
+  :group 'taskwarrior-gtd)
+
+(defun taskwarrior-gtd--read-saved-search (prompt)
+  "Read a saved search name with PROMPT; return (NAME . FILTER)."
+  (unless taskwarrior-gtd-saved-searches
+    (user-error "No saved searches"))
+  (let* ((completion-extra-properties
+          `(:annotation-function
+            ,(lambda (name)
+               (let ((f (cdr (assoc name taskwarrior-gtd-saved-searches))))
+                 (when f (concat "  " f))))))
+         (name (completing-read prompt taskwarrior-gtd-saved-searches nil t)))
+    (assoc name taskwarrior-gtd-saved-searches)))
+
+(defun taskwarrior-gtd-action-saved-search ()
+  "Pick a saved search with `completing-read' and run it."
+  (interactive)
+  (let ((entry (taskwarrior-gtd--read-saved-search "Saved search: ")))
+    (taskwarrior-gtd--run-search (cdr entry))
+    (message "Search %s: %s" (car entry) (cdr entry))))
+
+(defun taskwarrior-gtd-action-save-search (name filter)
+  "Save FILTER under NAME.  Defaults to the current search filter."
+  (interactive
+   (let* ((filter (read-string "Filter to save: "
+                               (and (boundp 'taskwarrior-gtd--search-filter)
+                                    taskwarrior-gtd--search-filter)))
+          (name (read-string (format "Name for \"%s\": " filter))))
+     (list name filter)))
+  (when (or (string-empty-p name) (string-empty-p filter))
+    (user-error "Name and filter must be non-empty"))
+  (setq taskwarrior-gtd-saved-searches
+        (cons (cons name filter)
+              (assoc-delete-all name (copy-sequence taskwarrior-gtd-saved-searches))))
+  (customize-save-variable 'taskwarrior-gtd-saved-searches
+                           taskwarrior-gtd-saved-searches)
+  (message "Saved search %s: %s" name filter))
+
+(defun taskwarrior-gtd-action-delete-saved-search ()
+  "Delete a saved search chosen with `completing-read'."
+  (interactive)
+  (let ((entry (taskwarrior-gtd--read-saved-search "Delete saved search: ")))
+    (setq taskwarrior-gtd-saved-searches
+          (assoc-delete-all (car entry) (copy-sequence taskwarrior-gtd-saved-searches)))
+    (customize-save-variable 'taskwarrior-gtd-saved-searches
+                             taskwarrior-gtd-saved-searches)
+    (message "Deleted saved search %s" (car entry))))
 
 ;; ---------------------------------------------------------------------------
 ;; Actions
@@ -701,6 +767,8 @@ E.g: project:Home due:today +urgent \"buy milk\""
     (define-key map (kbd "r") #'taskwarrior-gtd-refresh)
     (define-key map (kbd "u") #'taskwarrior-gtd-action-undo)
     (define-key map (kbd "s") #'taskwarrior-gtd-action-search)
+    (define-key map (kbd "S") #'taskwarrior-gtd-action-saved-search)
+    (define-key map (kbd "W") #'taskwarrior-gtd-action-save-search)
     map)
   "Keymap for `gtd-action-minor-mode'.")
 
