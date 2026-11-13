@@ -23,8 +23,15 @@
 (with-demoted-errors "config-super: %S" (load "/home/dev/.emacs.d/lisp/config-super.el"))
 
 (setq exwm-workspace-number 1)   ; tabs, not workspaces
-(add-hook 'exwm-update-class-hook
-          (lambda () (exwm-workspace-rename-buffer exwm-class-name)))
+
+;; Keep X buffer names in sync with the window: "Class: title" (title truncated).
+(defun my/exwm-sync-buffer-name ()
+  (exwm-workspace-rename-buffer
+   (if (and exwm-title (not (string-empty-p exwm-title)))
+       (format "%s: %s" exwm-class-name (truncate-string-to-width exwm-title 60 nil nil "…"))
+     exwm-class-name)))
+(add-hook 'exwm-update-class-hook #'my/exwm-sync-buffer-name)
+(add-hook 'exwm-update-title-hook #'my/exwm-sync-buffer-name)
 
 ;; Windows keeps the Win key, so start.sh maps Caps Lock -> Super inside Xephyr (setxkbmap
 ;; -option caps:super). Global EXWM keys use that Super (s-), which leaves Emacs's M- keys alone.
