@@ -87,11 +87,9 @@ Used as the buffer-local `ghostel-buffer-name-function'."
 (defun ghostel-claude--read-session (file)
   "Parsed session FILE (an alist), or nil."
   (condition-case nil
-      (if (fboundp 'json-parse-file)
-          (json-parse-file file :object-type 'alist)
-        (require 'json)
-        (let ((json-object-type 'alist) (json-key-type 'symbol))
-          (json-read-file file)))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (json-parse-buffer :object-type 'alist))
     (error nil)))
 
 (defun ghostel-claude--win-path (path)
@@ -599,8 +597,100 @@ On a tab header: jump to the tab."
       (remhash buf ghostel-claude-workspace--needs)
       (ghostel-claude-workspace--tick))))
 
+;;;; Session picker
+;; Claude has no "list sessions" command, but every session is a transcript
+;; PROJECTS/<encoded dir>/<id>.jsonl holding its latest `aiTitle' and `lastPrompt'.
+
+(defcustom ghostel-claude-session-limit 40
+  "How many of a project's most recent sessions the picker offers."
+  :type 'integer
+  :group 'ghostel-claude)
+
+(defun ghostel-claude--encode-dir (path)
+  "PATH as Claude encodes it in ~/.claude/projects (non-alphanumerics become -)."
+  (replace-regexp-in-string "[^[:alnum:]]" "-" path))
+
+(defun ghostel-claude--transcript-dirs (root)
+  "Existing transcript directories for project ROOT (Linux and Windows Claude)."
+  (let* ((root (directory-file-name (expand-file-name root)))
+         (dirs (list (expand-file-name
+                      (concat "~/.claude/projects/" (ghostel-claude--encode-dir root))))))
+    (when (string-match "\\`/mnt/\\([a-z]\\)\\(/.*\\)?\\'" root)
+      (let ((win (format "%s:%s" (upcase (match-string 1 root)) (or (match-string 2 root) "/"))))
+        (dolist (u (ignore-errors (directory-files "/mnt/c/Users" t "\\`[^.]")))
+          (push (expand-file-name (concat ".claude/projects/" (ghostel-claude--encode-dir win)) u)
+                dirs))))
+    (seq-filter (lambda (d) (ignore-errors (file-directory-p d))) dirs)))
+
+(defun ghostel-claude--last-field (key)
+  "Value of JSON string field KEY in its last occurrence in this buffer, or nil."
+  (goto-char (point-max))
+  (when (re-search-backward (format "\"%s\":\"" key) nil t)
+    (let ((line (buffer-substring (line-beginning-position) (line-end-position))))
+      (condition-case nil
+          (alist-get (intern key) (json-parse-string line :object-type 'alist))
+        (error nil)))))
+
+(defun ghostel-claude--transcript-info (file)
+  "(TITLE . LAST-PROMPT) from the tail of transcript FILE."
+  (with-temp-buffer
+    (let* ((size (file-attribute-size (file-attributes file)))
+           (coding-system-for-read 'utf-8))
+      (insert-file-contents file nil (max 0 (- size 400000)) size)
+      (cons (ghostel-claude--last-field "aiTitle")
+            (ghostel-claude--last-field "lastPrompt")))))
+
+(defun ghostel-claude--project-sessions (root)
+  "Recent sessions of ROOT: list of (ID TITLE PROMPT MTIME), newest first."
+  (let (files out)
+    (dolist (d (ghostel-claude--transcript-dirs root))
+      (dolist (f (directory-files d t "\\.jsonl\\'"))
+        (push (cons f (file-attribute-modification-time (file-attributes f))) files)))
+    (setq files (seq-take (sort files (lambda (a b) (time-less-p (cdr b) (cdr a))))
+                          ghostel-claude-session-limit))
+    (pcase-dolist (`(,f . ,mtime) files)
+      (let ((info (ghostel-claude--transcript-info f)))
+        (when (or (car info) (cdr info))
+          (push (list (file-name-base f) (car info) (cdr info) mtime) out))))
+    (nreverse out)))
+
+(defun ghostel-claude--pick-session (root)
+  "Ask which Claude session to open in ROOT.  Return nil for a new one, else an id."
+  (let* ((new "＋ New session")
+         (live (delq nil (mapcar (lambda (b)
+                                   (and (ghostel-claude--live-p b)
+                                        (buffer-local-value 'ghostel-claude--base b)
+                                        (ghostel-claude--session-id b)))
+                                 (buffer-list))))
+         (alist (list (cons new nil))))
+    (pcase-dolist (`(,id ,title ,prompt ,mtime) (ghostel-claude--project-sessions root))
+      (push (cons (concat (or title (substring (or prompt id) 0 (min 40 (length (or prompt id)))))
+                          (and prompt title
+                               (propertize (concat "  —  "
+                                                   (truncate-string-to-width
+                                                    (replace-regexp-in-string "[\n\r]+" " " prompt) 60 nil nil "…"))
+                                           'face 'shadow))
+                          (propertize (format "  %s%s" (format-time-string "%m-%d %H:%M" mtime)
+                                              (if (member id live) "  ● running" ""))
+                                      'face 'shadow)
+                          (propertize (concat "  " (substring id 0 8)) 'face 'font-lock-comment-face))
+                  id)
+            alist))
+    (setq alist (cons (car (last alist)) (nreverse (butlast alist))))
+    (cdr (assoc (completing-read
+                 (format "Claude in %s: " (abbreviate-file-name (directory-file-name root)))
+                 (lambda (str pred action)
+                   (if (eq action 'metadata)
+                       '(metadata (display-sort-function . identity)
+                                  (cycle-sort-function . identity))
+                     (complete-with-action action alist str pred)))
+                 nil t nil nil new)
+                alist))))
+
 (defun ghostel-claude-agents-new ()
-  "Start another Claude in the project of the group (or Claude) at point.
+  "Open a Claude session in the project of the group (or Claude) at point.
+Asks for a new session or one of the project's earlier ones (resumed with
+`claude --resume ID'; one already running is just shown).
 Stays in this tab: the new Claude opens in the main window and is filed
 under the group's tab (via that tab's activity buffer list), so the agents
 tab works as a control center."
@@ -612,7 +702,14 @@ tab works as a control center."
                     (get-text-property (line-beginning-position) 'ghostel-claude-agent))))
          (root (and (buffer-live-p buf) (buffer-local-value 'default-directory buf))))
     (unless root (user-error "Put point on a group or a Claude first"))
-    (let ((new (ghostel-claude--start (expand-file-name root))))
+    (let* ((root (expand-file-name root))
+           (id (ghostel-claude--pick-session root))
+           (new (or (and id (seq-find (lambda (b)
+                                        (and (ghostel-claude--live-p b)
+                                             (buffer-local-value 'ghostel-claude--base b)
+                                             (equal (ghostel-claude--session-id b) id)))
+                                      (buffer-list)))
+                    (ghostel-claude--start root (and id (list "--resume" id))))))
       ;; Belong to the group's tab without switching to it.
       (when-let* ((tt (and tab (seq-find (lambda (x) (equal (alist-get 'name x) tab))
                                          (funcall tab-bar-tabs-function)))))
