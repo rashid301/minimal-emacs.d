@@ -102,3 +102,57 @@
 ;;   )
 
 (provide 'config-apps)
+
+;; ── Slack (emacs-slack) ────────────────────────────────────────────────
+;; Token/cookie live in auth-source (~/.authinfo, chmod 600):
+;;   machine clearcompany.slack.com login clearcompany password xoxc-...
+;;   machine clearcompany.slack.com login clearcompany^cookie password xoxd-...
+;; Get them interactively with M-x slack-refresh-token. Then M-x slack-start.
+(use-package alert
+  :ensure t
+  :commands (alert)
+  :init (setq alert-default-style 'notifier))
+
+(use-package slack
+  :ensure t
+  :commands (slack-start slack-select-rooms slack-select-unread-rooms slack-refresh-token)
+  :bind (("C-c S s" . slack-start)
+         ("C-c S c" . slack-select-rooms)
+         ("C-c S u" . slack-select-unread-rooms)
+         ("C-c S U" . slack-user-select)
+         ("C-c S t" . slack-thread-show-or-create)
+         ("C-c S K" . slack-stop))
+  :custom
+  (slack-buffer-emojify t)
+  (slack-prefer-current-team t)
+  :config
+  (slack-register-team
+   :name "clearcompany"
+   :token (auth-source-pick-first-password :host "clearcompany.slack.com" :user "clearcompany")
+   :cookie (auth-source-pick-first-password :host "clearcompany.slack.com" :user "clearcompany^cookie")
+   :full-and-display-names t
+   :mark-as-read-immediately nil
+   :default t))
+
+;; Slack: evil bindings (normal state) for message/thread buffers.
+(with-eval-after-load 'slack
+  (with-eval-after-load 'evil
+    (evil-define-key* '(normal motion) slack-mode-map
+      (kbd "]m") #'slack-buffer-goto-next-message
+      (kbd "[m") #'slack-buffer-goto-prev-message
+      (kbd "C-j") #'slack-buffer-goto-next-message
+      (kbd "C-k") #'slack-buffer-goto-prev-message
+      "r" #'slack-message-add-reaction
+      "R" #'slack-message-remove-reaction
+      "e" #'slack-message-edit
+      "D" #'slack-message-delete
+      "t" #'slack-thread-show-or-create
+      "gq" #'slack-quote-and-reply
+      "gQ" #'slack-quote-and-reply-with-link
+      "gs" #'slack-message-share
+      "gb" #'slack-jump-to-browser
+      "q" #'quit-window)
+    (evil-define-key* 'normal slack-message-compose-buffer-mode-map
+      (kbd "RET") #'slack-message-send-from-buffer)
+    (evil-define-key* '(normal motion) slack-message-buffer-mode-map
+      "o" #'slack-message-write-another-buffer)))
