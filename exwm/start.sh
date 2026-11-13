@@ -9,7 +9,11 @@ export NVM_DIR="$HOME/.nvm"
 pkill -x Xephyr 2>/dev/null; pkill -f "exwm-test/clipsync.sh" 2>/dev/null; pkill -f "exwm-test/keepkeys.sh" 2>/dev/null; sleep 0.5
 # ONE knob for scaling (X11 apps get no Windows scaling): XFT_DPI env, else the last DPI chosen with s-= / my/exwm-set-dpi, else 144
 export XFT_DPI=${XFT_DPI:-$(cat "$HOME/exwm-test/dpi" 2>/dev/null || echo 144)}
-Xephyr :1 -screen 1280x800 -dpi "$XFT_DPI" -resizeable -ac -listen tcp &
+# Log why Xephyr/Emacs die (WSLg sleep/lid-close deaths left no trace before): ~/exwm-test/logs/
+LOGD="$HOME/exwm-test/logs"; mkdir -p "$LOGD"
+echo "=== $(date '+%F %T') start.sh (uptime $(cut -d' ' -f1 /proc/uptime)s)" >> "$LOGD/xephyr.log"
+( Xephyr :1 -screen 1280x800 -dpi "$XFT_DPI" -resizeable -ac -listen tcp 2>>"$LOGD/xephyr.log"
+  echo "=== $(date '+%F %T') Xephyr exited status $? (uptime $(cut -d' ' -f1 /proc/uptime)s)" >> "$LOGD/xephyr.log" ) &
 "$HOME/exwm-test/clipsync.sh" &   # mirrors clipboard WSLg(:0) <-> Xephyr(:1); exits when Xephyr exits
 # wait until Xephyr actually accepts connections (a fixed sleep lost Xft.dpi before)
 for i in $(seq 1 50); do DISPLAY=:1 xdpyinfo >/dev/null 2>&1 && break; sleep 0.2; done
@@ -42,6 +46,8 @@ export GDK_DPI_SCALE=1   # keep GTK at 1x; Xft.dpi does the work
 # Firefox finds its running instance over the D-Bus session bus; WSL has none, so every `firefox URL'
 # from Emacs would start a second instance ("Firefox is already running"). Give Emacs a session bus.
 if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-run-session >/dev/null; then
-  DISPLAY=:1 exec dbus-run-session -- emacs --debug-init -l "$HOME/exwm-test/exwm.el"
+  DISPLAY=:1 dbus-run-session -- emacs --debug-init -l "$HOME/exwm-test/exwm.el" 2>>"$LOGD/emacs.log"
+else
+  DISPLAY=:1 emacs --debug-init -l "$HOME/exwm-test/exwm.el" 2>>"$LOGD/emacs.log"
 fi
-DISPLAY=:1 exec emacs --debug-init -l "$HOME/exwm-test/exwm.el"
+echo "=== $(date '+%F %T') Emacs exited status $? (uptime $(cut -d' ' -f1 /proc/uptime)s)" >> "$LOGD/xephyr.log"
