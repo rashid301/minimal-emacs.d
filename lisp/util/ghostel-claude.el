@@ -668,7 +668,9 @@ On a tab header: jump to the tab."
     (let* ((size (file-attribute-size (file-attributes file)))
            (coding-system-for-read 'utf-8))
       (insert-file-contents file nil (max 0 (- size 400000)) size)
-      (cons (ghostel-claude--last-field "aiTitle")
+      ;; A /rename or --name is stored as customTitle and wins over the generated aiTitle.
+      (cons (or (ghostel-claude--last-field "customTitle")
+                (ghostel-claude--last-field "aiTitle"))
             (ghostel-claude--last-field "lastPrompt")))))
 
 (defun ghostel-claude--project-sessions (root)
@@ -687,7 +689,7 @@ On a tab header: jump to the tab."
 
 (defun ghostel-claude--pick-session (root)
   "Ask which Claude session to open in ROOT.  Return nil for a new one, else an id."
-  (let* ((new "＋ New session")
+  (let* ((new "+ New session")
          (live (delq nil (mapcar (lambda (b)
                                    (and (ghostel-claude--live-p b)
                                         (buffer-local-value 'ghostel-claude--base b)
@@ -880,10 +882,10 @@ been used in (most recent first), then Emacs's known projects."
 (defun ghostel-claude-jump ()
   "Switch to a running Claude by name, or start one.
 Candidates are the running Claudes (needing you first), then
-\"＋ New Claude…\", which asks for a project and then for a new or earlier
+\"+ New Claude…\", which asks for a project and then for a new or earlier
 session.  Never changes tab: use it from the agents tab as a control center."
   (interactive)
-  (let* ((new "＋ New Claude…")
+  (let* ((new "+ New Claude…")
          (cands (ghostel-claude--switch-candidates))
          (choice (completing-read
                   "Claude: "
