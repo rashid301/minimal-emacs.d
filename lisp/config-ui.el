@@ -38,7 +38,9 @@
   (set-face-attribute 'default frame
                       :family "Iosevka Nerd Font"
                       :height (or font-size 145)
-                      :weight 'normal))
+                      :weight 'normal)
+  ;; Emoji fallback (noto-fonts-emoji)
+  (set-fontset-font t 'emoji (font-spec :family "Noto Color Emoji") nil 'prepend))
 
 (load-theme 'newcomers-presets)
 (defun my/load-theme (theme)
