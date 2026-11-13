@@ -29,11 +29,13 @@ UXTerm*faceSize: 11
 XRES
 "$HOME/exwm-test/keepkeys.sh" &   # re-applies Super (F13) and Xft.dpi if they get lost; exits with Xephyr
 export QT_FONT_DPI="$XFT_DPI"
-# Firefox ignores Xft.dpi/XSETTINGS for scale on X11, so derive its pref from the same DPI
+# Firefox (X11) already scales by Xft.dpi/XSETTINGS, so an explicit devPixelsPerPx would double-scale it
+# (measured: 2.2x at 144 DPI). Pin the pref to its default (-1 = automatic); a stale value would otherwise
+# stay in prefs.js.
 for d in "$HOME"/.config/mozilla/firefox/*.default-release; do
   [ -d "$d" ] || continue
   sed -i '/layout.css.devPixelsPerPx/d' "$d/user.js" 2>/dev/null
-  echo "user_pref(\"layout.css.devPixelsPerPx\", \"$(awk -v d="$XFT_DPI" 'BEGIN{printf "%.2f", d/96}')\");" >> "$d/user.js"
+  echo 'user_pref("layout.css.devPixelsPerPx", "-1.0");' >> "$d/user.js"
 done
 export GDK_DPI_SCALE=1   # keep GTK at 1x; Xft.dpi does the work
 

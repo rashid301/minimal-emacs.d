@@ -46,6 +46,14 @@
                 (start-process-shell-command cmd nil cmd)))
         (cons (kbd "s-t")
               (lambda () (interactive) (start-process "xterm" nil "xterm"))))
+       ;; s-1..s-8 select tab N, s-9 the last tab, s-0 the previous one (matches tab-bar-select-tab-modifiers)
+       (cl-loop for i from 0 to 9
+                collect (cons (kbd (format "s-%d" i))
+                              (let ((n i))
+                                (lambda () (interactive)
+                                  (cond ((= n 0) (tab-recent))
+                                        ((= n 9) (tab-last))
+                                        (t (tab-bar-select-tab n)))))))
        ;; every portable Super binding, so they also work while an X window has focus
        (mapcar (lambda (b) (cons (kbd (car b)) (cdr b)))
                (and (boundp (quote my/super-bindings)) my/super-bindings))))
@@ -94,6 +102,9 @@
 (exwm-wm-mode 1)
 
 ;; Open URLs in the running Firefox as a new tab. This needs a D-Bus session bus, which start.sh provides.
+;; Emacs inherits WAYLAND_DISPLAY from WSLg; hide it so Firefox runs as an X11 client inside Xephyr (EXWM)
+;; instead of opening its own window in WSLg.
+(setenv "WAYLAND_DISPLAY" nil)
 (setq browse-url-browser-function 'browse-url-firefox
       browse-url-firefox-new-window-is-tab t)
 

@@ -7,7 +7,7 @@
 ;;  - Emacs + GTK/Qt apps: via EXWM's XSETTINGS manager, immediately (tested: Emacs
 ;;    resizes its fonts live when Xft/DPI changes).
 ;;  - xterm & other X-resource apps: `xrdb' Xft.dpi, for newly started apps.
-;;  - Firefox: its layout.css.devPixelsPerPx (= DPI/96) in user.js, read at Firefox startup.
+;;  - Firefox: follows Xft.dpi itself; devPixelsPerPx is pinned to -1 (automatic) since an explicit value double-scales.
 ;;  - The choice is saved in ~/exwm-test/dpi, which start.sh and keepkeys.sh read.
 ;;
 ;;   s-=            toggle 96 <-> 144
@@ -33,8 +33,10 @@
     (call-process-region (point-min) (point-max) "xrdb" nil nil nil "-merge")))
 
 (defun my/exwm--set-firefox-scale (dpi)
-  "Write devPixelsPerPx = DPI/96 into every Firefox profile's user.js."
-  (let ((val (format "%.2f" (/ dpi 96.0))))
+  "Keep Firefox's devPixelsPerPx at its automatic default (-1).
+Firefox already scales by Xft.dpi/XSETTINGS; an explicit DPI/96 value double-scales it.  DPI is unused."
+  (ignore dpi)
+  (let ((val "-1.0"))
     (dolist (d (file-expand-wildcards
                 (expand-file-name "~/.config/mozilla/firefox/*.default-release")))
       (let ((f (expand-file-name "user.js" d)))
