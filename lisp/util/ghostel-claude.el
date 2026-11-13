@@ -158,6 +158,25 @@ session id, behave like a plain ghostel bookmark."
 
 (put 'ghostel-claude-bookmark-handler 'bookmark-handler-type "Claude")
 
+;; Bookmarks saved before this existed (or by plain ghostel) restore through
+;; `ghostel-bookmark-handler', which would leave a Claude buffer without the
+;; title naming and session-aware bookmarks above, so it would keep saving old
+;; style records.  Adopt such a buffer once it is restored.
+(defun ghostel-claude--adopt-restored (buf)
+  "If BUF, just restored by ghostel's bookmark handler, runs claude, set it up."
+  (when (and (buffer-live-p buf)
+             (buffer-local-boundp 'ghostel-identity buf)
+             (not (buffer-local-value 'ghostel-claude--base buf)))
+    (let ((cmd (alist-get 'command (buffer-local-value 'ghostel-identity buf))))
+      (when (and (consp cmd) (stringp (car cmd))
+                 (string-match-p "\\`claude\\(\\.exe\\)?\\'" (file-name-nondirectory (car cmd))))
+        (with-current-buffer buf
+          (ghostel-claude--setup-buffer
+           buf (file-name-nondirectory (directory-file-name default-directory)))
+          (when (fboundp 'ghostel--update-title) (ghostel--update-title))))))
+  buf)
+(advice-add 'ghostel-bookmark-handler :filter-return #'ghostel-claude--adopt-restored)
+
 (defun ghostel-claude--buffer-for-name (name)
   "Live Claude buffer now or formerly called NAME, or nil."
   (or (get-buffer name)
@@ -195,6 +214,7 @@ session id, behave like a plain ghostel bookmark."
 (defun ghostel-claude--live-p (buffer)
   "Return non-nil if BUFFER has a live ghostel process."
   (and (buffer-live-p buffer)
+       (buffer-local-boundp 'ghostel--process buffer)
        (let ((p (buffer-local-value 'ghostel--process buffer)))
          (and p (process-live-p p)))))
 
@@ -674,7 +694,8 @@ and the tab(s) it is shown in; RET or a click opens one in the right window."
 
 ;; Claude buffers that predate (re)loading this file: follow their title and save session bookmarks too.
 (dolist (b (buffer-list))
-  (when (ghostel-claude--live-p b)
+  (when (and (string-prefix-p "*claude:" (buffer-name b))
+             (ghostel-claude--live-p b))
     (cond ((buffer-local-value 'ghostel-claude--base b)
            (with-current-buffer b
              (setq-local bookmark-make-record-function #'ghostel-claude--bookmark-make-record)))
