@@ -15,7 +15,10 @@
 ;;                             listing every Claude (state + the tab(s) it is
 ;;                             shown in), the chosen one opens on the right.
 ;;
-;; Buffers are named *claude:PROJECT* (then *claude:PROJECT*<2>, ...).
+;; Buffers start out as *claude:PROJECT* (then *claude:PROJECT*<2>, ...) and are
+;; renamed *claude:PROJECT: TITLE* from the terminal title Claude sets (the
+;; session topic / /rename), via ghostel's buffer-local
+;; `ghostel-buffer-name-function'.  Only Claude buffers are renamed.
 ;; When Claude exits, the buffer is killed (ghostel's default), so the next
 ;; call starts a fresh one.  Local directories only.
 
@@ -27,6 +30,54 @@
 
 (declare-function ghostel-exec "ghostel")
 (defvar ghostel--process)
+(defvar ghostel--initial-name)
+
+(defvar-local ghostel-claude--base nil
+  "Project directory name of this Claude buffer (the PROJECT in its name).")
+(defvar-local ghostel-claude--names nil
+  "Names this Claude buffer has had, newest first.
+Saved window states (tab layouts) refer to buffers by name, so lookups
+also accept a former name.")
+
+(defcustom ghostel-claude-title-max 50
+  "Longest terminal title (characters) put in a Claude buffer name."
+  :type 'integer
+  :group 'ghostel-claude)
+
+(defun ghostel-claude--clean-title (title)
+  "TITLE without Claude's leading state glyph, or nil if empty."
+  (when (stringp title)
+    (let ((x (string-trim (replace-regexp-in-string "\\`[^[:alnum:]]+" "" title))))
+      (unless (string-empty-p x) x))))
+
+(defun ghostel-claude--name-from-title (title)
+  "Buffer name for this Claude from terminal TITLE, nil to keep the name.
+Used as the buffer-local `ghostel-buffer-name-function'."
+  (when-let* ((base ghostel-claude--base)
+              (clean (ghostel-claude--clean-title title)))
+    (setq clean (replace-regexp-in-string "[*\n]+" " " clean))
+    (when (> (length clean) ghostel-claude-title-max)
+      (setq clean (concat (substring clean 0 (1- ghostel-claude-title-max)) "…")))
+    (let ((name (format "*claude:%s: %s*" base clean)))
+      (unless (equal name (buffer-name))
+        (setq ghostel-claude--names
+              (seq-take (delete-dups (cons name ghostel-claude--names)) 30)))
+      name)))
+
+(defun ghostel-claude--setup-buffer (buf base)
+  "Make BUF (a Claude buffer for project dir name BASE) follow its title."
+  (with-current-buffer buf
+    (setq-local ghostel-claude--base base
+                ghostel-claude--names (list (buffer-name))
+                ghostel-buffer-name-function #'ghostel-claude--name-from-title)))
+
+(defun ghostel-claude--buffer-for-name (name)
+  "Live Claude buffer now or formerly called NAME, or nil."
+  (or (get-buffer name)
+      (seq-find (lambda (b)
+                  (and (buffer-local-value 'ghostel-claude--base b)
+                       (member name (buffer-local-value 'ghostel-claude--names b))))
+                (buffer-list))))
 
 (defcustom ghostel-claude-program "claude"
   "Program that starts Claude Code."
@@ -62,9 +113,11 @@
 
 (defun ghostel-claude--buffers (root)
   "Return live Claude buffers for ROOT, most recently used first."
-  (let ((prefix (ghostel-claude--prefix root)))
+  (let ((prefix (ghostel-claude--prefix root))
+        (base (file-name-nondirectory (directory-file-name root))))
     (seq-filter (lambda (b)
-                  (and (string-prefix-p prefix (buffer-name b))
+                  (and (or (equal (buffer-local-value 'ghostel-claude--base b) base)
+                           (string-prefix-p prefix (buffer-name b)))
                        (ghostel-claude--live-p b)))
                 (buffer-list))))
 
@@ -77,6 +130,8 @@
     (condition-case err
         (ghostel-exec buf ghostel-claude-program ghostel-claude-args)
       (error (kill-buffer buf) (signal (car err) (cdr err))))
+    (ghostel-claude--setup-buffer
+     buf (file-name-nondirectory (directory-file-name root)))
     buf))
 
 (defun ghostel-claude--show (buffer)
@@ -166,7 +221,13 @@ there is none.  With prefix argument NEW, start an additional Claude."
                       (and (string-prefix-p "*claude:" (buffer-name b))
                            (ghostel-claude--live-p b)))
                     (buffer-list))
-        (lambda (a b) (string< (buffer-name a) (buffer-name b)))))
+        (lambda (a b) (string< (ghostel-claude-workspace--sort-key a)
+                               (ghostel-claude-workspace--sort-key b)))))
+
+(defun ghostel-claude-workspace--sort-key (buf)
+  "Sort key for BUF that does not change when its title does."
+  (or (car (last (buffer-local-value 'ghostel-claude--names buf)))
+      (buffer-name buf)))
 
 (defun ghostel-claude-workspace--title (buf)
   "Terminal title of BUF without its state glyph."
@@ -194,11 +255,14 @@ there is none.  With prefix argument NEW, start an additional Claude."
 
 (defun ghostel-claude-workspace--tabs (buf)
   "Names of the tabs (selected frame) whose layout shows BUF."
-  (let ((name (buffer-name buf)) acc)
+  (let ((names (or (buffer-local-value 'ghostel-claude--names buf)
+                   (list (buffer-name buf))))
+        acc)
     (dolist (tab (funcall tab-bar-tabs-function))
       (when (if (eq (car tab) 'current-tab)
                 (get-buffer-window buf nil)
-              (member name (ghostel-claude-workspace--ws-buffers (alist-get 'ws tab))))
+              (let ((in-tab (ghostel-claude-workspace--ws-buffers (alist-get 'ws tab))))
+                (seq-some (lambda (n) (member n in-tab)) names)))
         (push (alist-get 'name tab) acc)))
     (nreverse acc)))
 
@@ -206,6 +270,7 @@ there is none.  With prefix argument NEW, start an additional Claude."
   "Drop the activity prefix, the project part and \"feature-\" from NAME."
   (let ((n (replace-regexp-in-string "\\`α: \\|\\`\\*claude:\\|\\*\\'" "" name t)))
     (setq n (replace-regexp-in-string "\\*\\'" "" n))
+    (setq n (replace-regexp-in-string ": .*\\'" "" n))   ; drop the ": TITLE" part
     (when (string-match "\\`[^.*]+\\.\\(.+\\)" n) (setq n (match-string 1 n)))
     (replace-regexp-in-string "\\`\\(feature\\|bugfix\\|hotfix\\)[-/]" "" n)))
 
@@ -451,7 +516,7 @@ where TOAST is 1 unless you are already looking at that Claude."
 ;;;###autoload
 (defun ghostel-claude-workspace-focus (buffer-name)
   "Go to the Claude BUFFER-NAME (toast click): its tab, else the agents tab."
-  (when-let* ((buf (get-buffer buffer-name)))
+  (when-let* ((buf (ghostel-claude--buffer-for-name buffer-name)))
     (let* ((here (ghostel-claude-workspace--agents-tab-name))
            (tabs (remove here (ghostel-claude-workspace--tabs buf))))
       (if tabs
@@ -517,6 +582,15 @@ and the tab(s) it is shown in; RET or a click opens one in the right window."
         (tab-bar-new-tab)
         (tab-bar-rename-tab name))))
   (select-window (ghostel-claude-workspace--ensure-layout)))
+
+;; Claude buffers that predate (re)loading this file: start following their title too.
+(dolist (b (buffer-list))
+  (when (and (not (buffer-local-value 'ghostel-claude--base b))
+             (string-match "\\`\\*claude:\\([^*:]+\\)\\*\\(<[0-9]+>\\)?\\'" (buffer-name b))
+             (ghostel-claude--live-p b))
+    (ghostel-claude--setup-buffer b (match-string 1 (buffer-name b)))
+    (with-current-buffer b
+      (when (fboundp 'ghostel--update-title) (ghostel--update-title)))))
 
 (provide 'ghostel-claude)
 ;;; ghostel-claude.el ends here
