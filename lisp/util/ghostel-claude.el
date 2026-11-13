@@ -275,6 +275,7 @@ there is none.  With prefix argument NEW, start an additional Claude."
 ;; The sidebar groups Claudes under the tab that shows them.
 ;; Keys:  RET / click on a Claude  show it in the main (right) window (focus stays),
 ;;        o  same and move focus to it
+;;        c  start another Claude in that group's / Claude's project (stays here)
 ;;        RET / click on a tab header, or t  jump to that tab
 ;;        j/k (n/p) move, r refresh, q close.
 ;; State comes from the terminal title Claude sets: a spinner glyph means it
@@ -375,6 +376,26 @@ there is none.  With prefix argument NEW, start an additional Claude."
         (push (alist-get 'name tab) acc)))
     (nreverse acc)))
 
+(defun ghostel-claude-workspace--home-tab (buf)
+  "Tab that owns BUF without displaying it, or nil.
+Uses the activity's `activities-buffer-list'.  If several tabs list BUF,
+prefer the one named after BUF's project; otherwise give up (nil)."
+  (let* ((here (ghostel-claude-workspace--agents-tab-name))
+         (base (buffer-local-value 'ghostel-claude--base buf))
+         (cands (seq-filter
+                 (lambda (tab)
+                   (and (not (equal (alist-get 'name tab) here))
+                        (memq buf (alist-get 'activities-buffer-list tab))))
+                 (funcall tab-bar-tabs-function)))
+         (names (mapcar (lambda (tab) (alist-get 'name tab)) cands)))
+    (cond ((null names) nil)
+          ((null (cdr names)) (car names))
+          (base (seq-find
+                 (lambda (n)
+                   (let ((a (replace-regexp-in-string "\\`α: " "" n)))
+                     (string-prefix-p a (car (split-string base "\\.")))))
+                 names)))))
+
 (defun ghostel-claude-workspace--shorten (name)
   "Drop the activity prefix, the project part and \"feature-\" from NAME."
   (let ((n (replace-regexp-in-string "\\`α: \\|\\`\\*claude:\\|\\*\\'" "" name t)))
@@ -439,6 +460,13 @@ The agents tab itself is ignored, tab order is kept."
         (unless (equal tab here)
           (puthash b t seen)
           (puthash tab (append (gethash tab by-tab) (list (ghostel-claude-workspace--row b))) by-tab)))
+      ;; Not displayed anywhere: still belongs to the tab whose activity lists it.
+      (unless (gethash b seen)
+        (when-let* ((home (ghostel-claude-workspace--home-tab b)))
+          (puthash b t seen)
+          (let ((row (ghostel-claude-workspace--row b)))
+            (setf (nth 2 row) (propertize (concat (nth 2 row) "  (hidden)") 'face 'shadow))
+            (puthash home (append (gethash home by-tab) (list row)) by-tab))))
       (unless (gethash b seen) (push (ghostel-claude-workspace--row b) loose)))
     (dolist (tab (funcall tab-bar-tabs-function))
       (let ((n (alist-get 'name tab)))
@@ -517,6 +545,7 @@ The agents tab itself is ignored, tab order is kept."
     (define-key m [mouse-1] #'ghostel-claude-agents-click)
     (define-key m (kbd "t") #'ghostel-claude-agents-jump-tab)
     (define-key m (kbd "o") #'ghostel-claude-agents-open-and-select)
+    (define-key m (kbd "c") #'ghostel-claude-agents-new)
     (define-key m (kbd "r") #'ghostel-claude-workspace--refresh)
     (define-key m (kbd "j") #'next-line)
     (define-key m (kbd "k") #'previous-line)
@@ -541,6 +570,7 @@ The agents tab itself is ignored, tab order is kept."
       (kbd "RET") #'ghostel-claude-agents-open
       (kbd "t") #'ghostel-claude-agents-jump-tab
       (kbd "o") #'ghostel-claude-agents-open-and-select
+      (kbd "c") #'ghostel-claude-agents-new
       (kbd "r") #'ghostel-claude-workspace--refresh
       (kbd "q") #'quit-window)))
 
@@ -567,6 +597,31 @@ On a tab header: jump to the tab."
       (set-window-buffer (ghostel-claude-agents--main-window) buf)
       (remhash buf ghostel-claude-workspace--unread)
       (remhash buf ghostel-claude-workspace--needs)
+      (ghostel-claude-workspace--tick))))
+
+(defun ghostel-claude-agents-new ()
+  "Start another Claude in the project of the group (or Claude) at point.
+Stays in this tab: the new Claude opens in the main window and is filed
+under the group's tab (via that tab's activity buffer list), so the agents
+tab works as a control center."
+  (interactive)
+  (let* ((tab (get-text-property (line-beginning-position) 'ghostel-claude-tab))
+         (buf (or (get-text-property (line-beginning-position) 'ghostel-claude-agent)
+                  (save-excursion
+                    (forward-line 1)
+                    (get-text-property (line-beginning-position) 'ghostel-claude-agent))))
+         (root (and (buffer-live-p buf) (buffer-local-value 'default-directory buf))))
+    (unless root (user-error "Put point on a group or a Claude first"))
+    (let ((new (ghostel-claude--start (expand-file-name root))))
+      ;; Belong to the group's tab without switching to it.
+      (when-let* ((tt (and tab (seq-find (lambda (x) (equal (alist-get 'name x) tab))
+                                         (funcall tab-bar-tabs-function)))))
+        (unless (eq (car tt) 'current-tab)
+          (setf (alist-get 'activities-buffer-list (cdr tt))
+                (cons new (alist-get 'activities-buffer-list (cdr tt))))))
+      (let ((win (ghostel-claude-agents--main-window)))
+        (set-window-buffer win new)
+        (select-window win))
       (ghostel-claude-workspace--tick))))
 
 (defun ghostel-claude-agents-open-and-select ()
@@ -703,6 +758,24 @@ and the tab(s) it is shown in; RET or a click opens one in the right window."
            (ghostel-claude--setup-buffer b (match-string 1 (buffer-name b)))
            (with-current-buffer b
              (when (fboundp 'ghostel--update-title) (ghostel--update-title)))))))
+
+;; The sidebar side window sets `window-preserved-size' (preserve-size).  If its buffer was dead
+;; when an activity was saved, activities stored a nil buffer name and restoring it called
+;; (get-buffer nil), which signals (the debugger opens under `debug-on-error').  Make both
+;; directions tolerate a missing buffer by dropping the parameter.
+(with-eval-after-load 'activities
+  (defvar activities-window-parameters-translators)
+  (setf (alist-get 'window-preserved-size activities-window-parameters-translators)
+        (list (cons 'serialize
+                    (lambda (v)
+                      (pcase v
+                        (`(,b ,d ,sz) (and (bufferp b) (buffer-live-p b)
+                                           (list (buffer-name b) d sz))))))
+              (cons 'deserialize
+                    (lambda (v)
+                      (pcase v
+                        (`(,n ,d ,sz) (when-let* ((b (and (stringp n) (get-buffer n))))
+                                        (list b d sz)))))))))
 
 (provide 'ghostel-claude)
 ;;; ghostel-claude.el ends here
