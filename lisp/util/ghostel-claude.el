@@ -784,15 +784,60 @@ In the agents tab it takes the main window; a visible Claude is just selected."
                 (cons str b)))
             bufs)))
 
+(defvar ghostel-claude--history-cache nil "(TIME . DIRS) cache for `ghostel-claude--history-roots'.")
+
+(defun ghostel-claude--transcript-cwd (file)
+  "Working directory recorded in transcript FILE (as a local path), or nil."
+  (with-temp-buffer
+    (let ((coding-system-for-read 'utf-8))
+      (insert-file-contents file nil 0 65536))
+    (goto-char (point-min))
+    (when (re-search-forward "\"cwd\":\"\\([^\"]*\\)\"" nil t)
+      (let ((cwd (ignore-errors (json-parse-string (concat "\"" (match-string 1) "\"")))))
+        (cond ((null cwd) nil)
+              ((ghostel-claude--win-path cwd))
+              ((string-prefix-p "/" cwd) cwd))))))
+
+(defun ghostel-claude--history-roots ()
+  "Directories you have run Claude in (from its transcripts), most recent first.
+Cached for a few minutes: the Windows side lives on a slow mount."
+  (if (and ghostel-claude--history-cache
+           (< (- (float-time) (car ghostel-claude--history-cache)) 300))
+      (cdr ghostel-claude--history-cache)
+    (let (found)
+      (dolist (base (cons (expand-file-name "~/.claude/projects")
+                          (mapcar (lambda (u) (expand-file-name ".claude/projects" u))
+                                  (ignore-errors (directory-files "/mnt/c/Users" t "\\`[^.]")))))
+        (dolist (d (ignore-errors (directory-files base t "\\`[^.]")))
+          (let ((newest (car (sort (ignore-errors
+                                     (directory-files-and-attributes d t "\\.jsonl\\'" t))
+                                   (lambda (a b)
+                                     (time-less-p (file-attribute-modification-time (cdr b))
+                                                  (file-attribute-modification-time (cdr a))))))))
+            (when newest
+              (when-let* ((cwd (ignore-errors (ghostel-claude--transcript-cwd (car newest)))))
+                (push (cons (file-attribute-modification-time (cdr newest)) cwd) found))))))
+      (let (dirs)
+        (dolist (x (sort found (lambda (a b) (time-less-p (car b) (car a)))))
+          (let ((dir (file-name-as-directory (cdr x))))
+            (when (and (not (string-match-p "/AppData/\\|\\`/tmp/\\|/\\.claude/" dir))
+                       (ignore-errors (file-directory-p dir)))
+              (cl-pushnew (abbreviate-file-name dir) dirs :test #'equal))))
+        (setq dirs (nreverse dirs))
+        (setq ghostel-claude--history-cache (cons (float-time) dirs))
+        dirs))))
+
 (defun ghostel-claude--project-roots ()
-  "Project directories worth offering for a new Claude: those with Claudes first."
+  "Directories to offer for a new Claude: running ones, then ones Claude has
+been used in (most recent first), then Emacs's known projects."
   (let (roots)
-    (dolist (b (ghostel-claude-workspace--claudes))
-      (cl-pushnew (abbreviate-file-name (expand-file-name (buffer-local-value 'default-directory b)))
-                  roots :test #'equal))
-    (setq roots (nreverse roots))
-    (dolist (r (seq-remove #'file-remote-p (ignore-errors (project-known-project-roots))))
-      (cl-pushnew (abbreviate-file-name (expand-file-name r)) roots :test #'equal))
+    (dolist (d (append
+                (mapcar (lambda (b) (buffer-local-value 'default-directory b))
+                        (ghostel-claude-workspace--claudes))
+                (ghostel-claude--history-roots)
+                (seq-remove #'file-remote-p (ignore-errors (project-known-project-roots)))))
+      (let ((d (abbreviate-file-name (file-name-as-directory (expand-file-name d)))))
+        (unless (member d roots) (setq roots (append roots (list d))))))
     roots))
 
 ;; Cycling uses a stable order (project, then start order), not the sidebar's urgency
@@ -984,6 +1029,14 @@ and the tab(s) it is shown in; RET or a click opens one in the right window."
         (tab-bar-new-tab)
         (tab-bar-rename-tab name))))
   (select-window (ghostel-claude-workspace--ensure-layout)))
+
+;; Keep the sidebar's ▶ marker in step with where you are, without waiting for the 1 s tick.
+(defun ghostel-claude-workspace--on-window-change (&rest _)
+  "Redraw the sidebar (cheap; only if something changed) after a window/buffer change."
+  (when (get-buffer ghostel-claude-workspace--buffer-name)
+    (ghostel-claude-workspace--refresh)))
+(add-hook 'window-selection-change-functions #'ghostel-claude-workspace--on-window-change)
+(add-hook 'window-buffer-change-functions #'ghostel-claude-workspace--on-window-change)
 
 ;; Claude buffers that predate (re)loading this file: follow their title and save session bookmarks too.
 ;; Number the ones without a creation order, oldest process first.
