@@ -1,0 +1,5 @@
+#!/bin/bash
+# `sh -c`-compatible shim over PowerShell 7, for Emacs' shell-file-name (see config-wsl-host.el).
+# Usage: pwsh-c -c 'command'
+exe=$(command -v pwsh.exe || command -v powershell.exe) || { echo "pwsh-c: no PowerShell found" >&2; exit 127; }
+exec "$exe" -NoLogo -NoProfile -Command "$2"

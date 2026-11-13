@@ -13,3 +13,5 @@
 !exwm/**
 exwm/elpa/
 exwm/dpi
+!exwm/bin/
+!exwm/bin/*

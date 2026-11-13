@@ -134,3 +134,6 @@ niri 26.04 runs nested under WSLg as root (`/root/.config/niri/config.kdl`, a co
 Mod+A/D=fuzzel, noctalia include commented out). Needs fonts/foot/fuzzel. Abandoned in favour of EXWM; kept for reference.
 
 Memory notes for the assistant: `/home/dev/.claude/projects/-home-dev-repos-niri/memory/wslg-arch-exwm-setup.md` (in the cc-local distro).
+
+## Backup / restore
+Branch `exwm-wsl` of github.com/rashid301/minimal-emacs.d holds this folder. After cloning into `~/.emacs.d`, run `exwm/bin/install.sh` (PATH wrappers), `ln -s ~/.emacs.d/exwm ~/exwm-test`, then re-create `elpa/` by starting once.

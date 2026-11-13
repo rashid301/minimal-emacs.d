@@ -1,0 +1,35 @@
+#!/bin/bash
+# Run the Windows build of rg/fd (symlinked as `rg` and `fd`) when the working directory
+# (or an absolute path argument) is under /mnt/<drive>; native speed on drvfs instead of 9p.
+# Output is normalised for Emacs/consult: '/' separators, no CR, /mnt paths restored.
+# Override: WIN_FORCE_LINUX=1.
+name=$(basename "$0")
+REAL=/usr/bin/$name
+WIN=$(command -v "$name.exe")
+
+on_mnt() { case $(realpath -m -- "$1" 2>/dev/null) in
+  /mnt/wsl|/mnt/wsl/*|/mnt/wslg|/mnt/wslg/*) return 1 ;; /mnt/?|/mnt/?/*) return 0 ;; esac; return 1; }
+
+if [ -n "$WIN_FORCE_LINUX" ] || [ -z "$WIN" ] || ! on_mnt "$PWD"; then
+  # Still go Windows-native if an explicit path argument lives on /mnt.
+  go=0
+  if [ -z "$WIN_FORCE_LINUX" ] && [ -n "$WIN" ]; then
+    for a in "$@"; do case $a in /mnt/?/*) [ -e "$a" ] && go=1 ;; esac; done
+  fi
+  [ $go = 1 ] || exec "$REAL" "$@"
+fi
+
+args=(--path-separator /); translated=0
+for a in "$@"; do
+  case $a in /mnt/?|/mnt/?/*) if [ -e "$a" ]; then a=$(wslpath -m -- "$a"); translated=1; fi ;; esac
+  args+=("$a")
+done
+
+if [ -t 1 ]; then exec "$WIN" "${args[@]}"; fi
+set -o pipefail
+if [ $translated = 1 ]; then
+  "$WIN" "${args[@]}" | tr -d '\r' | sed -E 's#(^|\x00)([A-Za-z]):/#\1/mnt/\l\2/#'
+else
+  "$WIN" "${args[@]}" | tr -d '\r'
+fi
+exit ${PIPESTATUS[0]}

@@ -1,0 +1,58 @@
+#!/bin/bash
+# git wrapper: use Windows git.exe for repos under /mnt/* (drvfs: root-owned -> "dubious
+# ownership" with Linux git, and 9p is slow). Everything else uses the real Linux git.
+# Override: GIT_FORCE_LINUX=1 git ...   (or GIT_FORCE_WINDOWS=1)
+REAL=/usr/bin/git
+WIN="/mnt/c/Program Files/Git/cmd/git.exe"
+
+# Effective directory = $PWD, modified by leading -C <dir> options.
+dir=$PWD
+args=("$@")
+sub=
+i=0
+while [ $i -lt ${#args[@]} ]; do
+  case "${args[$i]}" in
+    -C)
+      d=${args[$((i+1))]}
+      case $d in /*) dir=$d ;; *) dir=$dir/$d ;; esac
+      i=$((i+2)) ;;
+    -c|--git-dir|--work-tree|--namespace|--exec-path) i=$((i+2)) ;;
+    -*) i=$((i+1)) ;;
+    *) sub=${args[$i]}; break ;;
+  esac
+done
+
+use_win=0
+if [ -n "$GIT_FORCE_WINDOWS" ]; then use_win=1
+elif [ -z "$GIT_FORCE_LINUX" ]; then
+  case $(realpath -m -- "$dir" 2>/dev/null) in
+    /mnt/wsl|/mnt/wsl/*|/mnt/wslg|/mnt/wslg/*) ;;
+    /mnt/?|/mnt/?/*) use_win=1 ;;
+  esac
+fi
+
+if [ $use_win = 1 ] && [ -x "$WIN" ]; then
+  # Translate absolute /mnt/x paths in -C arguments to Windows form.
+  out=(); i=0
+  while [ $i -lt ${#args[@]} ]; do
+    a=${args[$i]}
+    if [ "$a" = -C ] && [ $((i+1)) -lt ${#args[@]} ]; then
+      p=${args[$((i+1))]}
+      case $p in /mnt/?|/mnt/?/*) p=$(wslpath -m -- "$p") ;; esac
+      out+=(-C "$p"); i=$((i+2))
+    else
+      out+=("$a"); i=$((i+1))
+    fi
+  done
+  # Commands that print absolute paths: map D:/x back to /mnt/d/x (Emacs, scripts).
+  case $sub in
+    rev-parse|worktree)
+      if [ ! -t 1 ]; then
+        set -o pipefail
+        "$WIN" "${out[@]}" | sed -E 's#^(worktree )?([A-Za-z]):/#\1/mnt/\l\2/#'
+        exit ${PIPESTATUS[0]}
+      fi ;;
+  esac
+  exec "$WIN" "${out[@]}"
+fi
+exec "$REAL" "$@"

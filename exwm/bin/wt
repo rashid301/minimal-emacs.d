@@ -1,0 +1,26 @@
+#!/bin/bash
+# worktrunk: use the Windows git-wt.exe for repos on /mnt/<drive> (Linux wt cannot follow the
+# D:/ worktree paths git.exe reports).  JSON/porcelain output is mapped back to /mnt/d/...
+# Override: WIN_FORCE_LINUX=1.
+REAL=/usr/bin/wt
+WIN=$(command -v git-wt.exe)
+
+on_mnt() { case $(realpath -m -- "$1" 2>/dev/null) in
+  /mnt/wsl|/mnt/wsl/*|/mnt/wslg|/mnt/wslg/*) return 1 ;; /mnt/?|/mnt/?/*) return 0 ;; esac; return 1; }
+
+go=0
+if [ -z "$WIN_FORCE_LINUX" ] && [ -n "$WIN" ]; then
+  on_mnt "$PWD" && go=1
+  for a in "$@"; do case $a in /mnt/?|/mnt/?/*) [ -e "$a" ] && go=1 ;; esac; done
+fi
+[ $go = 1 ] || exec "$REAL" "$@"
+
+args=()
+for a in "$@"; do
+  case $a in /mnt/?|/mnt/?/*) [ -e "$a" ] && a=$(wslpath -m -- "$a") ;; esac
+  args+=("$a")
+done
+if [ -t 1 ]; then exec "$WIN" "${args[@]}"; fi
+set -o pipefail
+"$WIN" "${args[@]}" | tr -d '\r' | sed -E 's#(^|[^A-Za-z0-9])([A-Za-z]):/#\1/mnt/\l\2/#g'
+exit ${PIPESTATUS[0]}
