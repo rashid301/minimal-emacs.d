@@ -24,6 +24,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'project)
 (require 'seq)
 (require 'subr-x)
@@ -270,11 +271,11 @@ there is none.  With prefix argument NEW, start an additional Claude."
 
 ;;;; Workspace: sidebar of all Claudes in an "agents" tab / activity
 
-;; The sidebar groups Claudes under the tab that shows them.
+;; The sidebar groups Claudes by project (their directory), most urgent first.
 ;; Keys:  RET / click on a Claude  show it in the main (right) window (focus stays),
 ;;        o  same and move focus to it
 ;;        c  start another Claude in that group's / Claude's project (stays here)
-;;        RET / click on a tab header, or t  jump to that tab
+;;        RET / click on a project header, or t  jump to that project's tab
 ;;        j/k (n/p) move, r refresh, q close.
 ;; State comes from the terminal title Claude sets: a spinner glyph means it
 ;; is working, "✳" means idle.  Working -> idle while you were not looking
@@ -374,25 +375,11 @@ there is none.  With prefix argument NEW, start an additional Claude."
         (push (alist-get 'name tab) acc)))
     (nreverse acc)))
 
-(defun ghostel-claude-workspace--home-tab (buf)
-  "Tab that owns BUF without displaying it, or nil.
-Uses the activity's `activities-buffer-list'.  If several tabs list BUF,
-prefer the one named after BUF's project; otherwise give up (nil)."
-  (let* ((here (ghostel-claude-workspace--agents-tab-name))
-         (base (buffer-local-value 'ghostel-claude--base buf))
-         (cands (seq-filter
-                 (lambda (tab)
-                   (and (not (equal (alist-get 'name tab) here))
-                        (memq buf (alist-get 'activities-buffer-list tab))))
-                 (funcall tab-bar-tabs-function)))
-         (names (mapcar (lambda (tab) (alist-get 'name tab)) cands)))
-    (cond ((null names) nil)
-          ((null (cdr names)) (car names))
-          (base (seq-find
-                 (lambda (n)
-                   (let ((a (replace-regexp-in-string "\\`α: " "" n)))
-                     (string-prefix-p a (car (split-string base "\\.")))))
-                 names)))))
+(defun ghostel-claude--tab-matches-base (tab-name base)
+  "Non-nil if TAB-NAME is BASE's project: the same, or BASE is \"TAB.branch\"."
+  (let ((a (replace-regexp-in-string "\\`α: " "" tab-name)))
+    (and (stringp base) (not (string-empty-p a))
+         (or (equal a base) (string-prefix-p (concat a ".") base)))))
 
 (defun ghostel-claude-workspace--shorten (name)
   "Drop the activity prefix, the project part and \"feature-\" from NAME."
@@ -427,8 +414,21 @@ prefer the one named after BUF's project; otherwise give up (nil)."
     (cancel-timer ghostel-claude-workspace--timer))
   (setq ghostel-claude-workspace--timer nil))
 
-(defun ghostel-claude-workspace--row (buf)
-  "Description of BUF: (BUF LABEL TEXT HELP)."
+(defun ghostel-claude--project-of (buf)
+  "Project (directory name) BUF's Claude runs in."
+  (or (buffer-local-value 'ghostel-claude--base buf)
+      (let ((n (replace-regexp-in-string "\\`\\*claude:\\|\\*\\(<[0-9]+>\\)?\\'" "" (buffer-name buf))))
+        (replace-regexp-in-string ": .*\\'" "" n))))
+
+(defun ghostel-claude-workspace--rank (buf)
+  "Urgency of BUF: 0 needs you, 1 done (unread), 2 working, 3 idle."
+  (cond ((gethash buf ghostel-claude-workspace--needs) 0)
+        ((gethash buf ghostel-claude-workspace--unread) 1)
+        ((eq (ghostel-claude-workspace--state buf) 'working) 2)
+        (t 3)))
+
+(defun ghostel-claude-workspace--row (buf &optional bare)
+  "Description of BUF: (BUF LABEL TEXT HELP).  With BARE, TEXT is just the title."
   (let* ((name (buffer-name buf))
          (short (ghostel-claude-workspace--shorten name))
          (title (ghostel-claude-workspace--title buf))
@@ -441,35 +441,47 @@ prefer the one named after BUF's project; otherwise give up (nil)."
                       ((eq state 'starting) (propertize "… start" 'face 'ghostel-claude-idle))
                       (t (propertize "· idle" 'face 'ghostel-claude-idle)))))
     (list buf label
-          (if (and title (not (string-empty-p title)))
-              (format "%s  (%s)" title short)
-            short)
+          (cond ((and bare title (not (string-empty-p title))) title)
+                (bare short)
+                ((and title (not (string-empty-p title))) (format "%s  (%s)" title short))
+                (t short))
           (format "%s\n%s" name (or title "")))))
 
 (defun ghostel-claude-workspace--groups (claudes)
-  "Group CLAUDES by tab: list of (TAB-NAME . ROWS); nil TAB-NAME = not shown.
-The agents tab itself is ignored, tab order is kept."
+  "Group CLAUDES by project: list of (PROJECT . ROWS), most urgent first.
+Each row notes, dimmed, the tab(s) where that Claude is on screen."
   (let ((here (ghostel-claude-workspace--agents-tab-name))
-        (by-tab (make-hash-table :test #'equal))
-        (seen (make-hash-table :test #'eq))
-        groups loose)
+        (by-proj (make-hash-table :test #'equal))
+        projects)
     (dolist (b claudes)
-      (dolist (tab (ghostel-claude-workspace--tabs b))
-        (unless (equal tab here)
-          (puthash b t seen)
-          (puthash tab (append (gethash tab by-tab) (list (ghostel-claude-workspace--row b))) by-tab)))
-      ;; Not displayed anywhere: still belongs to the tab whose activity lists it.
-      (unless (gethash b seen)
-        (when-let* ((home (ghostel-claude-workspace--home-tab b)))
-          (puthash b t seen)
-          (let ((row (ghostel-claude-workspace--row b)))
-            (setf (nth 2 row) (propertize (concat (nth 2 row) "  (hidden)") 'face 'shadow))
-            (puthash home (append (gethash home by-tab) (list row)) by-tab))))
-      (unless (gethash b seen) (push (ghostel-claude-workspace--row b) loose)))
-    (dolist (tab (funcall tab-bar-tabs-function))
-      (let ((n (alist-get 'name tab)))
-        (when (gethash n by-tab) (push (cons n (gethash n by-tab)) groups))))
-    (nconc (nreverse groups) (and loose (list (cons nil (nreverse loose)))))))
+      (let ((p (ghostel-claude--project-of b)))
+        (unless (gethash p by-proj) (push p projects))
+        (puthash p (cons b (gethash p by-proj)) by-proj)))
+    (let ((rank (lambda (b) (ghostel-claude-workspace--rank b))))
+      (mapcar
+       (lambda (p)
+         (cons p (mapcar
+                  (lambda (b)
+                    (let ((row (ghostel-claude-workspace--row b t))
+                          (tabs (remove here (ghostel-claude-workspace--tabs b))))
+                      (when tabs
+                        (setf (nth 2 row)
+                              (concat (nth 2 row)
+                                      (propertize (format "  [%s]"
+                                                          (mapconcat (lambda (tb) (replace-regexp-in-string "\\`α: " "" tb))
+                                                                     tabs ", "))
+                                                  'face 'shadow))))
+                      row))
+                  (sort (copy-sequence (gethash p by-proj))
+                        (lambda (a b) (or (< (funcall rank a) (funcall rank b))
+                                          (and (= (funcall rank a) (funcall rank b))
+                                               (string< (ghostel-claude-workspace--sort-key a)
+                                                        (ghostel-claude-workspace--sort-key b)))))))))
+       (sort projects
+             (lambda (a b)
+               (let ((ra (apply #'min (mapcar rank (gethash a by-proj))))
+                     (rb (apply #'min (mapcar rank (gethash b by-proj)))))
+                 (or (< ra rb) (and (= ra rb) (string< a b))))))))))
 
 (defun ghostel-claude-workspace--agents-tab-name ()
   "Name of the workspace tab (the activity tab or a plain tab)."
@@ -484,17 +496,15 @@ The agents tab itself is ignored, tab order is kept."
     (if (null groups)
         (insert (propertize "  no Claude running\n" 'face 'ghostel-claude-idle))
       (dolist (g groups)
-        (let ((tab (car g)))
+        (let ((tab (car g)))   ; the project
           (insert (propertize
-                   (format "%s %s  (%d)\n" "▾"
-                           (if tab (replace-regexp-in-string "\\`α: " "" tab) "not shown in a tab")
-                           (length (cdr g)))
-                   'face 'bold 'ghostel-claude-tab tab 'ghostel-claude-header t
+                   (format "%s %s  (%d)\n" "▾" tab (length (cdr g)))
+                   'face 'bold 'ghostel-claude-project tab 'ghostel-claude-header t
                    'mouse-face 'highlight
-                   'help-echo (and tab "RET / mouse-1: jump to this tab")))
+                   'help-echo "RET / mouse-1: jump to this project's tab, c: new session"))
           (pcase-dolist (`(,buf ,label ,text ,help) (cdr g))
             (insert (propertize (format "  %s  %s\n" label text)
-                                'ghostel-claude-agent buf 'ghostel-claude-tab tab
+                                'ghostel-claude-agent buf 'ghostel-claude-project tab
                                 'mouse-face 'highlight 'help-echo help))))))
     (goto-char (point-min))))
 
@@ -510,7 +520,7 @@ The agents tab itself is ignored, tab order is kept."
             (setq ghostel-claude-workspace--signature groups)
             (let* ((win (get-buffer-window sidebar t))
                    (agent (get-text-property (line-beginning-position) 'ghostel-claude-agent))
-                   (tab (get-text-property (line-beginning-position) 'ghostel-claude-tab))
+                   (tab (get-text-property (line-beginning-position) 'ghostel-claude-project))
                    (hdr (get-text-property (line-beginning-position) 'ghostel-claude-header))
                    (line (line-number-at-pos)))
               (ghostel-claude-workspace--insert groups)
@@ -527,7 +537,7 @@ The agents tab itself is ignored, tab order is kept."
     (catch 'found
       (while (not (eobp))
         (let ((a (get-text-property (point) 'ghostel-claude-agent))
-              (tb (get-text-property (point) 'ghostel-claude-tab))
+              (tb (get-text-property (point) 'ghostel-claude-project))
               (h (get-text-property (point) 'ghostel-claude-header)))
           (when (if agent (and (eq a agent) (equal tb tab))
                   (and header h (equal tb tab)))
@@ -581,8 +591,8 @@ The agents tab itself is ignored, tab order is kept."
                 (window-list nil 'no-minibuffer))
       (split-window (frame-root-window) nil 'right)))
 
-(defun ghostel-claude-agents--tab-at-point ()
-  (get-text-property (line-beginning-position) 'ghostel-claude-tab))
+(defun ghostel-claude-agents--project-at-point ()
+  (get-text-property (line-beginning-position) 'ghostel-claude-project))
 
 (defun ghostel-claude-agents-open ()
   "On an agent: show it in the main window, keeping focus in the sidebar.
@@ -687,39 +697,106 @@ On a tab header: jump to the tab."
                  nil t nil nil new)
                 alist))))
 
+(defun ghostel-claude--open-session (root id)
+  "Claude buffer for session ID in ROOT: the live one if any, else a new process.
+ID nil starts a new session; otherwise `claude --resume ID'."
+  (or (and id (seq-find (lambda (b)
+                          (and (ghostel-claude--live-p b)
+                               (buffer-local-value 'ghostel-claude--base b)
+                               (equal (ghostel-claude--session-id b) id)))
+                        (buffer-list)))
+      (ghostel-claude--start (expand-file-name root) (and id (list "--resume" id)))))
+
 (defun ghostel-claude-agents-new ()
   "Open a Claude session in the project of the group (or Claude) at point.
 Asks for a new session or one of the project's earlier ones (resumed with
 `claude --resume ID'; one already running is just shown).
-Stays in this tab: the new Claude opens in the main window and is filed
-under the group's tab (via that tab's activity buffer list), so the agents
-tab works as a control center."
+Stays in this tab: the new Claude opens in the main window, grouped
+under its project, so the agents tab works as a control center."
   (interactive)
-  (let* ((tab (get-text-property (line-beginning-position) 'ghostel-claude-tab))
-         (buf (or (get-text-property (line-beginning-position) 'ghostel-claude-agent)
+  (let* ((buf (or (get-text-property (line-beginning-position) 'ghostel-claude-agent)
                   (save-excursion
                     (forward-line 1)
                     (get-text-property (line-beginning-position) 'ghostel-claude-agent))))
          (root (and (buffer-live-p buf) (buffer-local-value 'default-directory buf))))
     (unless root (user-error "Put point on a group or a Claude first"))
     (let* ((root (expand-file-name root))
-           (id (ghostel-claude--pick-session root))
-           (new (or (and id (seq-find (lambda (b)
-                                        (and (ghostel-claude--live-p b)
-                                             (buffer-local-value 'ghostel-claude--base b)
-                                             (equal (ghostel-claude--session-id b) id)))
-                                      (buffer-list)))
-                    (ghostel-claude--start root (and id (list "--resume" id))))))
-      ;; Belong to the group's tab without switching to it.
-      (when-let* ((tt (and tab (seq-find (lambda (x) (equal (alist-get 'name x) tab))
-                                         (funcall tab-bar-tabs-function)))))
-        (unless (eq (car tt) 'current-tab)
-          (setf (alist-get 'activities-buffer-list (cdr tt))
-                (cons new (alist-get 'activities-buffer-list (cdr tt))))))
+           (new (ghostel-claude--open-session root (ghostel-claude--pick-session root))))
       (let ((win (ghostel-claude-agents--main-window)))
         (set-window-buffer win new)
         (select-window win))
       (ghostel-claude-workspace--tick))))
+
+;;;; Keyboard switcher
+
+(defun ghostel-claude--show-here (buf)
+  "Show Claude BUF without leaving this tab and select it.
+In the agents tab it takes the main window; a visible Claude is just selected."
+  (cond ((get-buffer-window buf) (select-window (get-buffer-window buf)))
+        ((get-buffer-window ghostel-claude-workspace--buffer-name)
+         (let ((w (ghostel-claude-agents--main-window)))
+           (set-window-buffer w buf) (select-window w)))
+        (t (ghostel-claude--show buf)))
+  (remhash buf ghostel-claude-workspace--unread)
+  (remhash buf ghostel-claude-workspace--needs)
+  (ghostel-claude-workspace--tick))
+
+(defun ghostel-claude--switch-candidates ()
+  "Alist (DISPLAY . BUFFER) of live Claudes, needing-you first, then done, working, idle."
+  (let* ((bufs (sort (ghostel-claude-workspace--claudes)
+                     (lambda (a b) (< (ghostel-claude-workspace--rank a)
+                                      (ghostel-claude-workspace--rank b)))))
+         seen)
+    (mapcar (lambda (b)
+              (pcase-let* ((`(,_b ,label ,text ,_h) (ghostel-claude-workspace--row b))
+                           (tabs (remove (ghostel-claude-workspace--agents-tab-name)
+                                         (ghostel-claude-workspace--tabs b)))
+                           (str (concat label "  " text
+                                        (and tabs (propertize
+                                                   (concat "  ["
+                                                           (mapconcat (lambda (tb) (replace-regexp-in-string "\\`α: " "" tb))
+                                                                      tabs ", ")
+                                                           "]")
+                                                   'face 'shadow)))))
+                (when (member str seen) (setq str (concat str (format " <%s>" (buffer-name b)))))
+                (push str seen)
+                (cons str b)))
+            bufs)))
+
+(defun ghostel-claude--project-roots ()
+  "Project directories worth offering for a new Claude: those with Claudes first."
+  (let (roots)
+    (dolist (b (ghostel-claude-workspace--claudes))
+      (cl-pushnew (abbreviate-file-name (expand-file-name (buffer-local-value 'default-directory b)))
+                  roots :test #'equal))
+    (setq roots (nreverse roots))
+    (dolist (r (seq-remove #'file-remote-p (ignore-errors (project-known-project-roots))))
+      (cl-pushnew (abbreviate-file-name (expand-file-name r)) roots :test #'equal))
+    roots))
+
+;;;###autoload
+(defun ghostel-claude-jump ()
+  "Switch to a running Claude by name, or start one.
+Candidates are the running Claudes (needing you first), then
+\"＋ New Claude…\", which asks for a project and then for a new or earlier
+session.  Never changes tab: use it from the agents tab as a control center."
+  (interactive)
+  (let* ((new "＋ New Claude…")
+         (cands (ghostel-claude--switch-candidates))
+         (choice (completing-read
+                  "Claude: "
+                  (lambda (str pred action)
+                    (if (eq action 'metadata)
+                        '(metadata (display-sort-function . identity)
+                                   (cycle-sort-function . identity))
+                      (complete-with-action action (append cands (list new)) str pred)))
+                  nil t nil nil (caar cands))))
+    (if-let* ((buf (cdr (assoc choice cands))))
+        (ghostel-claude--show-here buf)
+      (let* ((root (expand-file-name
+                    (completing-read "Project: " (ghostel-claude--project-roots) nil nil)))
+             (id (ghostel-claude--pick-session root)))
+        (ghostel-claude--show-here (ghostel-claude--open-session root id))))))
 
 (defun ghostel-claude-agents-open-and-select ()
   "Like `ghostel-claude-agents-open' but also move focus to the Claude."
@@ -736,11 +813,18 @@ tab works as a control center."
   (ghostel-claude-agents-open))
 
 (defun ghostel-claude-agents-jump-tab ()
-  "Jump to the tab of the group at point (and its agent window if shown)."
+  "Jump to the tab where the Claude at point is shown, else the project's tab.
+The project's tab is the one named after it (\"clearcompany\" for
+\"clearcompany.feature-X\")."
   (interactive)
-  (let ((tab (ghostel-claude-agents--tab-at-point))
-        (buf (get-text-property (line-beginning-position) 'ghostel-claude-agent)))
-    (unless tab (user-error "Not shown in any tab"))
+  (let* ((project (ghostel-claude-agents--project-at-point))
+         (buf (get-text-property (line-beginning-position) 'ghostel-claude-agent))
+         (here (ghostel-claude-workspace--agents-tab-name))
+         (tab (or (and buf (car (remove here (ghostel-claude-workspace--tabs buf))))
+                  (seq-find (lambda (n) (ghostel-claude--tab-matches-base n project))
+                            (remove here (mapcar (lambda (tb) (alist-get 'name tb))
+                                                 (funcall tab-bar-tabs-function)))))))
+    (unless tab (user-error "No tab named after %s" project))
     (tab-bar-select-tab-by-name tab)
     (when-let* ((w (and buf (get-buffer-window buf))))
       (select-window w))))
