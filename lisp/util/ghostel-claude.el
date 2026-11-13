@@ -108,15 +108,17 @@ there is none.  With prefix argument NEW, start an additional Claude."
 
 ;;;; Workspace: sidebar of all Claudes in an "agents" tab / activity
 
-;; Sidebar keys:  RET / click  show the Claude in the main (right) window
-;;                t / click on the Tab column  jump to a tab showing it
-;;                g refresh, n/p move.
+;; The sidebar groups Claudes under the tab that shows them.
+;; Keys:  RET / click on a Claude  show it in the main (right) window
+;;        RET / click on a tab header, or t  jump to that tab
+;;        j/k (n/p) move, r refresh, q close.
 ;; State comes from the terminal title Claude sets: a spinner glyph means it
 ;; is working, "✳" means idle.  Working -> idle while you were not looking
 ;; turns into "done" (unread) until you visit the buffer.
 
 (require 'tabulated-list)
 (require 'tab-bar)
+(declare-function evil-define-key* "evil-core")
 (declare-function activities-named "activities")
 (declare-function activities-new "activities")
 (declare-function activities-switch "activities")
@@ -223,67 +225,137 @@ there is none.  With prefix argument NEW, start an additional Claude."
     (cancel-timer ghostel-claude-workspace--timer))
   (setq ghostel-claude-workspace--timer nil))
 
-(defun ghostel-claude-workspace--entry (buf)
+(defun ghostel-claude-workspace--row (buf)
+  "Description of BUF: (BUF LABEL TEXT HELP)."
   (let* ((name (buffer-name buf))
-         (short (replace-regexp-in-string
-                 "\\`\\*claude:\\(.*?\\)\\*\\(<[0-9]+>\\)?\\'" "\\1\\2" name))
-         (short (ghostel-claude-workspace--shorten short))
+         (short (ghostel-claude-workspace--shorten name))
+         (title (ghostel-claude-workspace--title buf))
          (state (ghostel-claude-workspace--state buf))
          (unread (gethash buf ghostel-claude-workspace--unread))
          (label (cond ((eq state 'working) (propertize "● work" 'face 'ghostel-claude-working))
                       (unread (propertize "✓ done" 'face 'ghostel-claude-done))
                       ((eq state 'starting) (propertize "… start" 'face 'ghostel-claude-idle))
-                      (t (propertize "· idle" 'face 'ghostel-claude-idle))))
-         (tabs (mapcar #'ghostel-claude-workspace--shorten
-                       (ghostel-claude-workspace--tabs buf)))
-         (help (format "%s\n%s" name (or (ghostel-claude-workspace--title buf) ""))))
-    (list buf
-          (vector (propertize label 'help-echo help)
-                  (propertize short 'help-echo help)
-                  (propertize (if tabs (string-join tabs ", ") "-")
-                              'mouse-face 'highlight
-                              'help-echo "mouse-1: jump to this tab")))))
+                      (t (propertize "· idle" 'face 'ghostel-claude-idle)))))
+    (list buf label
+          (if (and title (not (string-empty-p title)))
+              (format "%s  (%s)" title short)
+            short)
+          (format "%s\n%s" name (or title "")))))
+
+(defun ghostel-claude-workspace--groups (claudes)
+  "Group CLAUDES by tab: list of (TAB-NAME . ROWS); nil TAB-NAME = not shown.
+The agents tab itself is ignored, tab order is kept."
+  (let ((here (ghostel-claude-workspace--agents-tab-name))
+        (by-tab (make-hash-table :test #'equal))
+        (seen (make-hash-table :test #'eq))
+        groups loose)
+    (dolist (b claudes)
+      (dolist (tab (ghostel-claude-workspace--tabs b))
+        (unless (equal tab here)
+          (puthash b t seen)
+          (puthash tab (append (gethash tab by-tab) (list (ghostel-claude-workspace--row b))) by-tab)))
+      (unless (gethash b seen) (push (ghostel-claude-workspace--row b) loose)))
+    (dolist (tab (funcall tab-bar-tabs-function))
+      (let ((n (alist-get 'name tab)))
+        (when (gethash n by-tab) (push (cons n (gethash n by-tab)) groups))))
+    (nconc (nreverse groups) (and loose (list (cons nil (nreverse loose)))))))
+
+(defun ghostel-claude-workspace--agents-tab-name ()
+  "Name of the workspace tab (the activity tab or a plain tab)."
+  (let ((n ghostel-claude-workspace-name))
+    (seq-find (lambda (name) (member name (list n (concat "α: " n))))
+              (mapcar (lambda (tb) (alist-get 'name tb)) (funcall tab-bar-tabs-function)))))
+
+(defun ghostel-claude-workspace--insert (groups)
+  "Print GROUPS in the current buffer."
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (if (null groups)
+        (insert (propertize "  no Claude running\n" 'face 'ghostel-claude-idle))
+      (dolist (g groups)
+        (let ((tab (car g)))
+          (insert (propertize
+                   (format "%s %s  (%d)\n" "▾"
+                           (if tab (ghostel-claude-workspace--shorten tab) "not shown in a tab")
+                           (length (cdr g)))
+                   'face 'bold 'ghostel-claude-tab tab 'ghostel-claude-header t
+                   'mouse-face 'highlight
+                   'help-echo (and tab "RET / mouse-1: jump to this tab")))
+          (pcase-dolist (`(,buf ,label ,text ,help) (cdr g))
+            (insert (propertize (format "  %s  %s\n" label text)
+                                'ghostel-claude-agent buf 'ghostel-claude-tab tab
+                                'mouse-face 'highlight 'help-echo help))))))
+    (goto-char (point-min))))
 
 (defun ghostel-claude-workspace--refresh (&optional sidebar claudes)
   "Re-print SIDEBAR for CLAUDES when something changed."
+  (interactive)
   (let ((sidebar (or sidebar (get-buffer ghostel-claude-workspace--buffer-name))))
     (when sidebar
       (with-current-buffer sidebar
-        (let ((entries (mapcar #'ghostel-claude-workspace--entry
-                               (or claudes (ghostel-claude-workspace--claudes)))))
-          (unless (equal entries ghostel-claude-workspace--signature)
-            (setq ghostel-claude-workspace--signature entries
-                  tabulated-list-entries entries)
-            (tabulated-list-print t t)))))))
+        (let ((groups (ghostel-claude-workspace--groups
+                       (or claudes (ghostel-claude-workspace--claudes)))))
+          (unless (equal groups ghostel-claude-workspace--signature)
+            (setq ghostel-claude-workspace--signature groups)
+            (let* ((win (get-buffer-window sidebar t))
+                   (agent (get-text-property (line-beginning-position) 'ghostel-claude-agent))
+                   (tab (get-text-property (line-beginning-position) 'ghostel-claude-tab))
+                   (hdr (get-text-property (line-beginning-position) 'ghostel-claude-header))
+                   (line (line-number-at-pos)))
+              (ghostel-claude-workspace--insert groups)
+              ;; Put point back on the same agent / header, else the same line.
+              (let ((found (ghostel-claude-workspace--find agent tab hdr)))
+                (if found (goto-char found)
+                  (goto-char (point-min)) (forward-line (1- line))))
+              (when win (set-window-point win (point))))))))))
+
+(defun ghostel-claude-workspace--find (agent tab header)
+  "Buffer position of the line for AGENT under TAB (or header of TAB)."
+  (save-excursion
+    (goto-char (point-min))
+    (catch 'found
+      (while (not (eobp))
+        (let ((a (get-text-property (point) 'ghostel-claude-agent))
+              (tb (get-text-property (point) 'ghostel-claude-tab))
+              (h (get-text-property (point) 'ghostel-claude-header)))
+          (when (if agent (and (eq a agent) (equal tb tab))
+                  (and header h (equal tb tab)))
+            (throw 'found (point))))
+        (forward-line 1))
+      nil)))
 
 ;;;; Sidebar mode
 
 (defvar ghostel-claude-agents-mode-map
   (let ((m (make-sparse-keymap)))
-    (set-keymap-parent m tabulated-list-mode-map)
     (define-key m (kbd "RET") #'ghostel-claude-agents-open)
     (define-key m [mouse-1] #'ghostel-claude-agents-click)
     (define-key m (kbd "t") #'ghostel-claude-agents-jump-tab)
-    (define-key m (kbd "g") #'ghostel-claude-workspace--refresh)
+    (define-key m (kbd "r") #'ghostel-claude-workspace--refresh)
+    (define-key m (kbd "j") #'next-line)
+    (define-key m (kbd "k") #'previous-line)
     (define-key m (kbd "n") #'next-line)
     (define-key m (kbd "p") #'previous-line)
+    (define-key m (kbd "q") #'quit-window)
     m))
 
-(define-derived-mode ghostel-claude-agents-mode tabulated-list-mode "Agents"
-  "Sidebar listing all Claude Code buffers."
-  (setq tabulated-list-format [("State" 8 nil) ("Agent" 24 nil) ("Tab" 0 nil)]
-        tabulated-list-padding 1
-        cursor-in-non-selected-windows nil)
-  (tabulated-list-init-header)
+(define-derived-mode ghostel-claude-agents-mode special-mode "Agents"
+  "Sidebar listing all Claude Code buffers, grouped by tab.
+\\{ghostel-claude-agents-mode-map}"
+  (setq cursor-in-non-selected-windows nil
+        truncate-lines t)
   (display-line-numbers-mode -1)
   (hl-line-mode 1))
 
+;; evil: motion state keeps j/k/gg/G/C-d etc. and these bindings on top.
 (with-eval-after-load 'evil
   (when (fboundp 'evil-set-initial-state)
-    (evil-set-initial-state 'ghostel-claude-agents-mode 'emacs)))
-
-(defun ghostel-claude-agents--buffer-at-point ()
-  (or (tabulated-list-get-id) (user-error "No agent on this line")))
+    (evil-set-initial-state 'ghostel-claude-agents-mode 'motion)
+    (evil-define-key* 'motion ghostel-claude-agents-mode-map
+      (kbd "RET") #'ghostel-claude-agents-open
+      (kbd "t") #'ghostel-claude-agents-jump-tab
+      (kbd "r") #'ghostel-claude-workspace--refresh
+      (kbd "q") #'quit-window)))
 
 (defun ghostel-claude-agents--main-window ()
   "A window that is not a side window nor the sidebar."
@@ -294,36 +366,36 @@ there is none.  With prefix argument NEW, start an additional Claude."
                 (window-list nil 'no-minibuffer))
       (split-window (frame-root-window) nil 'right)))
 
+(defun ghostel-claude-agents--tab-at-point ()
+  (get-text-property (line-beginning-position) 'ghostel-claude-tab))
+
 (defun ghostel-claude-agents-open ()
-  "Show the agent on this line in the main window and select it."
+  "On an agent: show it in the main window.  On a tab header: jump to the tab."
   (interactive)
-  (let ((buf (ghostel-claude-agents--buffer-at-point))
-        (win (ghostel-claude-agents--main-window)))
-    (unless (buffer-live-p buf) (user-error "That Claude is gone"))
-    (set-window-buffer win buf)
-    (remhash buf ghostel-claude-workspace--unread)
-    (select-window win)
-    (ghostel-claude-workspace--tick)))
+  (let ((buf (get-text-property (line-beginning-position) 'ghostel-claude-agent)))
+    (if (null buf)
+        (ghostel-claude-agents-jump-tab)
+      (unless (buffer-live-p buf) (user-error "That Claude is gone"))
+      (let ((win (ghostel-claude-agents--main-window)))
+        (set-window-buffer win buf)
+        (remhash buf ghostel-claude-workspace--unread)
+        (select-window win)
+        (ghostel-claude-workspace--tick)))))
 
 (defun ghostel-claude-agents-click (event)
-  "Open the agent clicked; the Tab column jumps to its tab instead."
+  "Open the agent clicked, or jump to the clicked tab header."
   (interactive "e")
   (mouse-set-point event)
-  (if (and (tabulated-list-get-id)
-           (>= (current-column) (+ 1 8 24)))
-      (ghostel-claude-agents-jump-tab)
-    (ghostel-claude-agents-open)))
+  (ghostel-claude-agents-open))
 
 (defun ghostel-claude-agents-jump-tab ()
-  "Jump to a tab that shows the agent on this line."
+  "Jump to the tab of the group at point (and its agent window if shown)."
   (interactive)
-  (let* ((buf (ghostel-claude-agents--buffer-at-point))
-         (tabs (remove (alist-get 'name (tab-bar--current-tab))
-                       (ghostel-claude-workspace--tabs buf))))
-    (unless tabs (user-error "Not shown in any other tab"))
-    (tab-bar-select-tab-by-name
-     (if (cdr tabs) (completing-read "Tab: " tabs nil t) (car tabs)))
-    (when-let* ((w (get-buffer-window buf)))
+  (let ((tab (ghostel-claude-agents--tab-at-point))
+        (buf (get-text-property (line-beginning-position) 'ghostel-claude-agent)))
+    (unless tab (user-error "Not shown in any tab"))
+    (tab-bar-select-tab-by-name tab)
+    (when-let* ((w (and buf (get-buffer-window buf))))
       (select-window w))))
 
 ;;;; Entry point
