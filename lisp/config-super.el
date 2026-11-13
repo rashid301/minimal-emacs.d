@@ -120,6 +120,10 @@
 (autoload 'ghostel-claude-jump "ghostel-claude" nil t)
 (autoload 'ghostel-claude-next "ghostel-claude" nil t)
 (autoload 'ghostel-claude-prev "ghostel-claude" nil t)
+(autoload 'ghostel-claude-right-shell "ghostel-claude" nil t)
+(autoload 'ghostel-claude-right-dired "ghostel-claude" nil t)
+(autoload 'ghostel-claude-right-find-file "ghostel-claude" nil t)
+(autoload 'ghostel-claude-right-close "ghostel-claude" nil t)
 
 (defvar my/super-bindings
   '(;; focus
@@ -143,7 +147,10 @@
     ("s-i" . thanos/type)
     ;; running Claude by name, or start one (needs ghostel-claude on `load-path')
     ("s-c" . ghostel-claude-jump)
-    ("s-]" . ghostel-claude-next)  ("s-[" . ghostel-claude-prev))
+    ("s-]" . ghostel-claude-next)  ("s-[" . ghostel-claude-prev)
+    ;; right-hand window next to the agent (20|40|40); outside the agents tab: plain commands
+    ("s-t" . ghostel-claude-right-shell) ("s-e" . ghostel-claude-right-dired) ("s-g" . ghostel-claude-right-find-file)
+    ("s-w" . ghostel-claude-right-close))
   "Alist of (KEY-STRING . COMMAND) for the portable Super bindings.")
 
 (defvar my/super-mode-map (make-sparse-keymap)

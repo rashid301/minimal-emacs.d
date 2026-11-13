@@ -302,9 +302,9 @@ there is none.  With prefix argument NEW, start an additional Claude."
   "Name of the workspace tab / activity."
   :type 'string :group 'ghostel)
 
-(defcustom ghostel-claude-workspace-width 56
-  "Width in columns of the agents sidebar."
-  :type 'integer :group 'ghostel)
+(defcustom ghostel-claude-workspace-width 0.2
+  "Width of the agents sidebar: a fraction of the frame (float) or columns (integer)."
+  :type '(choice float integer) :group 'ghostel)
 
 (defcustom ghostel-claude-workspace-working-glyphs "◐◑◒◓⠁⠂⠄⡀⢀⠠⠐⠈"
   "First characters of the terminal title that mean Claude is working."
@@ -603,13 +603,20 @@ Each row notes, dimmed, the tab(s) where that Claude is on screen."
       (kbd "r") #'ghostel-claude-workspace--refresh
       (kbd "q") #'quit-window)))
 
+(defun ghostel-claude--normal-windows ()
+  "Windows other than the side windows and the sidebar, leftmost first.
+The first is the agent window; the rest are the \"other\" (right) windows."
+  (sort (seq-filter (lambda (w)
+                      (and (not (window-parameter w 'window-side))
+                           (not (eq (window-buffer w)
+                                    (get-buffer ghostel-claude-workspace--buffer-name)))))
+                    (window-list nil 'no-minibuffer))
+        (lambda (a b) (let ((ca (window-left-column a)) (cb (window-left-column b)))
+                        (or (< ca cb) (and (= ca cb) (< (window-top-line a) (window-top-line b))))))))
+
 (defun ghostel-claude-agents--main-window ()
-  "A window that is not a side window nor the sidebar."
-  (or (seq-find (lambda (w)
-                  (and (not (window-parameter w 'window-side))
-                       (not (eq (window-buffer w)
-                                (get-buffer ghostel-claude-workspace--buffer-name)))))
-                (window-list nil 'no-minibuffer))
+  "The agent window: the leftmost window that is not a side window nor the sidebar."
+  (or (car (ghostel-claude--normal-windows))
       (split-window (frame-root-window) nil 'right)))
 
 (defun ghostel-claude-agents--project-at-point ()
@@ -730,6 +737,13 @@ ID nil starts a new session; otherwise `claude --resume ID'."
                         (buffer-list)))
       (ghostel-claude--start (expand-file-name root) (and id (list "--resume" id)))))
 
+(defun ghostel-claude-agents--buffer-at-point ()
+  "Claude on this sidebar line, or the first one under the project header."
+  (or (get-text-property (line-beginning-position) 'ghostel-claude-agent)
+      (save-excursion
+        (forward-line 1)
+        (get-text-property (line-beginning-position) 'ghostel-claude-agent))))
+
 (defun ghostel-claude-agents-new ()
   "Open a Claude session in the project of the group (or Claude) at point.
 Asks for a new session or one of the project's earlier ones (resumed with
@@ -737,10 +751,7 @@ Asks for a new session or one of the project's earlier ones (resumed with
 Stays in this tab: the new Claude opens in the main window, grouped
 under its project, so the agents tab works as a control center."
   (interactive)
-  (let* ((buf (or (get-text-property (line-beginning-position) 'ghostel-claude-agent)
-                  (save-excursion
-                    (forward-line 1)
-                    (get-text-property (line-beginning-position) 'ghostel-claude-agent))))
+  (let* ((buf (ghostel-claude-agents--buffer-at-point))
          (root (and (buffer-live-p buf) (buffer-local-value 'default-directory buf))))
     (unless root (user-error "Put point on a group or a Claude first"))
     (let* ((root (expand-file-name root))
@@ -749,6 +760,147 @@ under its project, so the agents tab works as a control center."
         (set-window-buffer win new)
         (select-window win))
       (ghostel-claude-workspace--tick))))
+
+;;;; Fixed layout: sidebar | agent  (20 | 80), or sidebar | agent | other  (20 | 40 | 40)
+;; Shell, dired and file open in the "other" window, like `other-window-prefix': any window right
+;; of the agent window.  If there is none, the agent window is split in half.  You can split the
+;; right side yourself (say dired above a terminal); a shell then reuses a window that already shows
+;; a terminal, dired one that shows dired, otherwise the most recently used right window.
+
+(defun ghostel-claude--right-window (&optional create kind-p)
+  "A window to the right of the agent window, or nil.  With CREATE, split one off.
+KIND-P (a predicate on buffers) prefers a window already showing that kind of buffer."
+  (let ((rights (cdr (ghostel-claude--normal-windows))))
+    (or (and kind-p (seq-find (lambda (w) (funcall kind-p (window-buffer w))) rights))
+        (and (memq (selected-window) rights) (selected-window))
+        (car (sort (copy-sequence rights)
+                   (lambda (a b) (time-less-p (window-use-time b) (window-use-time a)))))
+        (and create (split-window (ghostel-claude-agents--main-window) nil 'right)))))
+
+(defun ghostel-claude-layout-reset ()
+  "Restore the layout: sidebar 20%, agent 80% (or agent 40% and the right side 40%)."
+  (interactive)
+  (ignore-errors
+    (let* ((side (get-buffer-window ghostel-claude-workspace--buffer-name))
+           (normal (ghostel-claude--normal-windows))
+           (main (car normal))
+           (frame-px (frame-pixel-width)))
+      (when side
+        (let ((target (if (floatp ghostel-claude-workspace-width)
+                          (round (* ghostel-claude-workspace-width frame-px))
+                        (* ghostel-claude-workspace-width (frame-char-width)))))
+          (window-resize side (- target (window-pixel-width side)) t t t)))
+      (when (and main (cdr normal))
+        (let ((total (- frame-px (if side (window-pixel-width side) 0))))
+          (window-resize main (- (/ total 2) (window-pixel-width main)) t t t))))))
+
+(defun ghostel-claude--agents-tab-p ()
+  "Non-nil when the agents sidebar is on screen (so we are in the control-center tab)."
+  (and (get-buffer-window ghostel-claude-workspace--buffer-name) t))
+
+(defvar ghostel-claude--right-kind nil "Kind predicate for `ghostel-claude--display-right'.")
+
+(defun ghostel-claude--display-right (buffer _alist)
+  "`display-buffer' action: put BUFFER in the right-hand \"other\" window."
+  (let ((w (ghostel-claude--right-window t ghostel-claude--right-kind)))
+    (set-window-buffer w buffer)
+    w))
+
+(defun ghostel-claude--context-dir ()
+  "Directory to open in: where the Claude you are on runs.
+From the sidebar, the Claude at point.  From a Claude, its directory.  From a file or
+other buffer, its project root.  From an X window (Firefox...), the Claude on screen."
+  (let* ((claudes (ghostel-claude-workspace--claudes))
+         (cur (ghostel-claude-workspace--current claudes)))
+    (expand-file-name
+     (cond ((equal (buffer-name) ghostel-claude-workspace--buffer-name)
+            (let ((b (or (ghostel-claude-agents--buffer-at-point) cur)))
+              (if b (buffer-local-value 'default-directory b) default-directory)))
+           ((memq (current-buffer) claudes) default-directory)
+           ((and (not (derived-mode-p 'exwm-mode)) (project-current))
+            (project-root (project-current)))
+           ((and cur (derived-mode-p 'exwm-mode)) (buffer-local-value 'default-directory cur))
+           (t default-directory)))))
+
+(defun ghostel-claude--in-right (thunk &optional override kind-p)
+  "Run THUNK with the right-hand window selected, so what it opens lands there.
+With OVERRIDE, also route `display-buffer' there (not for minibuffer commands).
+KIND-P prefers a right window already showing that kind of buffer."
+  (let ((w (ghostel-claude--right-window t kind-p))
+        (ghostel-claude--right-kind kind-p))
+    (ghostel-claude-layout-reset)
+    (select-window w)
+    (let ((display-buffer-overriding-action
+           (if override '((ghostel-claude--display-right)) display-buffer-overriding-action)))
+      (funcall thunk))
+    (let ((b (current-buffer)))
+      (unless (eq (window-buffer w) b)
+        (unless (get-buffer-window b) (set-window-buffer w b)))
+      (select-window (or (get-buffer-window b) w)))
+    (ghostel-claude-layout-reset)))
+
+(defun ghostel-claude--terminal-p (buf)
+  (and (provided-mode-derived-p (buffer-local-value 'major-mode buf) 'ghostel-mode)
+       (not (buffer-local-value 'ghostel-claude--base buf))))
+
+(defun ghostel-claude--dired-p (buf)
+  (provided-mode-derived-p (buffer-local-value 'major-mode buf) 'dired-mode))
+
+;;;###autoload
+(defun ghostel-claude-right-shell (&optional new)
+  "Shell (ghostel) in the directory you are on: that of the Claude at point / current Claude,
+or of the current project or buffer.  One shell per directory; it is reused if open,
+and with prefix argument NEW another one is started.  In the agents tab it opens in the
+right-hand window."
+  (interactive "P")
+  (let* ((dir (ghostel-claude--context-dir))
+         (default-directory dir)
+         (ghostel-buffer-name
+          (format "*ghostel:%s*" (file-name-nondirectory (directory-file-name dir)))))
+    (if (ghostel-claude--agents-tab-p)
+        (ghostel-claude--in-right (lambda () (ghostel new)) t #'ghostel-claude--terminal-p)
+      (ghostel new))))
+
+;;;###autoload
+(defun ghostel-claude-right-dired ()
+  "Dired of the current project in the right-hand window; elsewhere an ordinary `dired'."
+  (interactive)
+  (if (not (ghostel-claude--agents-tab-p))
+      (call-interactively #'dired)
+    (let ((dir (ghostel-claude--context-dir)))
+      (ghostel-claude--in-right (lambda () (dired dir)) t #'ghostel-claude--dired-p))))
+
+;;;###autoload
+(defun ghostel-claude-right-find-file ()
+  "Find a file of the current project in the right-hand window; elsewhere `project-find-file'."
+  (interactive)
+  (if (not (ghostel-claude--agents-tab-p))
+      (call-interactively #'project-find-file)
+    (let ((default-directory (ghostel-claude--context-dir)))
+      (ghostel-claude--in-right
+       (lambda () (if (project-current) (call-interactively #'project-find-file)
+                    (call-interactively #'find-file)))
+       nil (lambda (b) (buffer-local-value 'buffer-file-name b))))))
+
+;;;###autoload
+(defun ghostel-claude-right-close ()
+  "Close the current right-hand window (or the most recent one); its buffer stays alive."
+  (interactive)
+  (let ((rights (cdr (ghostel-claude--normal-windows))))
+    (unless rights (user-error "No right-hand window"))
+    (delete-window (if (memq (selected-window) rights) (selected-window)
+                     (ghostel-claude--right-window)))
+    (ghostel-claude-layout-reset)))
+
+;; A frame resize (DPI toggle, window drag) leaves the side window at its old pixel width.
+(defun ghostel-claude--on-frame-size-change (frame)
+  "Re-apply the layout when FRAME's width changed and the sidebar is showing."
+  (when (and (frame-live-p frame)
+             (not (eql (frame-pixel-width frame) (frame-parameter frame 'ghostel-claude-width))))
+    (set-frame-parameter frame 'ghostel-claude-width (frame-pixel-width frame))
+    (with-selected-frame frame
+      (when (ghostel-claude--agents-tab-p) (ghostel-claude-layout-reset)))))
+(add-hook 'window-size-change-functions #'ghostel-claude--on-frame-size-change)
 
 ;;;; Keyboard switcher
 
@@ -993,7 +1145,9 @@ where TOAST is 1 unless you are already looking at that Claude."
   (let* ((sidebar (ghostel-claude-workspace--sidebar))
          (win (display-buffer-in-side-window
                sidebar `((side . left) (slot . -10)
-                         (window-width . ,ghostel-claude-workspace-width)
+                         (window-width . ,(if (floatp ghostel-claude-workspace-width)
+                                              ghostel-claude-workspace-width
+                                            ghostel-claude-workspace-width))
                          (preserve-size . (t . nil))
                          (window-parameters (no-delete-other-windows . t))))))
     (set-window-dedicated-p win t)
@@ -1006,6 +1160,7 @@ where TOAST is 1 unless you are already looking at that Claude."
             (run-with-timer 1 1 #'ghostel-claude-workspace--tick)))
     (setq ghostel-claude-workspace--signature nil)
     (ghostel-claude-workspace--tick)
+    (ghostel-claude-layout-reset)
     win))
 
 (defun ghostel-claude-workspace--on-activity (activity &rest _)

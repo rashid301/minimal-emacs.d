@@ -35,6 +35,40 @@
 
 ;; Windows keeps the Win key, so start.sh maps Caps Lock -> Super inside Xephyr (setxkbmap
 ;; -option caps:super). Global EXWM keys use that Super (s-), which leaves Emacs's M- keys alone.
+;; s-b: Firefox.  Bring up the running one (in the agents tab: in the right-hand window, next to the
+;; agent), else start it.  config-super.el binds s-b to `consult-buffer' for the other environments.
+(defun my/exwm--firefox-p (buf)
+  (with-current-buffer buf
+    (and (derived-mode-p 'exwm-mode) (member exwm-class-name '("firefox" "Firefox")))))
+
+(defun my/exwm--in-right-p ()
+  (and (fboundp 'ghostel-claude--agents-tab-p) (ghostel-claude--agents-tab-p)))
+
+(defun my/exwm-firefox ()
+  "Show the running Firefox, or start one."
+  (interactive)
+  (let ((buf (seq-find #'my/exwm--firefox-p (buffer-list))))
+    (cond
+     ((and buf (get-buffer-window buf))
+      (select-window (get-buffer-window buf)))
+     (buf
+      (if (my/exwm--in-right-p)
+          (let ((w (ghostel-claude--right-window t #'my/exwm--firefox-p)))
+            (set-window-buffer w buf)
+            (ghostel-claude-layout-reset)
+            (select-window w))
+        (switch-to-buffer buf)))
+     (t
+      ;; EXWM puts a new X window in the selected window, so pick the right-hand one first.
+      (when (my/exwm--in-right-p)
+        (select-window (ghostel-claude--right-window t))
+        (ghostel-claude-layout-reset))
+      (message "Starting Firefox...")
+      (start-process "firefox" nil "firefox")))))
+
+(setf (alist-get "s-b" my/super-bindings nil nil #'equal) #'my/exwm-firefox)
+(define-key my/super-mode-map (kbd "s-b") #'my/exwm-firefox)
+
 (setq exwm-input-global-keys
       (append
        (list
@@ -43,9 +77,8 @@
         (cons (kbd "s-&")
               (lambda (cmd)
                 (interactive (list (read-shell-command "$ ")))
-                (start-process-shell-command cmd nil cmd)))
-        (cons (kbd "s-t")
-              (lambda () (interactive) (start-process "xterm" nil "xterm"))))
+                (start-process-shell-command cmd nil cmd))))
+       ;; (s-t is now `ghostel-claude-right-shell' via `my/super-bindings'; it was an xterm launcher.)
        ;; s-1..s-8 select tab N, s-9 the last tab, s-0 the previous one (matches tab-bar-select-tab-modifiers)
        (cl-loop for i from 0 to 9
                 collect (cons (kbd (format "s-%d" i))
