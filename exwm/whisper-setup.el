@@ -33,6 +33,16 @@
     (erase-buffer) (insert s)))
 (add-hook 'whisper-after-transcription-hook #'my/whisper-clean)
 
+;; whisper's own read-only check rejects EXWM buffers (read-only, but we paste via the X
+;; clipboard + fake C-v, not by inserting), so replace it with one that exempts those.
+(defun my/whisper-check-read-only ()
+  (when (and whisper-insert-text-at-point
+             buffer-read-only
+             (not (memq major-mode '(exwm-mode ghostel-mode vterm-mode eat-mode))))
+    (error "Buffer is read-only, can't insert text here")))
+(remove-hook 'whisper-before-transcription-hook #'whisper--check-buffer-read-only-p)
+(add-hook 'whisper-before-transcription-hook #'my/whisper-check-read-only)
+
 (defun my/whisper-toggle ()
   "Start/stop dictation into the current buffer (EXWM windows included)."
   (interactive)
