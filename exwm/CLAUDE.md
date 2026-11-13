@@ -104,7 +104,7 @@ So everything that touches them uses the **Windows** binaries, switched on the w
 ## Lid close kills Xephyr (weston crash)
 Closing the laptop drops WSLg's RDP session; weston (WSLg's compositor, shared by all distros) then segfaults while destroying the `archlinux` app windows
 (`/mnt/wslg/stderr.log`: `weston ... terminated with signal 11`), and every client incl. Xephyr gets "Connection reset by peer". Seen 4x since the Nov 12 boot.
-Tried: clipsync polling -> `clipnotify` (suspected load; unconfirmed whether it helps). Next if it still crashes: `wsl --update`, or run Xephyr's content on Xvnc inside WSL (survives weston restarts).
+Tried: clipsync polling -> `clipnotify` (suspected load), and `wsl --update` on Nov 13 (WSL 2.7.14 -> 3.0.5, WSLg 1.0.73.2 -> 1.0.79). Crash count reset to 0 by that restart; unconfirmed whether either helps. If it still crashes: run Xephyr's content on Xvnc inside WSL (survives weston restarts).
 Beware `pkill -f "exwm-test/clipsync.sh"` from a Claude shell: it matches the shell's own command line and kills it; start it via `(setsid nohup ./clipsync.sh &)`.
 
 ## Debugging recipes
