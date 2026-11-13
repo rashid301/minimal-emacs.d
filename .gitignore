@@ -9,3 +9,7 @@
 !.github/
 !.LICENSE
 !bookmarks
+!exwm/
+!exwm/**
+exwm/elpa/
+exwm/dpi

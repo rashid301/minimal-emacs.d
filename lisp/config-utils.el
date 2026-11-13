@@ -38,11 +38,15 @@
 (defun my/copy-file-path ()
   "Copy the full file path of the current buffer to the kill ring."
   (interactive)
-  (if buffer-file-name
-      (progn
-        (kill-new buffer-file-name)
-        (message "Copied: %s" buffer-file-name))
-    (message "Current buffer is not visiting a file")))
+  (let ((file-name (if (equal major-mode 'dired-mode)
+                       default-directory
+                     (buffer-file-name))))
+    (if file-name
+        (let ((full-path-name (expand-file-name file-name)))
+          (progn
+            (kill-new full-path-name)
+            (message "Copied: %s" full-path-name)))
+      (message "Current buffer is not visiting a file"))))
 
 (defun my/config-reload ()
   "Reload post-init.el without restarting Emacs."

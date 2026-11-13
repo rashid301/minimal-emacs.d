@@ -1,0 +1,40 @@
+#!/bin/sh
+# Nested X server + Emacs 31 with YOUR config (~/.emacs.d) and EXWM layered on top.
+# -listen tcp: EXWM's xcb library connects over TCP (localhost:6001); WSLg's read-only
+# /tmp/.X11-unix means no unix socket file can be created for :1.
+# Old throwaway setup: ./start-minimal.sh
+export PATH="$HOME/.local/bin:$PATH"
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1  # puts nvm default node + global npm bins on PATH
+pkill -x Xephyr 2>/dev/null; pkill -f "exwm-test/clipsync.sh" 2>/dev/null; pkill -f "exwm-test/keepkeys.sh" 2>/dev/null; sleep 0.5
+# ONE knob for scaling (X11 apps get no Windows scaling): XFT_DPI env, else the last DPI chosen with s-= / my/exwm-set-dpi, else 144
+export XFT_DPI=${XFT_DPI:-$(cat "$HOME/exwm-test/dpi" 2>/dev/null || echo 144)}
+Xephyr :1 -screen 1280x800 -dpi "$XFT_DPI" -resizeable -ac -listen tcp &
+"$HOME/exwm-test/clipsync.sh" &   # mirrors clipboard WSLg(:0) <-> Xephyr(:1); exits when Xephyr exits
+# wait until Xephyr actually accepts connections (a fixed sleep lost Xft.dpi before)
+for i in $(seq 1 50); do DISPLAY=:1 xdpyinfo >/dev/null 2>&1 && break; sleep 0.2; done
+
+# Super key: Windows keeps the Win key and Right/Left Alt look identical to X, so kmonad turns a held
+# f or j into F13 (see Windows ~/kmonad/conf.kbd) and F13 (keycode 191) becomes Super here.
+DISPLAY=:1 setxkbmap -option ""
+DISPLAY=:1 xmodmap -e 'keycode 191 = Super_L' -e 'add mod4 = Super_L'
+
+# DPI: X11 apps get no Windows scaling. Xft.dpi covers GTK/Xft apps (xterm, arandr), Qt via QT_FONT_DPI.
+DISPLAY=:1 xrdb -merge <<XRES
+Xft.dpi: $XFT_DPI
+XTerm*faceName: Iosevka Nerd Font Mono
+XTerm*faceSize: 11
+UXTerm*faceName: Iosevka Nerd Font Mono
+UXTerm*faceSize: 11
+XRES
+"$HOME/exwm-test/keepkeys.sh" &   # re-applies Super (F13) and Xft.dpi if they get lost; exits with Xephyr
+export QT_FONT_DPI="$XFT_DPI"
+# Firefox ignores Xft.dpi/XSETTINGS for scale on X11, so derive its pref from the same DPI
+for d in "$HOME"/.config/mozilla/firefox/*.default-release; do
+  [ -d "$d" ] || continue
+  sed -i '/layout.css.devPixelsPerPx/d' "$d/user.js" 2>/dev/null
+  echo "user_pref(\"layout.css.devPixelsPerPx\", \"$(awk -v d="$XFT_DPI" 'BEGIN{printf "%.2f", d/96}')\");" >> "$d/user.js"
+done
+export GDK_DPI_SCALE=1   # keep GTK at 1x; Xft.dpi does the work
+
+DISPLAY=:1 exec emacs --debug-init -l "$HOME/exwm-test/exwm.el"

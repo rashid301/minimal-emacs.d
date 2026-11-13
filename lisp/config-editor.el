@@ -2,32 +2,32 @@
 
 ;; ── Dirvish (improved dired) ───────────────────────────────────────────
 
-(use-package dirvish
-  :ensure t
-  :init
-  :config
-  (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
-  (require 'dirvish)
-  (require 'dirvish-icons)
-  (require 'dirvish-quick-access)
-  (require 'dirvish-yank)
-  (require 'dirvish-side)
-  (dirvish-override-dired-mode 1)
-  (setq dired-kill-when-opening-new-dired-buffer t)
-
-  ;; `SPC p' is bound to `project-prefix-map' directly (see
-  ;; config-keybindings.el), so bind dirvish-side at `SPC p t'.
-  (with-eval-after-load 'project
-    (define-key project-prefix-map "t" #'dirvish-side))
-  )
+;; (use-package dirvish
+;;   :ensure t
+;;   :init
+;;   :config
+;;   (add-to-list 'load-path (concat user-emacs-directory "elpa/dirvish-2.3.0/extensions"))
+;;   (require 'dirvish)
+;;   (require 'dirvish-icons)
+;;   (require 'dirvish-quick-access)
+;;   (require 'dirvish-yank)
+;;   (require 'dirvish-side)
+;;   (dirvish-override-dired-mode 1)
+;;   (setq dired-kill-when-opening-new-dired-buffer t)
+;; 
+;;   ;; `SPC p' is bound to `project-prefix-map' directly (see
+;;   ;; config-keybindings.el), so bind dirvish-side at `SPC p t'.
+;;   (with-eval-after-load 'project
+;;     (define-key project-prefix-map "t" #'dirvish-side))
+;;   )
 ;; ── ace-window ────────────────────────────────────────────────────────
 
 (use-package ace-window
   :ensure t
   :config
-  (ace-window-display-mode 1)
-  (aw-dispatch-always t)
-  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
+  (setopt ace-window-display-mode 1)
+  (setopt aw-dispatch-always t)
+  (setopt aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
   :bind (
          ("M-o" . ace-window)))
 
@@ -355,7 +355,9 @@ This only works with orderless and for the first component of the search."
           (buffer-list))
       (error (buffer-list))))
 
-  (setq consult-buffer-list-function #'my/consult-buffer-list--activity)
+  ;;(setq consult-buffer-list-function #'my/consult-buffer-list--activity)
+  ;; (setq consult-buffer-list-function #'tabspaces-local-buffer-list)
+  (setq consult-buffer-list-function nil)
 
   (defun my/activity-buffer-p (buf)
     "Return non-nil if BUF belongs to the current activity's frame."
@@ -369,9 +371,9 @@ This only works with orderless and for the first component of the search."
       (error t)))
 
   ;; apply to future frames
-  (add-to-list 'default-frame-alist '(buffer-predicate . my/activity-buffer-p))
+  ;;(add-to-list 'default-frame-alist '(buffer-predicate . my/activity-buffer-p))
   ;; and to the current one, since default-frame-alist only affects new frames
-  (set-frame-parameter nil 'buffer-predicate #'my/activity-buffer-p)
+  ;;(set-frame-parameter nil 'buffer-predicate #'my/activity-buffer-p)
 
   ;; (when (fboundp 'consult-bookmark-narrow)
   ;;   (add-to-list 'consult-bookmark-narrow `(?a "Activities" activities-bookmark-handler))

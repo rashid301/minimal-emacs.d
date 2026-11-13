@@ -82,6 +82,7 @@
   (add-to-list 'agent-shell-agent-configs (agent-shell-hermes-make-agent-config) t)
   (setq agent-shell-confirm-interrupt nil
         agent-shell-header-style 'text
+        agent-shell-inhibit-system-sleep nil
         agent-shell-hermes-acp-command '("hermes" "-p" "chief-of-staff" "acp"))
   ;; (add-hook 'diff-mode-hook
   ;;           (lambda ()
@@ -251,15 +252,15 @@
 ;;   :after agent-shell
 ;;   )
 
-(use-package claude-code-ide
-  :vc (:url "https://github.com/manzaltu/claude-code-ide.el" :rev :newest)
-  :config
-  (setq claude-code-ide-terminal-backend 'ghostel)
-
-  (with-eval-after-load 'project
-    (define-key project-prefix-map "c" #'claude-code-ide-menu))
-
-  ) 
+;; (use-package claude-code-ide
+;;   :vc (:url "https://github.com/manzaltu/claude-code-ide.el" :rev :newest)
+;;   :config
+;;   (setq claude-code-ide-terminal-backend 'ghostel)
+;; 
+;;   (with-eval-after-load 'project
+;;     (define-key project-prefix-map "c" #'claude-code-ide-menu))
+;; 
+;;   ) 
 
 (provide 'config-llm)
 ;;; config-llm.el ends here

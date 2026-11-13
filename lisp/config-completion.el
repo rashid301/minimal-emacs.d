@@ -1,14 +1,28 @@
 ;;; config-completion.el --- Completion framework configuration -*- lexical-binding: t; -*-
 
-(setq completions-format 'one-column)
-(setq completions-header-format nil)
-(setq completions-max-height 10)
-(setq completion-auto-select nil)
+(with-eval-after-load 'completion-preview
+  (keymap-set completion-preview-active-mode-map "<tab>" #'completion-preview-complete)
+  (keymap-set completion-preview-active-mode-map "TAB" #'completion-preview-complete))
 
-;; (define-key minibuffer-mode-map (kbd "C-n") 'minibuffer-next-completion)
-;; (define-key minibuffer-mode-map (kbd "C-p") 'minibuffer-previous-completion)
-;; (define-key completion-in-region-mode-map (kbd "C-n") 'minibuffer-next-completion)
-;; (define-key completion-in-region-mode-map (kbd "C-p") 'minibuffer-previous-completion)
+(use-package minibuffer
+  :ensure nil
+  :demand t
+  :config
+  (setq completion-eager-update t)        ;; Refreshes the *Completions* buffer automatically as you type
+  (setq completion-eager-display t)       ;; Automatically displays the *Completions* buffer on its own
+  (setq completions-format 'one-column)   ;; Displays candidates vertically like a modern dropdown
+  (setq completions-max-height 10)        ;; Limits the height of the completions window
+  (setq completion-auto-help t)
+  (setq completions-header-format nil)
+  (setq completion-auto-select nil))
+
+;; Optional: Built-in inline completion preview
+(use-package completion-preview
+  :ensure nil
+  :demand t
+  :config
+  (setq completion-preview-minimum-symbol-length 2)
+  (global-completion-preview-mode 1))
 
 ;; ── Vertico — vertical completion UI ───────────────────────────────────
 
@@ -118,36 +132,36 @@
 
 ;; ── Corfu — in-buffer completion ───────────────────────────────────────
 
-(use-package corfu
-  :custom
-  (corfu-auto t)
-  (corfu-auto-delay 0.2)
-  (read-extended-command-predicate #'command-completion-default-include-p)
-  (text-mode-ispell-word-completion nil)
-  (tab-always-indent 'complete)
-  (corfu-preview-current 'insert)
-  :bind (:map corfu-map
-              ("<mouse-1>" . corfu-select)
-              ("TAB" . corfu-complete)
-              ("RET" . corfu-insert)
-              ("<return>" . corfu-insert)
-              ([tab] . corfu-complete)
-              ("<tab>" . corfu-insert))
-  
-  :config
-  ;;(global-corfu-mode +1)
-  (setq
-   global-corfu-minibuffer nil
-   corfu-preselect 'first
-   corfu-count 16
-   corfu-max-width 120
-   corfu-on-exact-match nil
-   corfu-quit-at-boundary 'separator
-   corfu-quit-no-match corfu-quit-at-boundary)
-  
-  ;;(add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
-  (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
-  )
+;; (use-package corfu
+;;   :custom
+;;   (corfu-auto t)
+;;   (corfu-auto-delay 0.2)
+;;   (read-extended-command-predicate #'command-completion-default-include-p)
+;;   (text-mode-ispell-word-completion nil)
+;;   (tab-always-indent 'complete)
+;;   (corfu-preview-current 'insert)
+;;   :bind (:map corfu-map
+;;               ("<mouse-1>" . corfu-select)
+;;               ("TAB" . corfu-complete)
+;;               ("RET" . corfu-insert)
+;;               ("<return>" . corfu-insert)
+;;               ([tab] . corfu-complete)
+;;               ("<tab>" . corfu-insert))
+;;   
+;;   :config
+;;   ;;(global-corfu-mode +1)
+;;   (setq
+;;    global-corfu-minibuffer nil
+;;    corfu-preselect 'first
+;;    corfu-count 16
+;;    corfu-max-width 120
+;;    corfu-on-exact-match nil
+;;    corfu-quit-at-boundary 'separator
+;;    corfu-quit-no-match corfu-quit-at-boundary)
+;;   
+;;   ;;(add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles)))
+;;   (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
+;;   )
 
 
 

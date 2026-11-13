@@ -258,6 +258,24 @@ Like normal Emacs `C-k'.  Kill to end of line and put content in kill-ring."
 (add-to-list 'load-path "~/.emacs.d/elpa/emacs-term-sessions")
 (require 'term-sessions)
 (setq term-sessions-preferred-frontend 'ghostel) ; built in
+;; zmx records a session's cwd as the OSC 7 URI its shell reported ("file://desktop-pc/home/x/proj"),
+;; not a path.  term-sessions prefixes the TRAMP root and `cd's there, which fails: the URI is then a
+;; relative path ("/home/x/file:/desktop-pc/..."). Turn such values back into plain paths.
+(defun my/term-sessions--uri-to-path (value)
+  "Return VALUE with a leading file:// or kitty-shell-cwd:// HOST prefix removed."
+  (if (and (stringp value)
+           (string-match "\\`\\(file\\|kitty-shell-cwd\\)://[^/]*\\(/.*\\)\\'" value))
+      (let ((path (match-string 2 value)))
+        (if (equal (match-string 1 value) "file") (url-unhex-string path) path))
+    value))
+
+(defun my/term-sessions--normalize-cwd (plist)
+  "Filter-return advice for `term-sessions--parse-key-value-fields': fix :cwd/:start_dir."
+  (dolist (key '(:cwd :start_dir) plist)
+    (when (plist-member plist key)
+      (setq plist (plist-put plist key (my/term-sessions--uri-to-path (plist-get plist key)))))))
+
+(advice-add 'term-sessions--parse-key-value-fields :filter-return #'my/term-sessions--normalize-cwd)
 
 (provide 'config-terminal)
 ;;; config-terminal.el ends here

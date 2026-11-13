@@ -256,7 +256,7 @@
     "ht" '(consult-theme :which-key "Load theme")
 
     ;; --- Buffer bindings ---
-    "bb" '(consult-buffer :which-key "switch buffer")
+    "bb" '(activities-switch-buffer :which-key "switch buffer")
     "br" '(revert-buffer :which-key "revert buffer")
     "b[" '(previous-buffer :which-key "previous buffer")
     "b]" '(next-buffer :which-key "next buffer")
@@ -454,8 +454,7 @@
     "og" '(taskwarrior-gtd :which-key "GTD dashboard")
     "oc" '(taskwarrior-gtd-capture :which-key "GTD capture")
     "oj" '(my/open-todays-journal :which-key "today's journal")
-    ;; "o-" '(dired-jump :which-key "dired")
-    "o-" '(dirvish-dwim :which-key "dirvish")
+    "o-" '(dired-jump :which-key "dired")
     "om" '(my/mu4e :which-key "mu4e")
     "on" '(elfeed :which-key "elfeed")
     ;;"ob" '(eww :which-key "eww")

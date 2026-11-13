@@ -37,9 +37,10 @@
   ;;(my/load-theme 'noctalia)
   (set-face-attribute 'default frame
                       :family "Iosevka Nerd Font"
-                      :height (or font-size 200)
+                      :height (or font-size 145)
                       :weight 'normal))
 
+(load-theme 'newcomers-presets)
 (defun my/load-theme (theme)
   "Completely disable all active themes before loading THEME safely."
   (interactive
@@ -157,6 +158,10 @@
   ;; Activate ligature-mode globally
   (global-ligature-mode t))
 
+(use-package dired
+  :ensure nil
+  :hook (dired-mode . dired-hide-details-mode))
+
 (use-package nerd-icons-dired
   :ensure t
   :hook
@@ -193,13 +198,19 @@
 
         (my/load-theme th)
 
+        ;; EXWM: make GTK/Qt apps follow the new light/dark theme (XSETTINGS picks the
+        ;; light or dark member of `exwm-xsettings-theme' from the default face background).
+        (when (bound-and-true-p exwm-xsettings-mode)
+          (exwm-xsettings--update-settings))
+
         ;; Fix: Use rs/theme-mode (not rs/theme-dark) and correct string comparison
-        (call-process "noctalia" nil 0 nil
-                      "msg" "wallpaper-set"
-                      (format "~/Community-wallpapers/eos_wallpapers_community/%s"
-                              (if (string-equal rs/theme-mode "light")
-                                  "endeavour_os_simple_wallpaper_light.png"
-                                "endeavour_os_simple_wallpaper_dark.png"))))
+        (when (executable-find "noctalia")
+          (call-process "noctalia" nil 0 nil
+                        "msg" "wallpaper-set"
+                        (format "~/Community-wallpapers/eos_wallpapers_community/%s"
+                                (if (string-equal rs/theme-mode "light")
+                                    "endeavour_os_simple_wallpaper_light.png"
+                                  "endeavour_os_simple_wallpaper_dark.png")))))
 
       (message "Theme toggled: %s mode" rs/theme-mode))))
 
@@ -233,8 +244,36 @@
 
 ;; ── Popper (popup management) ──────────────────────────────────────────
 
+(defun my/task-buffer-p (buffer)
+  "Return non-nil if BUFFER is a `ghostel-tasks' buffer (*task:...*)."
+  (string-prefix-p "*task:" (buffer-name (get-buffer buffer))))
+
+(defun my/compilation-buffer-p (buffer)
+  "Return non-nil if BUFFER is a compile buffer (*compilation*, *PROJECT-compilation*)."
+  (and (string-match-p "compilation\\*\\'" (buffer-name (get-buffer buffer))) t))
+
+(defun my/left-popup-p (buffer)
+  "Return non-nil if BUFFER belongs in the left popper column.
+That is a `ghostel-tasks' buffer or a compile buffer."
+  (or (my/task-buffer-p buffer) (my/compilation-buffer-p buffer)))
+
+(defun my/display-task-left (buffer &optional _alist)
+  "Show BUFFER in a left side window, 25% of the frame wide.
+Tasks and compile buffers each get their own slot, so several stack in
+the same column instead of replacing one another.  Does not select the
+window."
+  (let ((slot (or (cl-position buffer
+                               (sort (seq-filter #'my/left-popup-p (buffer-list))
+                                     (lambda (a b) (string< (buffer-name a)
+                                                            (buffer-name b)))))
+                  0)))
+    (display-buffer-in-side-window
+     buffer `((side . left) (slot . ,slot) (window-width . 0.25)))))
+
 (defun my/popper-select-at-bottom (buffer &optional alist)
-  (let ((window (display-buffer-below-selected buffer '((window-height . 0.3)))))
+  (let ((window (if (my/left-popup-p buffer)
+                    (my/display-task-left buffer alist)
+                  (display-buffer-below-selected buffer '((window-height . 0.3))))))
     (if window (select-window window))))
 
 (use-package popper
@@ -259,6 +298,8 @@
      "\\*emacs-float\\*"
      "\\*Warnings\\*"
      "\\*compilation\\*"
+     "^\\*.*-compilation\\*"
+     "^\\*task:"
      "\\*Completions\\*"
      "\\*Compile-Log\\*"
      "\\*Help\\*"
