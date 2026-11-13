@@ -69,11 +69,15 @@
 (setf (alist-get "s-b" my/super-bindings nil nil #'equal) #'my/exwm-firefox)
 (define-key my/super-mode-map (kbd "s-b") #'my/exwm-firefox)
 
+(load "/home/dev/exwm-test/whisper-setup.el")   ; defines my/whisper-toggle (s-v)
+(define-key my/super-mode-map (kbd "s-v") #'my/whisper-toggle)
+
 (setq exwm-input-global-keys
       (append
        (list
         (cons (kbd "s-r") #'exwm-reset)
         (cons (kbd "s-=") #'my/exwm-dpi-toggle)
+        (cons (kbd "s-v") #'my/whisper-toggle)
         (cons (kbd "s-&")
               (lambda (cmd)
                 (interactive (list (read-shell-command "$ ")))
