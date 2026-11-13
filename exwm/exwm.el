@@ -92,3 +92,12 @@
 (exwm-xsettings-mode 1)
 
 (exwm-wm-mode 1)
+
+;; Open URLs in the running Firefox as a new tab. This needs a D-Bus session bus, which start.sh provides.
+(setq browse-url-browser-function 'browse-url-firefox
+      browse-url-firefox-new-window-is-tab t)
+
+;; config-editor.el sets `tab-bar-select-tab-modifiers' to (super meta), i.e. s-M-1..9. The plain s-1..9 binding
+;; in config-ewm.el only exists in `ewm-mode-map' (Wayland), so under EXWM use plain Super. `setopt' re-runs
+;; the setter, which moves the bindings in `tab-bar-mode-map'.
+(setopt tab-bar-select-tab-modifiers '(super))

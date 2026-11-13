@@ -37,4 +37,9 @@ for d in "$HOME"/.config/mozilla/firefox/*.default-release; do
 done
 export GDK_DPI_SCALE=1   # keep GTK at 1x; Xft.dpi does the work
 
+# Firefox finds its running instance over the D-Bus session bus; WSL has none, so every `firefox URL'
+# from Emacs would start a second instance ("Firefox is already running"). Give Emacs a session bus.
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-run-session >/dev/null; then
+  DISPLAY=:1 exec dbus-run-session -- emacs --debug-init -l "$HOME/exwm-test/exwm.el"
+fi
 DISPLAY=:1 exec emacs --debug-init -l "$HOME/exwm-test/exwm.el"
