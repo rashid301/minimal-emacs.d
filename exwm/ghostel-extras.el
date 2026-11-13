@@ -11,6 +11,7 @@
 
 ;; Claude Code as the process of a project ghostel buffer.  SPC p c (= C-x p c); C-u starts another.
 (define-key project-prefix-map "c" #'ghostel-claude)
+(define-key project-prefix-map "a" #'ghostel-claude-workspace)   ; agents tab (C-x p a)
 (add-to-list 'project-switch-commands '(ghostel-claude "Claude") t)
 
 ;; Per-project dev servers, ported from the Windows config (D:/ -> /mnt/d/).  Keyed by repository
