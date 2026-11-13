@@ -69,7 +69,94 @@ Used as the buffer-local `ghostel-buffer-name-function'."
   (with-current-buffer buf
     (setq-local ghostel-claude--base base
                 ghostel-claude--names (list (buffer-name))
-                ghostel-buffer-name-function #'ghostel-claude--name-from-title)))
+                ghostel-buffer-name-function #'ghostel-claude--name-from-title
+                bookmark-make-record-function #'ghostel-claude--bookmark-make-record)))
+
+;;;; Bookmarks (also used by activities.el to save/restore buffers)
+;;
+;; Claude does not print its session id, but each running Claude keeps a file
+;; ~/.claude/sessions/PID.json with it.  The Windows claude.exe (used on /mnt)
+;; writes the same under C:\Users\...\.claude\sessions with a *Windows* pid, so
+;; those are matched by working directory and start time instead.
+
+(declare-function ghostel-bookmark-make-record "ghostel-bookmark")
+(declare-function ghostel-bookmark-handler "ghostel-bookmark")
+(declare-function bookmark-prop-get "bookmark")
+(defvar ghostel--pid)
+
+(defun ghostel-claude--read-session (file)
+  "Parsed session FILE (an alist), or nil."
+  (condition-case nil
+      (if (fboundp 'json-parse-file)
+          (json-parse-file file :object-type 'alist)
+        (require 'json)
+        (let ((json-object-type 'alist) (json-key-type 'symbol))
+          (json-read-file file)))
+    (error nil)))
+
+(defun ghostel-claude--win-path (path)
+  "Convert Windows PATH like D:\\repos\\x to /mnt/d/repos/x."
+  (when (and (stringp path) (string-match "\\`\\([A-Za-z]\\):[\\\\/]\\(.*\\)" path))
+    (concat "/mnt/" (downcase (match-string 1 path)) "/"
+            (replace-regexp-in-string "\\\\" "/" (match-string 2 path)))))
+
+(defun ghostel-claude--session-id (&optional buffer)
+  "Claude session id of BUFFER (default current), or nil if unknown."
+  (with-current-buffer (or buffer (current-buffer))
+    (let* ((pid ghostel--pid)
+           (native (and pid (expand-file-name (format "~/.claude/sessions/%d.json" pid)))))
+      (if (and native (file-exists-p native))
+          (alist-get 'sessionId (ghostel-claude--read-session native))
+        (ghostel-claude--windows-session-id pid)))))
+
+(defun ghostel-claude--windows-session-files ()
+  "Session files of all readable Windows users (unreadable profiles are skipped)."
+  (seq-mapcat (lambda (u)
+                (ignore-errors
+                  (directory-files (expand-file-name ".claude/sessions" u) t "\\.json\\'")))
+              (ignore-errors (directory-files "/mnt/c/Users" t "\\`[^.]"))))
+
+(defun ghostel-claude--windows-session-id (pid)
+  "Session id of a Windows claude.exe started by WSL process PID, or nil.
+Match on working directory, then the start time closest to PID's."
+  (when-let* ((start (and pid (alist-get 'start (process-attributes pid))))
+              (ms (* 1000 (float-time start)))
+              (dir (directory-file-name (expand-file-name default-directory))))
+    (let (best (best-delta 120000.0))
+      (dolist (f (ghostel-claude--windows-session-files))
+        (let ((d (ghostel-claude--read-session f)))
+          (when (and d (equal (alist-get 'kind d) "interactive")
+                     (equal (ghostel-claude--win-path (alist-get 'cwd d)) dir))
+            (let ((delta (abs (- (alist-get 'startedAt d) ms))))
+              (when (< delta best-delta)
+                (setq best (alist-get 'sessionId d) best-delta delta))))))
+      best)))
+
+(defun ghostel-claude--bookmark-make-record ()
+  "Bookmark record for this Claude buffer: ghostel's plus the session id."
+  (let ((rec (ghostel-bookmark-make-record))
+        (id (ghostel-claude--session-id)))
+    (setf (alist-get 'handler (cdr rec)) #'ghostel-claude-bookmark-handler)
+    (when id (setf (alist-get 'claude-session (cdr rec)) id))
+    rec))
+
+(defun ghostel-claude-bookmark-handler (bmk)
+  "Restore Claude bookmark BMK: a live buffer for its session, else
+`claude --resume SESSION' in the bookmarked directory.  Without a recorded
+session id, behave like a plain ghostel bookmark."
+  (let ((id (bookmark-prop-get bmk 'claude-session))
+        (dir (bookmark-prop-get bmk 'location)))
+    (if (not id)
+        (ghostel-bookmark-handler bmk)
+      (set-buffer
+       (or (seq-find (lambda (b)
+                       (and (ghostel-claude--live-p b)
+                            (equal (ghostel-claude--session-id b) id)))
+                     (seq-filter (lambda (b) (buffer-local-value 'ghostel-claude--base b))
+                                 (buffer-list)))
+           (ghostel-claude--start (expand-file-name dir) (list "--resume" id)))))))
+
+(put 'ghostel-claude-bookmark-handler 'bookmark-handler-type "Claude")
 
 (defun ghostel-claude--buffer-for-name (name)
   "Live Claude buffer now or formerly called NAME, or nil."
@@ -121,14 +208,16 @@ Used as the buffer-local `ghostel-buffer-name-function'."
                        (ghostel-claude--live-p b)))
                 (buffer-list))))
 
-(defun ghostel-claude--start (root)
-  "Start a new Claude buffer for ROOT and return it."
+(defun ghostel-claude--start (root &optional extra-args)
+  "Start a new Claude buffer for ROOT and return it.
+EXTRA-ARGS are appended to `ghostel-claude-args'."
   (require 'ghostel)
   (let ((buf (generate-new-buffer (ghostel-claude--prefix root))))
     ;; ghostel spawns in the buffer's own `default-directory'.
     (with-current-buffer buf (setq default-directory root))
     (condition-case err
-        (ghostel-exec buf ghostel-claude-program ghostel-claude-args)
+        (ghostel-exec buf ghostel-claude-program
+                      (append ghostel-claude-args extra-args))
       (error (kill-buffer buf) (signal (car err) (cdr err))))
     (ghostel-claude--setup-buffer
      buf (file-name-nondirectory (directory-file-name root)))
@@ -583,14 +672,16 @@ and the tab(s) it is shown in; RET or a click opens one in the right window."
         (tab-bar-rename-tab name))))
   (select-window (ghostel-claude-workspace--ensure-layout)))
 
-;; Claude buffers that predate (re)loading this file: start following their title too.
+;; Claude buffers that predate (re)loading this file: follow their title and save session bookmarks too.
 (dolist (b (buffer-list))
-  (when (and (not (buffer-local-value 'ghostel-claude--base b))
-             (string-match "\\`\\*claude:\\([^*:]+\\)\\*\\(<[0-9]+>\\)?\\'" (buffer-name b))
-             (ghostel-claude--live-p b))
-    (ghostel-claude--setup-buffer b (match-string 1 (buffer-name b)))
-    (with-current-buffer b
-      (when (fboundp 'ghostel--update-title) (ghostel--update-title)))))
+  (when (ghostel-claude--live-p b)
+    (cond ((buffer-local-value 'ghostel-claude--base b)
+           (with-current-buffer b
+             (setq-local bookmark-make-record-function #'ghostel-claude--bookmark-make-record)))
+          ((string-match "\\`\\*claude:\\([^*:]+\\)\\*\\(<[0-9]+>\\)?\\'" (buffer-name b))
+           (ghostel-claude--setup-buffer b (match-string 1 (buffer-name b)))
+           (with-current-buffer b
+             (when (fboundp 'ghostel--update-title) (ghostel--update-title)))))))
 
 (provide 'ghostel-claude)
 ;;; ghostel-claude.el ends here
