@@ -25,7 +25,7 @@ setup copied from cc-local) loads first; `exwm.el` is layered on top. Reason for
 | `dpi.el` | `my/exwm-set-dpi` / `my/exwm-dpi-toggle` (`s-=`): switch 96 <-> 144 live. Saves choice in `dpi` file. |
 | `apps.el` | `my/exwm-launch-app`: completing-read launcher over `.desktop` files (terminal-only apps hidden). |
 | `ghostel-extras.el` | Wires `ghostel-claude` / `ghostel-tasks` (ported from the Windows Emacs config): `SPC p c` (= `C-x p c`) = Claude in project; `ghostel-tasks-projects` (clearcompany: workers + webapp, paths as `/mnt/d/...`) and the left-column task display. |
-| `clipsync.sh` | Two-way text CLIPBOARD sync WSLg `:0` <-> Xephyr `:1` (WSLg already syncs `:0` <-> Windows). Exits when Xephyr dies. |
+| `clipsync.sh` | Two-way text CLIPBOARD sync WSLg `:0` <-> Xephyr `:1` (WSLg already syncs `:0` <-> Windows). Event-driven via `clipnotify` (pacman; no polling, the old 0.4 s xclip loop flooded weston with ~42k selection requests/day). Exits when Xephyr dies. |
 | `keepkeys.sh` | Watchdog (every 3 s): re-applies F13->Super keymap and `Xft.dpi` if lost. Exits when Xephyr dies. |
 | `dpi` | One number: last chosen DPI (read by start.sh and keepkeys.sh). |
 | `elpa/` | EXWM + XELB packages (separate from `~/.emacs.d/elpa`). The Emacs server uses the default socket (`$XDG_RUNTIME_DIR/emacs/server`), so a plain `emacsclient` works, in ghostel too. |
@@ -100,6 +100,12 @@ So everything that touches them uses the **Windows** binaries, switched on the w
 - Known quirks: `git.exe` under a pty (magit) may print a stray `ESC[6n` (cursor-position query) in the process buffer; cosmetic, unconfirmed cause.
   Possible fix if it bothers: have the wrapper pipe `git.exe` output when called from Emacs (not ghostel). Not done.
 - `config-ui.el` (Arch copy) has `my/display-task-left` / `my/left-popup-p`: task + compile buffers go to a left popper column (25% wide, stacked by slot).
+
+## Lid close kills Xephyr (weston crash)
+Closing the laptop drops WSLg's RDP session; weston (WSLg's compositor, shared by all distros) then segfaults while destroying the `archlinux` app windows
+(`/mnt/wslg/stderr.log`: `weston ... terminated with signal 11`), and every client incl. Xephyr gets "Connection reset by peer". Seen 4x since the Nov 12 boot.
+Tried: clipsync polling -> `clipnotify` (suspected load; unconfirmed whether it helps). Next if it still crashes: `wsl --update`, or run Xephyr's content on Xvnc inside WSL (survives weston restarts).
+Beware `pkill -f "exwm-test/clipsync.sh"` from a Claude shell: it matches the shell's own command line and kills it; start it via `(setsid nohup ./clipsync.sh &)`.
 
 ## Debugging recipes
 - **Talk to the running Emacs**: `emacsclient -e '(...)'` (server starts only after init succeeds).
