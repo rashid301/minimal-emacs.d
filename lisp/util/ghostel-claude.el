@@ -40,6 +40,10 @@
 Saved window states (tab layouts) refer to buffers by name, so lookups
 also accept a former name.")
 
+(defvar ghostel-claude--counter 0 "Creation counter for Claude buffers.")
+(defvar-local ghostel-claude--seq nil
+  "Creation order of this Claude buffer; gives lists a stable order.")
+
 (defcustom ghostel-claude-title-max 50
   "Longest terminal title (characters) put in a Claude buffer name."
   :type 'integer
@@ -68,7 +72,8 @@ Used as the buffer-local `ghostel-buffer-name-function'."
 (defun ghostel-claude--setup-buffer (buf base)
   "Make BUF (a Claude buffer for project dir name BASE) follow its title."
   (with-current-buffer buf
-    (setq-local ghostel-claude--base base
+    (setq-local ghostel-claude--seq (or ghostel-claude--seq (cl-incf ghostel-claude--counter))
+                ghostel-claude--base base
                 ghostel-claude--names (list (buffer-name))
                 ghostel-buffer-name-function #'ghostel-claude--name-from-title
                 bookmark-make-record-function #'ghostel-claude--bookmark-make-record)))
@@ -335,8 +340,10 @@ there is none.  With prefix argument NEW, start an additional Claude."
 
 (defun ghostel-claude-workspace--sort-key (buf)
   "Sort key for BUF that does not change when its title does."
-  (or (car (last (buffer-local-value 'ghostel-claude--names buf)))
-      (buffer-name buf)))
+  (if-let* ((n (buffer-local-value 'ghostel-claude--seq buf)))
+      (format "%08d" n)
+    (or (car (last (buffer-local-value 'ghostel-claude--names buf)))
+        (buffer-name buf))))
 
 (defun ghostel-claude-workspace--title (buf)
   "Terminal title of BUF without its state glyph."
@@ -447,10 +454,22 @@ there is none.  With prefix argument NEW, start an additional Claude."
                 (t short))
           (format "%s\n%s" name (or title "")))))
 
+(defface ghostel-claude-current '((t :inherit font-lock-keyword-face :weight bold))
+  "Marker for the Claude you are on in the agents sidebar." :group 'ghostel)
+
+(defun ghostel-claude-workspace--current (claudes)
+  "The Claude you are on: the selected window's, else one visible next to the sidebar."
+  (let ((sel (window-buffer (selected-window))))
+    (if (memq sel claudes)
+        sel
+      (seq-some (lambda (w) (let ((b (window-buffer w))) (and (memq b claudes) b)))
+                (window-list nil 'no-minibuffer)))))
+
 (defun ghostel-claude-workspace--groups (claudes)
   "Group CLAUDES by project: list of (PROJECT . ROWS), most urgent first.
 Each row notes, dimmed, the tab(s) where that Claude is on screen."
   (let ((here (ghostel-claude-workspace--agents-tab-name))
+        (cur (ghostel-claude-workspace--current claudes))
         (by-proj (make-hash-table :test #'equal))
         projects)
     (dolist (b claudes)
@@ -471,7 +490,7 @@ Each row notes, dimmed, the tab(s) where that Claude is on screen."
                                                           (mapconcat (lambda (tb) (replace-regexp-in-string "\\`α: " "" tb))
                                                                      tabs ", "))
                                                   'face 'shadow))))
-                      row))
+                      (append row (list (eq b cur)))))
                   (sort (copy-sequence (gethash p by-proj))
                         (lambda (a b) (or (< (funcall rank a) (funcall rank b))
                                           (and (= (funcall rank a) (funcall rank b))
@@ -502,8 +521,10 @@ Each row notes, dimmed, the tab(s) where that Claude is on screen."
                    'face 'bold 'ghostel-claude-project tab 'ghostel-claude-header t
                    'mouse-face 'highlight
                    'help-echo "RET / mouse-1: jump to this project's tab, c: new session"))
-          (pcase-dolist (`(,buf ,label ,text ,help) (cdr g))
-            (insert (propertize (format "  %s  %s\n" label text)
+          (pcase-dolist (`(,buf ,label ,text ,help ,cur) (cdr g))
+            (insert (propertize (format " %s %s  %s\n"
+                                        (if cur (propertize "▶" 'face 'ghostel-claude-current) " ")
+                                        label text)
                                 'ghostel-claude-agent buf 'ghostel-claude-project tab
                                 'mouse-face 'highlight 'help-echo help))))))
     (goto-char (point-min))))
@@ -774,6 +795,42 @@ In the agents tab it takes the main window; a visible Claude is just selected."
       (cl-pushnew (abbreviate-file-name (expand-file-name r)) roots :test #'equal))
     roots))
 
+;; Cycling uses a stable order (project, then start order), not the sidebar's urgency
+;; order: that one reshuffles whenever a state changes, which would make next/prev jump.
+(defun ghostel-claude--cycle (dir)
+  "Show the Claude DIR (+1 or -1) places after the current one, wrapping."
+  (let* ((bufs (sort (ghostel-claude-workspace--claudes)
+                     (lambda (a b)
+                       (let ((pa (ghostel-claude--project-of a))
+                             (pb (ghostel-claude--project-of b)))
+                         (if (equal pa pb)
+                             (string< (ghostel-claude-workspace--sort-key a)
+                                      (ghostel-claude-workspace--sort-key b))
+                           (string< pa pb))))))
+         (n (length bufs))
+         (cur (cond ((memq (current-buffer) bufs) (current-buffer))
+                    ;; in the sidebar: the Claude in the main window
+                    ((equal (buffer-name) ghostel-claude-workspace--buffer-name)
+                     (seq-find (lambda (b) (get-buffer-window b)) bufs))))
+         (idx (and cur (cl-position cur bufs))))
+    (when (zerop n) (user-error "No Claude running"))
+    (let* ((next (if idx (mod (+ idx dir) n) (if (> dir 0) 0 (1- n))))
+           (buf (nth next bufs)))
+      (ghostel-claude--show-here buf)
+      (message "Claude %d/%d: %s" (1+ next) n (or (ghostel-claude-workspace--title buf) (buffer-name buf))))))
+
+;;;###autoload
+(defun ghostel-claude-next ()
+  "Show the next running Claude (by project, then start order), wrapping around."
+  (interactive)
+  (ghostel-claude--cycle 1))
+
+;;;###autoload
+(defun ghostel-claude-prev ()
+  "Show the previous running Claude (by project, then start order), wrapping around."
+  (interactive)
+  (ghostel-claude--cycle -1))
+
 ;;;###autoload
 (defun ghostel-claude-jump ()
   "Switch to a running Claude by name, or start one.
@@ -929,6 +986,15 @@ and the tab(s) it is shown in; RET or a click opens one in the right window."
   (select-window (ghostel-claude-workspace--ensure-layout)))
 
 ;; Claude buffers that predate (re)loading this file: follow their title and save session bookmarks too.
+;; Number the ones without a creation order, oldest process first.
+(dolist (b (sort (seq-filter (lambda (b)
+                               (and (string-prefix-p "*claude:" (buffer-name b))
+                                    (ghostel-claude--live-p b)
+                                    (null (buffer-local-value 'ghostel-claude--seq b))))
+                             (buffer-list))
+                 (lambda (a b) (< (or (buffer-local-value 'ghostel--pid a) 0)
+                                  (or (buffer-local-value 'ghostel--pid b) 0)))))
+  (with-current-buffer b (setq-local ghostel-claude--seq (cl-incf ghostel-claude--counter))))
 (dolist (b (buffer-list))
   (when (and (string-prefix-p "*claude:" (buffer-name b))
              (ghostel-claude--live-p b))

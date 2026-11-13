@@ -118,6 +118,8 @@
 
 ;; ghostel-claude lives in lisp/util (put on `load-path' by exwm/ghostel-extras.el).
 (autoload 'ghostel-claude-jump "ghostel-claude" nil t)
+(autoload 'ghostel-claude-next "ghostel-claude" nil t)
+(autoload 'ghostel-claude-prev "ghostel-claude" nil t)
 
 (defvar my/super-bindings
   '(;; focus
@@ -140,7 +142,8 @@
     ("s-f" . my/super-toggle-maximize) ("s-d" . my/super-launch-app)
     ("s-i" . thanos/type)
     ;; running Claude by name, or start one (needs ghostel-claude on `load-path')
-    ("s-c" . ghostel-claude-jump))
+    ("s-c" . ghostel-claude-jump)
+    ("s-]" . ghostel-claude-next)  ("s-[" . ghostel-claude-prev))
   "Alist of (KEY-STRING . COMMAND) for the portable Super bindings.")
 
 (defvar my/super-mode-map (make-sparse-keymap)
