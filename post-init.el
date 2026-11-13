@@ -34,6 +34,9 @@
 ;; Org + Org-roam
 (load "config-org")
 
+;; Calendar: aggregated Google iCal feeds (calfw)
+(load "config-calendar")
+
 ;; Utils
 (load "config-utils")
 
