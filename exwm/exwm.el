@@ -387,6 +387,12 @@ plain default background (a white patch).  Keep the same 4-column padding as a s
         (when (facep (car spec))
           (set-face-attribute (car spec) nil :background (cadr spec) :foreground bg :weight 'bold
                               :inherit 'unspecified))))
+    ;; ace-window (M-o): big filled accent label on each window, other text dimmed.
+    (when (facep 'aw-leading-char-face)
+      (set-face-attribute 'aw-leading-char-face nil :foreground bg :background accent
+                          :weight 'bold :height 2.0 :inherit 'unspecified)
+      (set-face-attribute 'aw-background-face nil :foreground dim :inherit 'unspecified)
+      (set-face-attribute 'aw-mode-line-face nil :foreground accent :weight 'bold :inherit 'unspecified))
     (when (facep 'auto-dim-other-buffers)
       (set-face-attribute 'auto-dim-other-buffers nil :background (funcall shift 3) :foreground (funcall shift 50)))
     ;; Floating X windows (dialogs, pickers): accent border, like the selected tab.
@@ -430,37 +436,94 @@ plain default background (a white patch).  Keep the same 4-column padding as a s
   (with-current-buffer buf
     (and (derived-mode-p 'exwm-mode) (member exwm-class-name '("firefox" "Firefox")))))
 
+(defun my/exwm--clip-get ()
+  "Current CLIPBOARD text as the X server has it (nil if empty).
+Via xclip, not `gui-get-selection': Emacs can keep believing it owns the clipboard after another client
+took it over and keep returning its own stale value."
+  (with-temp-buffer
+    (when (zerop (call-process "timeout" nil t nil "2" "xclip" "-selection" "clipboard"
+                               "-t" "UTF8_STRING" "-o"))
+      (let ((s (buffer-string))) (unless (string-empty-p s) s)))))
+
+(defun my/exwm--clip-put (text)
+  "Make xclip (not Emacs) own the CLIPBOARD with TEXT."
+  (let ((p (start-process "xclip-put" nil "xclip" "-selection" "clipboard" "-t" "UTF8_STRING" "-i")))
+    (set-process-query-on-exit-flag p nil)
+    (process-send-string p text)
+    (process-send-eof p)))
+
+(defun my/exwm--firefox-get-url (callback)
+  "Fetch the URL of the selected Firefox window, then call CALLBACK with it (or nil on failure).
+Asynchronous: C-l / C-c / Escape go to Firefox via fake keys, and the clipboard is polled for the URL.
+The keys are sent to that Firefox window explicitly (`with-selected-window'), so they still reach it if
+focus-follows-mouse or typing moves the selected window meanwhile."
+  (let ((win (selected-window)) (tries 0) timer (old (my/exwm--clip-get)))
+    (cl-labels ((alive () (and (window-live-p win) (my/exwm--firefox-buffer-p (window-buffer win))))
+                (key (fn) (when (alive) (with-selected-window win (funcall fn))))
+                (finish (url)
+                  ;; Escape right after the copy is dropped by Firefox, and the first Escape only closes
+                  ;; the URL-bar dropdown (which opens a moment after focusing); the second leaves the bar.
+                  (dolist (delay '(0.25 0.5))
+                    (run-at-time delay nil (lambda () (key #'exwm-firefox-core-cancel))))
+                  ;; On failure put back what the clipboard held before (the placeholder must not linger).
+                  (when (and (not url) old) (my/exwm--clip-put old))
+                  (funcall callback url)))
+      ;; Placeholder so a stale clipboard can't be mistaken for the copied URL.
+      (my/exwm--clip-put "exwm-url-pending")
+      (key #'exwm-firefox-core-focus-search-bar)
+      (run-at-time
+       0.35 nil
+       (lambda ()
+         (key #'exwm-firefox-core-copy)
+         (setq timer
+               (run-at-time
+                0.1 0.1
+                (lambda ()
+                  (cl-incf tries)
+                  (let ((url (my/exwm--clip-get)))
+                    (cond ((not (alive)) (cancel-timer timer))
+                          ((and url (string-match-p "\\`[a-z][a-z0-9+.-]*:" url))
+                           (cancel-timer timer) (finish url))
+                          ((>= tries 30) (cancel-timer timer) (finish nil))
+                          ;; Firefox can be slow to focus the URL bar: if the first Ctrl+C copied
+                          ;; nothing, press Ctrl+C again every half second (harmless if repeated).
+                          ((zerop (% tries 5)) (key #'exwm-firefox-core-copy))))))))))))
+
 (defun my/exwm-copy-firefox-url ()
   "Copy the URL of the selected Firefox window to the clipboard and kill ring."
-  (let ((win (selected-window)) (tries 0) timer)
-    ;; Sentinel so a stale clipboard can't be mistaken for the copied URL.
-    (gui-set-selection 'CLIPBOARD "exwm-url-pending")
-    (exwm-firefox-core-focus-search-bar)
-    (cl-flet ((still-here () (and (window-live-p win) (eq win (selected-window))))
-              (finish (url)
-                ;; Escape right after the copy is dropped by Firefox, and the first Escape only closes
-                ;; the URL-bar dropdown (which opens a moment after focusing); the second leaves the bar.
-                (dolist (delay '(0.25 0.5))
-                  (run-at-time delay nil (lambda () (when (still-here) (exwm-firefox-core-cancel)))))
-                (if url
-                    (progn (kill-new url) (message "Copied URL: %s" url))
-                  (message "Could not read the Firefox URL (empty address bar, or Firefox did not answer)"))))
-      (run-at-time
-       0.25 nil
-       (lambda ()
-         (if (not (still-here))
-             (message "Copy URL cancelled: Firefox window lost focus")
-           (exwm-firefox-core-copy)
-           (setq timer
-                 (run-at-time
-                  0.1 0.1
-                  (lambda ()
-                    (cl-incf tries)
-                    (let ((url (ignore-errors (gui-get-selection 'CLIPBOARD 'UTF8_STRING))))
-                      (cond ((not (still-here)) (cancel-timer timer))
-                            ((and url (string-match-p "\\`[a-z][a-z0-9+.-]*:" url))
-                             (cancel-timer timer) (finish url))
-                            ((>= tries 20) (cancel-timer timer) (finish nil)))))))))))))
+  (my/exwm--firefox-get-url
+   (lambda (url)
+     (if url
+         (progn (kill-new url) (message "Copied URL: %s" url))
+       (message "Could not read the Firefox URL (empty address bar, or Firefox did not answer)")))))
+
+(defun my/exwm--firefox-page-title ()
+  "Page title of the selected Firefox window (window title minus the profile / browser suffix)."
+  (let ((title (or exwm-title "")))
+    (replace-regexp-in-string "\\(\\s-+[—-]\\s-+[^—-]+\\)?\\s-+[—-]\\s-+Mozilla Firefox\\'" "" title)))
+
+(defun my/exwm-copy-org-link ()
+  "Copy the current page as an org link, [[URL][TITLE]]: Firefox page, or the visited file otherwise."
+  (interactive)
+  (cond
+   ((my/exwm--firefox-buffer-p (current-buffer))
+    (let ((title (replace-regexp-in-string "[][]" (lambda (m) (if (equal m "[") "(" ")"))
+                                           (my/exwm--firefox-page-title))))
+      (my/exwm--firefox-get-url
+       (lambda (url)
+         (if url
+             (let ((link (format "[[%s][%s]]" url (if (string-empty-p title) url title))))
+               (kill-new link) (message "Copied: %s" link))
+           (message "Could not read the Firefox URL"))))))
+   (buffer-file-name
+    (let ((link (format "[[file:%s][%s]]" (abbreviate-file-name buffer-file-name)
+                        (file-name-nondirectory buffer-file-name))))
+      (kill-new link) (message "Copied: %s" link)))
+   (t (message "Not a Firefox window or a file buffer"))))
+
+(with-eval-after-load 'general
+  (when (fboundp 'my-leader-def)
+    (my-leader-def "fY" '(my/exwm-copy-org-link :which-key "copy org link (Firefox page / file)"))))
 
 (advice-add 'my/copy-file-path :around
             (lambda (orig &rest args)
