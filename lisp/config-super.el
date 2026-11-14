@@ -168,6 +168,7 @@ Drops all other windows without the usual sanity checks and clears side flags."
     ("s-<return>" . ghostel)       ("s-a" . activities-resume)
     ("s-SPC" . my-leader)          ("s-o" . visual-fill-column-mode)
     ("s-f" . my/super-toggle-maximize) ("s-d" . my/super-launch-app)
+    ("s-w" . tab-bar-close-tab)
     ("s-i" . thanos/type)
     ;; running Claude by name, or start one (needs ghostel-claude on `load-path')
     ("s-c" . ghostel-claude-jump)
