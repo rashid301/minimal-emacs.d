@@ -309,6 +309,17 @@ Reads `display-time-string' / `battery-mode-line-string' directly (cheap; both a
 (display-battery-mode 1)
 (setq tab-bar-format '(tab-bar-format-history tab-bar-format-tabs tab-bar-separator
                        tab-bar-format-add-tab my/tab-bar-format-rule-right my/tab-bar-format-status))
+;; Echo area + minibuffer: strip background (matches the tab bar), accent prompt.
+(defvar my/exwm-strip nil "Current strip color, set by `my/exwm-style-ui'.")
+(defvar-local my/exwm-echo-remap nil)
+(defun my/exwm-style-echo-buffer ()
+  "Give the current (echo area / minibuffer) buffer the strip background."
+  (when my/exwm-strip
+    (when my/exwm-echo-remap (face-remap-remove-relative my/exwm-echo-remap))
+    (setq my/exwm-echo-remap
+          (face-remap-add-relative 'default :background my/exwm-strip))))
+(add-hook 'minibuffer-setup-hook #'my/exwm-style-echo-buffer)
+
 (defun my/exwm-style-ui (&rest _)
   (let* ((bg (face-attribute 'default :background nil t))
          (fg (face-attribute 'default :foreground nil t))
@@ -335,6 +346,15 @@ Reads `display-time-string' / `battery-mode-line-string' directly (cheap; both a
                               :box `(:line-width ,w :color ,b :style nil))))
       (set-face-attribute 'mode-line nil :background strip :foreground fg
                           :box `(:line-width ,w :color ,strip :style nil)))
+    (setq my/exwm-strip strip)
+    ;; Frame margin (spacious-padding's internal border) = strip color: tab bar, side/bottom margins and echo
+    ;; area become one continuous frame around the windows.
+    (set-face-attribute 'internal-border nil :background strip)
+    (set-face-attribute 'minibuffer-prompt nil :foreground accent :weight 'bold)
+    ;; The row at the bottom shows " *Minibuf-N*" when idle and " *Echo Area N*" for messages.
+    (dolist (b (buffer-list))
+      (when (string-match-p "\\` \\*\\(Minibuf-[0-9]+\\|Echo Area [0-9]+\\)\\*\\'" (buffer-name b))
+        (with-current-buffer b (my/exwm-style-echo-buffer))))
     (when (facep 'auto-dim-other-buffers)
       (set-face-attribute 'auto-dim-other-buffers nil :background (funcall shift 3) :foreground (funcall shift 50)))
     ;; Floating X windows (dialogs, pickers): accent border, like the selected tab.
