@@ -11,7 +11,11 @@
 ;; Server so the running session can be inspected from outside (emacsclient).
 (require 'server)
 ;; Default socket ($XDG_RUNTIME_DIR/emacs/server): a plain `emacsclient' works from ghostel too.
-(unless (server-running-p) (server-start))
+;; A hung Emacs left over from an earlier start.sh run still owns the socket and makes
+;; `server-running-p' say yes, so this session would get no server and every emacsclient would
+;; time out. This EXWM Emacs is the only one meant to own the socket: take it over.
+(server-force-delete)
+(server-start)
 
 ;; App launcher (M-a), see apps.el
 (load "/home/dev/exwm-test/apps.el")
@@ -88,6 +92,7 @@
         (cons (kbd "s-r") #'exwm-reset)
         (cons (kbd "s-=") #'my/exwm-dpi-toggle)
         (cons (kbd "s-v") #'my/whisper-toggle)
+        (cons (kbd "s-<f11>") #'my/xephyr-toggle-fullscreen)   ; hide/show the WSLg title bar
         (cons (kbd "s-&")
               (lambda (cmd)
                 (interactive (list (read-shell-command "$ ")))
@@ -135,6 +140,23 @@
         (exwm-randr-refresh))
       (setq my/exwm-prev-size size))))
 (run-with-timer 2 0.3 #'my/exwm-check-resize)
+
+;; Toggle fullscreen on the WSLg host window of this Xephyr (hides the Windows title bar).
+;; Xephyr itself is an X client of WSLg's :0, so ask :0 to flip _NET_WM_STATE_FULLSCREEN.
+;; Not bound to a key on purpose: run with M-x.  Caveat: while fullscreen, WSLg may stop
+;; delivering mouse input to Xephyr; this command works from the keyboard to toggle back.
+(defun my/xephyr-toggle-fullscreen ()
+  "Toggle the host (WSLg) window of this Xephyr between windowed and fullscreen."
+  (interactive)
+  (let* ((name (format "^Xephyr on %s\\." (regexp-quote (or (getenv "DISPLAY") ":1"))))
+         (process-environment (cons "DISPLAY=:0" process-environment))
+         (id (with-temp-buffer
+               (when (zerop (call-process "xdotool" nil t nil "search" "--name" name))
+                 (car (split-string (buffer-string) "\n" t))))))
+    (if (not id)
+        (user-error "No Xephyr host window found on :0")
+      (call-process "xdotool" nil nil nil "windowstate" "--toggle" "FULLSCREEN" id)
+      (message "Toggled fullscreen on Xephyr host window %s" id))))
 
 ;; XSETTINGS: one source of truth for DPI/font rendering, pushed to every GTK/Qt app (even
 ;; running ones). The DPI comes from XFT_DPI (exported by start.sh), so Xephyr, xrdb, Firefox's

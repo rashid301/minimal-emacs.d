@@ -60,8 +60,15 @@ their `post-init.el` — so the same keys work in all three Emacs (EWM / EXWM / 
 - **Xephyr only refreshes its RandR monitor data when a client does a full RandR query.** After a Windows-side resize EXWM sees stale
   sizes. `exwm.el` runs a 0.3 s timer: read the real root size via xcb, and on a stable mismatch run `xrandr --listmonitors`
   then `exwm-randr-refresh` (max 5 tries per size). Emacs's own `x-display-pixel-width` goes stale too — don't use it.
-- **Fullscreen is disabled in WSLg's weston** (nested window vanishes). Maximize instead. Fix = gist mle98/2deb6e0aa1da3aed70a73dad9c29e8f7
-  (patches `system.vhd`, affects EVERY WSL distro) — NOT applied.
+- **Fullscreen (hides the WSLg/Windows title bar): toggle it at runtime with `s-<f11>`, never with Xephyr's `-fullscreen` flag.**
+  Launching with `-fullscreen` (also tried `-softCursor`, `-no-host-grab`) leaves the X server with no pointer motion at all — keyboard
+  works, mouse is dead (checked with `xdotool getmouselocation` on the Xephyr display). Setting `_NET_WM_STATE_FULLSCREEN` on the already-open
+  host window works and keeps the mouse. `my/xephyr-toggle-fullscreen` (exwm.el) does this: it finds the host window `Xephyr on :1.*`
+  on WSLg's `:0` and runs `xdotool windowstate --toggle FULLSCREEN` on it. Needs `xdotool`. (The gist
+  mle98/2deb6e0aa1da3aed70a73dad9c29e8f7 patches `system.vhd` for a different fullscreen problem, affects EVERY WSL distro — NOT applied.)
+- **Stale Emacs holds the server socket**: if an old EXWM Emacs hangs (its Xephyr was killed by `start.sh`), `server-running-p` still says yes,
+  the new Emacs gets no server, and every `emacsclient` times out. `exwm.el` now does `server-force-delete` before `server-start`;
+  if it still happens, `pgrep -ax emacs` and `kill -9` the old one.
 - **No scaling for X11 apps**: Windows is at 125% but Xephyr is 1:1. One knob `XFT_DPI` (default = `dpi` file, else 144):
   Xephyr `-dpi`, `xrdb Xft.dpi` (xterm etc.), **XSETTINGS** via `exwm-xsettings` (GTK/Qt + Emacs fonts, live), `QT_FONT_DPI`.
   **Firefox ignores Xft.dpi/XSETTINGS for scale on X11** (verified: devicePixelRatio stayed 1) -> `layout.css.devPixelsPerPx = DPI/96`
