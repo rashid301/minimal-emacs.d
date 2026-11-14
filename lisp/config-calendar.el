@@ -23,7 +23,9 @@ Each source returns no events while its name is in `my/calendar-hidden'."
           (let* ((name (nth 2 c))
                  (src (calfw-ical-create-source url name (nth 1 c)))
                  (data (calfw-source-data src)))
-            (setf (calfw-source-data src)
+            ;; `cl-struct-slot-value', not `(setf (calfw-source-data ..))': calfw isn't loaded when
+            ;; this file is, so setf wouldn't know the accessor and would expand to a void function.
+            (setf (cl-struct-slot-value 'calfw-source 'data src)
                   (lambda (&rest args)
                     (unless (member name my/calendar-hidden)
                       (apply data args))))
