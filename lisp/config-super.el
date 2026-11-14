@@ -59,10 +59,20 @@
    ((memq dir '(left right)) (my/super--space dir))
    (t (message "no window to the %s" dir))))
 
+(defun my/super--plain-p (w)
+  "Non-nil if W is an ordinary window: not a side window and not dedicated.
+Swapping/moving these with side windows (agents sidebar, right side window)
+corrupts the window tree (\"same side ... but no common parent\")."
+  (and (window-live-p w)
+       (not (window-parameter w 'window-side))
+       (not (window-dedicated-p w))))
+
 (defun my/super-swap (dir)
   "Swap the selected window with the one in DIR; at the edge, move the frame/tab."
   (let ((other (my/super--other-window dir)))
     (cond
+     ((and other (not (and (my/super--plain-p (selected-window)) (my/super--plain-p other))))
+      (message "Side/dedicated window: not swapping"))
      (other (window-swap-states (selected-window) other))
      ((and (eq dir 'left) (fboundp 'ewm-frame-move-left)) (ewm-frame-move-left))
      ((and (eq dir 'right) (fboundp 'ewm-frame-move-right)) (ewm-frame-move-right))
@@ -74,12 +84,26 @@
   "Move the current buffer into the window in DIR."
   (let* ((this (selected-window))
          (other (windmove-find-other-window dir)))
-    (if other
+    (cond
+     ((and other (not (and (my/super--plain-p this) (my/super--plain-p other))))
+      (message "Side/dedicated window: not moving"))
+     (other
         (let ((buf-this (window-buffer this)))
           (switch-to-prev-buffer this)
           (select-window other)
-          (switch-to-buffer buf-this))
-      (message "no window to the %s" dir))))
+          (switch-to-buffer buf-this)))
+     (t (message "no window to the %s" dir)))))
+
+(defun my/window-repair ()
+  "Recover a tab whose window tree is corrupted (cannot delete windows).
+Drops all other windows without the usual sanity checks and clears side flags."
+  (interactive)
+  (let ((win (selected-window)))
+    (set-window-parameter win 'window-side nil)
+    (set-window-parameter win 'window-slot nil)
+    (set-window-dedicated-p win nil)
+    (delete-other-windows-internal win)
+    (message "Window tree reset; re-open the layout (e.g. s-c).")))
 
 ;; my/super-focus-left, my/super-swap-down, my/super-move-buffer-up, ...
 (dolist (kind '(focus swap move-buffer))
