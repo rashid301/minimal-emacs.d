@@ -6,7 +6,7 @@
 export PATH="$HOME/.local/bin:$PATH"
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1  # puts nvm default node + global npm bins on PATH
-pkill -x Xephyr 2>/dev/null; pkill -f "exwm-test/clipsync.sh" 2>/dev/null; pkill -f "exwm-test/keepkeys.sh" 2>/dev/null; sleep 0.5
+pkill -x Xephyr 2>/dev/null; pkill -x picom 2>/dev/null; pkill -f "exwm-test/clipsync.sh" 2>/dev/null; pkill -f "exwm-test/keepkeys.sh" 2>/dev/null; sleep 0.5
 # ONE knob for scaling (X11 apps get no Windows scaling): XFT_DPI env, else the last DPI chosen with s-= / my/exwm-set-dpi, else 144
 export XFT_DPI=${XFT_DPI:-$(cat "$HOME/exwm-test/dpi" 2>/dev/null || echo 144)}
 # Log why Xephyr/Emacs die (WSLg sleep/lid-close deaths left no trace before): ~/exwm-test/logs/
@@ -17,6 +17,12 @@ echo "=== $(date '+%F %T') start.sh (uptime $(cut -d' ' -f1 /proc/uptime)s)" >> 
 "$HOME/exwm-test/clipsync.sh" &   # mirrors clipboard WSLg(:0) <-> Xephyr(:1); exits when Xephyr exits
 # wait until Xephyr actually accepts connections (a fixed sleep lost Xft.dpi before)
 for i in $(seq 1 50); do DISPLAY=:1 xdpyinfo >/dev/null 2>&1 && break; sleep 0.2; done
+
+# Compositor: shadows + rounded corners for EXWM's floating windows only (see picom.conf).  It exits by itself
+# when Xephyr goes away.  Remove this block (or uninstall picom) to run without it.
+if command -v picom >/dev/null && [ -f "$HOME/exwm-test/picom.conf" ]; then
+  DISPLAY=:1 picom --config "$HOME/exwm-test/picom.conf" --log-file "$LOGD/picom.log" &
+fi
 
 # Super key: Windows keeps the Win key and Right/Left Alt look identical to X, so kmonad turns a held
 # f or j into F13 (see Windows ~/kmonad/conf.kbd) and F13 (keycode 191) becomes Super here.
