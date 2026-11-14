@@ -70,6 +70,8 @@
         '(("rashid301@gmail.com"     . "email/personal")
           ("rashid@bitbute.tech"     . "email/zoho")
           ("rshaikh@coachsensai.com" . "email/sensai")))
+  ;; One shortcut row that opens Gmail in the browser (no data is fetched).
+  (setq briefing-mail-work-link "https://mail.google.com/")
   ;; Work mail (Gmail connector via `claude -p') is built but DISABLED: the model often
   ;; answers without running the search, and a call costs a few cents.  See
   ;; `briefing-work-mail-fetch' in briefing-mail.el before enabling:

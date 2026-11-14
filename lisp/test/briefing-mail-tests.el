@@ -477,5 +477,44 @@ except Exception as e: print(e)"))))
           (briefing-mail-fetch (lambda (r) (setq result r)) t))))
     (should (equal (mapcar #'briefing-item-why result) '("Work" "x")))))
 
+;;;; Work-mail link row
+
+(ert-deftest briefing-mail-link-row-appears-last-and-opens-the-url ()
+  (let ((briefing-mail-work-link "https://mail.google.com/")
+        result)
+    (briefing-mail-test-with-accounts `(("A" ,(briefing-mail-test--msg "newest" 900) ,(briefing-mail-test--msg "older" 100)))
+      (briefing-mail-fetch (lambda (r) (setq result r)) nil))
+    (should (equal (mapcar #'briefing-item-title result)
+                   '("newest" "older" "Open work mail (Gmail)")))
+    (let ((link (car (last result))))
+      (should (equal (briefing-item-url link) briefing-mail-work-link))
+      (should (eq (briefing--section-of link) 'mail))
+      (should (equal (briefing-item-why link) "Work")))))
+
+(ert-deftest briefing-mail-link-row-survives-failing-accounts ()
+  ;; The shortcut is most useful exactly when the fetches fail.
+  (let ((briefing-mail-work-link "https://mail.google.com/x") result)
+    (briefing-mail-test-with-accounts '(("A" error . "A: down"))
+      (briefing-mail-fetch (lambda (r) (setq result r)) nil))
+    (should-not (eq (car-safe result) 'error))
+    (should (equal (mapcar #'briefing-item-title result) '("A: down" "Open work mail (Gmail)")))))
+
+(ert-deftest briefing-mail-link-row-works-without-any-accounts ()
+  (let ((briefing-mail-work-link "https://mail.google.com/x")
+        (briefing-mail-accounts nil) (briefing-mail-providers nil) result)
+    (briefing-mail-fetch (lambda (r) (setq result r)) nil)
+    (should (equal (mapcar #'briefing-item-title result) '("Open work mail (Gmail)")))))
+
+(ert-deftest briefing-mail-no-link-no-row ()
+  (let ((briefing-mail-work-link nil) result)
+    (briefing-mail-test-with-accounts `(("A" ,(briefing-mail-test--msg "m" 1)))
+      (briefing-mail-fetch (lambda (r) (setq result r)) nil))
+    (should (equal (mapcar #'briefing-item-title result) '("m")))
+    (dolist (empty '(nil ""))
+      (let ((briefing-mail-work-link empty)) (should-not (briefing-mail--link-item))))))
+
+(ert-deftest briefing-mail-link-row-cannot-become-a-task ()
+  (should (memq 'maillink briefing-task-source-ids)))
+
 (provide 'briefing-mail-tests)
 ;;; briefing-mail-tests.el ends here

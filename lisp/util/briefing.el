@@ -59,7 +59,7 @@
   "Functions returning a string (or nil) to append to the header line."
   :type 'hook)
 
-(defconst briefing-task-source-ids '(inbox next wait caltask task calerr mailerr)
+(defconst briefing-task-source-ids '(inbox next wait caltask task calerr mailerr maillink)
   "Sections whose rows already are Taskwarrior tasks (so `T' has nothing to add).")
 
 (defface briefing-section '((t :inherit font-lock-keyword-face :weight bold :height 1.1))

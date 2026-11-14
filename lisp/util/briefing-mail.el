@@ -30,6 +30,11 @@
 A plist has :name, :host, :user and optionally :port."
   :type '(choice (const gnus) (repeat plist)))
 
+(defcustom briefing-mail-work-link nil
+  "URL that opens your work mail, shown as one row in the Mail section, or nil.
+No data is fetched: it is only a shortcut (RET or `o' opens it in the browser)."
+  :type '(choice (const nil) string))
+
 (defcustom briefing-mail-limit 6
   "Newest unread messages listed per account."
   :type 'integer)
@@ -159,32 +164,46 @@ with a list of items or (error . MSG).  Added by other files.")
 
 ;;;; The section
 
+(defun briefing-mail--link-item ()
+  "The one \"open work mail\" row, or nil when `briefing-mail-work-link' is unset."
+  (when (and briefing-mail-work-link (not (string-empty-p briefing-mail-work-link)))
+    (briefing-item-create :source 'maillink :section 'mail :key "work-link"
+                          :why "Work" :title "Open work mail (Gmail)"
+                          :url briefing-mail-work-link :data -2)))
+
 (defun briefing-mail-fetch (callback force)
   "Gather unread mail from every account and provider, then call CALLBACK.
-A failing account shows as one line; the others still show."
+A failing account shows as one line; the others still show.  The work-mail link
+row, when configured, is always last and shows even when everything else fails."
   (let* ((accts (briefing-mail--accounts))
          (providers briefing-mail-providers)
+         (link (briefing-mail--link-item))
          (pending (+ (length accts) (length providers)))
          (items nil) (errors nil) (done nil))
-    (if (zerop pending)
-        (funcall callback (cons 'error "no mail accounts (Gnus has no nnimap accounts)"))
-      (cl-flet ((joined (r)
-                  (if (eq (car-safe r) 'error) (push (cdr r) errors) (setq items (append items r)))
-                  (when (and (zerop (cl-decf pending)) (not done))
-                    (setq done t)
-                    (funcall
-                     callback
-                     (if (and errors (null items))
-                         (cons 'error (string-join (reverse errors) "; "))
-                       (append
-                        (mapcar (lambda (e) (briefing-item-create :source 'mailerr :section 'mail
-                                                                  :key e :why "!" :title e))
-                                (reverse errors))
-                        ;; Newest first, each account's "… N more" row last.
-                        (sort items (lambda (a b) (> (or (briefing-item-data a) 0)
-                                                     (or (briefing-item-data b) 0))))))))))
-        (dolist (a accts) (briefing-mail--fetch-account a #'joined))
-        (dolist (p providers) (funcall p #'joined force))))))
+    (cl-flet ((finish ()
+                (setq done t)
+                (funcall
+                 callback
+                 (if (and errors (null items) (null link))
+                     (cons 'error (string-join (reverse errors) "; "))
+                   (append
+                    (mapcar (lambda (e) (briefing-item-create :source 'mailerr :section 'mail
+                                                              :key e :why "!" :title e))
+                            (reverse errors))
+                    ;; Newest first, each account's "… N more" row after them.
+                    (sort items (lambda (a b) (> (or (briefing-item-data a) 0)
+                                                 (or (briefing-item-data b) 0))))
+                    (and link (list link)))))))
+      (cond
+       ((zerop pending)
+        (if link (finish)
+          (funcall callback (cons 'error "no mail accounts (Gnus has no nnimap accounts)"))))
+       (t
+        (let ((joined (lambda (r)
+                        (if (eq (car-safe r) 'error) (push (cdr r) errors) (setq items (append items r)))
+                        (when (and (zerop (cl-decf pending)) (not done)) (finish)))))
+          (dolist (a accts) (briefing-mail--fetch-account a joined))
+          (dolist (p providers) (funcall p joined force))))))))
 
 ;;;; Work mail, through the Gmail connector (Claude Code)
 ;;
