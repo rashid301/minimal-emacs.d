@@ -313,12 +313,29 @@ Reads `display-time-string' / `battery-mode-line-string' directly (cheap; both a
 (defvar my/exwm-strip nil "Current strip color, set by `my/exwm-style-ui'.")
 (defvar-local my/exwm-echo-remap nil)
 (defun my/exwm-style-echo-buffer ()
-  "Give the current (echo area / minibuffer) buffer the strip background."
+  "Give the current (echo area / minibuffer) buffer the strip background.
+config-completion.el pads these with `left-margin-width' 4, but window margins are always painted in the
+plain default background (a white patch).  Keep the same 4-column padding as a strip-colored `line-prefix'."
   (when my/exwm-strip
     (when my/exwm-echo-remap (face-remap-remove-relative my/exwm-echo-remap))
     (setq my/exwm-echo-remap
-          (face-remap-add-relative 'default :background my/exwm-strip))))
-(add-hook 'minibuffer-setup-hook #'my/exwm-style-echo-buffer)
+          (face-remap-add-relative 'default :background my/exwm-strip))
+    (setq-local left-margin-width 0)
+    (setq-local line-prefix (propertize "    " 'face (list :background my/exwm-strip)))
+    (when (eq (current-buffer) (window-buffer (minibuffer-window)))
+      (set-window-margins (minibuffer-window) 0 0))))
+;; Depth 90: run after config-completion.el's hook that sets the margin.
+(add-hook 'minibuffer-setup-hook #'my/exwm-style-echo-buffer 90)
+(add-hook 'minibuffer-inactive-mode-hook #'my/exwm-style-echo-buffer 90)
+;; Vertico's candidate count ("1/7714") is a faceless overlay string, which ignores the buffer-local `default'
+;; remap above and shows the window's plain background (a white patch).  Give it the strip background.
+(with-eval-after-load 'vertico
+  (when (fboundp 'vertico--format-count)
+    (advice-add 'vertico--format-count :filter-return
+                (lambda (str)
+                  (if my/exwm-strip
+                      (propertize str 'face `(:background ,my/exwm-strip))
+                    str)))))
 
 (defun my/exwm-style-ui (&rest _)
   (let* ((bg (face-attribute 'default :background nil t))
