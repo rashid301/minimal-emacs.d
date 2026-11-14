@@ -83,8 +83,11 @@
 
   (add-hook 'message-send-hook 'set-smtp-server-by-from-header)
 
-  ;; Authentication via .authinfo (Recommended)
-  (setq auth-sources '("~/.authinfo.gpg" "~/.authinfo"))
+  ;; Authentication: the authinfo files first (Slack token, calendar URLs live there),
+  ;; then `pass'.  auth-source-pass finds an entry named HOST/USER, e.g.
+  ;; imap.gmail.com/rashid301@gmail.com (copies of email/* in the store).
+  (require 'auth-source-pass)
+  (setq auth-sources '("~/.authinfo.gpg" "~/.authinfo" password-store))
 
   ;; Tell Gnus to look at the hidden SMTP method header when sending
   (setq message-send-mail-function 'message-use-send-mail-function)
