@@ -138,11 +138,13 @@ Extra server arguments can be set in `briefing-mail-test-server-args'."
 (defun briefing-mail-test--python (code)
   "Run Python CODE with the worker importable as `w'; return stdout."
   (with-temp-buffer
-    (call-process "python3" nil t nil "-I" "-c"
+    (progn
+     ;; -B: do not leave a __pycache__ next to the worker (-I would ignore the env var).
+     (call-process "python3" nil t nil "-I" "-B" "-c"
                   (concat "import importlib.util as u\n"
                           "s=u.spec_from_file_location('w', " (prin1-to-string briefing-mail-test--worker) ")\n"
                           "w=u.module_from_spec(s); s.loader.exec_module(w)\n"
-                          code))
+                          code)))
     (string-trim (buffer-string))))
 
 (ert-deftest briefing-mail-gmail-searches-the-primary-tab ()
