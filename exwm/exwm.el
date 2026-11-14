@@ -181,3 +181,47 @@
 ;; in config-ewm.el only exists in `ewm-mode-map' (Wayland), so under EXWM use plain Super. `setopt' re-runs
 ;; the setter, which moves the bindings in `tab-bar-mode-map'.
 (setopt tab-bar-select-tab-modifiers '(super))
+
+;; ---- Evil in Firefox ---------------------------------------------------------------------
+;; exwm-firefox-evil (MELPA): in Firefox, normal mode hands keys to Vimium/Tridactyl.
+;; :ensure nil because its package deps include `exwm', which lives in ~/exwm-test/elpa (load-path),
+;; so letting use-package install it would try to pull a second copy of exwm.  Install by hand with:
+;;   (package-install-from-archive (cadr (assq 'exwm-firefox-core package-archive-contents)))
+;;   (package-install-from-archive (cadr (assq 'exwm-firefox-evil package-archive-contents)))
+;; (exwm-evil is not in any of your package archives, so it is not set up.)
+(dolist (d (file-expand-wildcards "/home/dev/.emacs.d/elpa/exwm-firefox-*"))
+  (add-to-list 'load-path d))   ; not auto-activated: package.el skips it (unmet `exwm' dep)
+(use-package exwm-firefox-evil
+  :ensure nil
+  :after (exwm evil)
+  :hook (exwm-manage-finish . exwm-firefox-evil-activate-if-firefox))
+
+;; Normal state keeps `exwm-input-line-mode-passthrough' on (keys go to Emacs), so the Alt+j would land in
+;; Emacs ("buffer is read-only").  So switch to insert state first (that turns passthrough off).
+(defun my/exwm-firefox-link-hints ()
+  (interactive)
+  ;; Insert state = keys go to Firefox, so the hint letters you type next reach the addon too.
+  ;; Escape (see `my/exwm-escape') returns to normal state.
+  (evil-insert-state)
+  (call-process "xdotool" nil 0 nil "key" "--clearmodifiers" "alt+j"))
+
+;; Link hints: `f' in Firefox normal mode sends a real Alt+j via xdotool (XTEST);
+;; Firefox ignores the synthetic events `exwm-input--fake-key' sends for addon shortcuts.
+(with-eval-after-load 'exwm-firefox-evil
+  (evil-define-key 'normal exwm-firefox-evil-mode-map (kbd "f")
+    #'my/exwm-firefox-link-hints))
+
+;; Escape in Firefox insert state: exwm-firefox-evil sends all keys to Firefox while inserting, so
+;; Emacs never sees <escape>.  Make it an EXWM global key so Emacs gets it; leave insert state, and
+;; also pass Escape on to Firefox (closes find bars etc.).  Anywhere else it behaves as before.
+(defun my/exwm-escape ()
+  (interactive)
+  (cond ((and (derived-mode-p 'exwm-mode) (bound-and-true-p exwm-firefox-evil-mode))
+         (when (evil-insert-state-p) (evil-normal-state))
+         (exwm-input--fake-key 'escape))
+        ((derived-mode-p 'exwm-mode) (exwm-input--fake-key 'escape))
+        (t (call-interactively (or (and (fboundp 'evil-force-normal-state) (evil-normal-state-p)
+                                        #'evil-force-normal-state)
+                                   #'keyboard-escape-quit)))))
+(exwm-input-set-key (kbd "<escape>") #'my/exwm-escape)
+(exwm-input--update-global-prefix-keys)
