@@ -58,8 +58,16 @@
   :hook ((org-mode text-mode) . ref-open-buttons-mode)
   :config (ref-open-setup-embark))
 
+;; Morning briefing (SPC m m): one read-only buffer of what is waiting on you.
+;; Sections so far: GitHub and the Taskwarrior board.  r refreshes by hand; T adds a task.
+(use-package briefing-sources
+  :ensure nil
+  :demand t)
+
 (with-eval-after-load 'general
   (my-leader-def
+    "m"  '(:ignore t :which-key "briefing")
+    "mm" '(briefing :which-key "morning briefing")
     "oo" '(ref-open :which-key "open ticket/PR/doc at point")
     "gi" '(gh-inbox-activity :which-key "GitHub inbox (own activity)")
     "gI" '(gh-inbox :which-key "GitHub inbox (this window)")
