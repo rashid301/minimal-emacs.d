@@ -59,7 +59,7 @@
     (message "Configuration reloaded.")))
 
 ;; Journal directory
-(defvar my/journal-dir (expand-file-name "~/notes/journal/")
+(defvar my/journal-dir (expand-file-name "~/Dropbox/notes/journal/")
   "Directory for daily journal files.")
 (unless (file-exists-p my/journal-dir)
   (make-directory my/journal-dir t))

@@ -14,7 +14,7 @@
   :after elfeed
   :ensure t
   :custom
-  (rmh-elfeed-org-files '("/home/rashid/Dropbox/notes/elfeed.org"))
+  (rmh-elfeed-org-files '("~/Dropbox/notes/elfeed.org"))
   :config
   (elfeed-org))
 

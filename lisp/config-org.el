@@ -6,17 +6,17 @@
   :demand t
   :bind (("C-c a" . org-agenda))
   :config
-  (setq org-directory (expand-file-name "/home/rashid/Dropbox/notes/"))
+  (setq org-directory (expand-file-name "~/Dropbox/notes/"))
   (setq org-return-follows-link t)
   (setq org-id-link-to-frametree t)
   (setq org-confirm-babel-evaluate nil)
-  (setq org-agenda-files '("~/notes/tasks.org"
-                           "~/notes/my-gtd"
-                           "~/notes/projects.org"
-                           "~/notes/ideas.org"
-                           "~/notes/vaccines.org"
-                           "~/notes/health.org"
-                           "~/notes/someday.org"))
+  (setq org-agenda-files '("~/Dropbox/notes/tasks.org"
+                           "~/Dropbox/notes/my-gtd"
+                           "~/Dropbox/notes/projects.org"
+                           "~/Dropbox/notes/ideas.org"
+                           "~/Dropbox/notes/vaccines.org"
+                           "~/Dropbox/notes/health.org"
+                           "~/Dropbox/notes/someday.org"))
   (setq org-default-notes-file (expand-file-name "inbox.org" org-directory))
   (setq org-log-done 'time)
   (setq org-hide-emphasis-markers t)
@@ -54,10 +54,10 @@
   (setq org-refile-targets
         '((nil :maxlevel . 3)
           (org-agenda-files :maxlevel . 3)
-          ("~/notes/ideas.org" :maxlevel . 2)
-          ("~/notes/projects.org" :maxlevel . 2)
-          ("~/notes/tasks.org" :maxlevel . 2)
-          ("~/notes/someday.org" :maxlevel . 2)))
+          ("~/Dropbox/notes/ideas.org" :maxlevel . 2)
+          ("~/Dropbox/notes/projects.org" :maxlevel . 2)
+          ("~/Dropbox/notes/tasks.org" :maxlevel . 2)
+          ("~/Dropbox/notes/someday.org" :maxlevel . 2)))
   (setq org-refile-allow-creating-parent-nodes 'confirm)
   (setq org-agenda-custom-commands
         '(("g" "GTD Dashboard"
@@ -71,10 +71,10 @@
                   ((org-agenda-overriding-header "Waiting On")))
             (todo "SOMEDAY"
                   ((org-agenda-overriding-header "Someday / Maybe")
-                   (org-agenda-files '("~/notes/someday.org"))))
+                   (org-agenda-files '("~/Dropbox/notes/someday.org"))))
             (todo "DONE"
                   ((org-agenda-overriding-header "Recently Completed")
-                   (org-agenda-files '("~/notes/tasks.org" "~/notes/projects.org"))
+                   (org-agenda-files '("~/Dropbox/notes/tasks.org" "~/Dropbox/notes/projects.org"))
                    (org-agenda-skip-function
                     '(org-agenda-skip-entry-if 'nottodo 'done))))))
           ("w" "Weekly Review"
@@ -86,7 +86,7 @@
             (todo "SOMEDAY" ((org-agenda-overriding-header "Someday / Maybe")))
             (tags "inbox"
                   ((org-agenda-overriding-header "Inbox Items")
-                   (org-agenda-files '("~/notes/inbox.org"))))))
+                   (org-agenda-files '("~/Dropbox/notes/inbox.org"))))))
           ("t" "Today Focus"
            ((agenda "" ((org-agenda-span 1)
                         (org-agenda-start-day "+0d")
@@ -113,7 +113,7 @@
   :ensure t
   :after org
   :config
-  (setq org-roam-directory "/home/rashid/Dropbox/notes/roam"
+  (setq org-roam-directory "~/Dropbox/notes/roam"
         org-roam-completion-everywhere t)
   (setq org-roam-capture-templates
         '(("d" "default" plain
