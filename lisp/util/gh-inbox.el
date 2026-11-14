@@ -85,6 +85,13 @@ When nil, `gh-inbox-browse-jira' refuses to guess."
   "File remembering dismissed items."
   :type 'file)
 
+(defcustom gh-inbox-expected-login nil
+  "GitHub login the inbox belongs to, or nil to learn it from the first fetch.
+When `gh' is switched to another account, fetches are discarded instead of
+being taken for \"all your review requests are gone\"; that would close your
+Taskwarrior review tasks.  See `gh-inbox-forget-account'."
+  :type '(choice (const :tag "Learn from the first fetch" nil) string))
+
 (defcustom gh-inbox-refresh-hook nil
   "Normal hook run after a successful fetch.
 Runs with `gh-inbox-items' set to the new list of items."
@@ -136,6 +143,8 @@ Consumers that remove things when an item disappears must check this.")
 (defvar gh-inbox--dismissed nil
   "Alist (URL . UPDATED) of dismissed items.  Loaded lazily.")
 (defvar gh-inbox--dismissed-loaded nil)
+(defvar gh-inbox--known-login nil
+  "Login learned from the first successful fetch (kept in `gh-inbox-state-file').")
 
 (defun gh-inbox--g (obj &rest keys)
   "Walk alist OBJ through KEYS, returning nil on any missing step."
@@ -443,7 +452,9 @@ Pure given ITEM's fields, so it can be tested without GitHub."
                 (with-temp-buffer
                   (insert-file-contents gh-inbox-state-file)
                   (let ((data (read (current-buffer))))
-                    (and (listp data) (alist-get 'dismissed data))))
+                    (when (listp data)
+                      (setq gh-inbox--known-login (alist-get 'viewer data))
+                      (alist-get 'dismissed data))))
               (error nil))))))
 
 (defun gh-inbox--save-state ()
@@ -455,7 +466,9 @@ Pure given ITEM's fields, so it can be tested without GitHub."
           (setq gh-inbox--dismissed (seq-take gh-inbox--dismissed 500)))
         (with-temp-file gh-inbox-state-file
           (let ((print-length nil) (print-level nil))
-            (prin1 `((dismissed . ,gh-inbox--dismissed)) (current-buffer)))))
+            (prin1 `((dismissed . ,gh-inbox--dismissed)
+                     (viewer . ,gh-inbox--known-login))
+                   (current-buffer)))))
     (error (message "gh-inbox: could not save state: %s" (error-message-string err)))))
 
 (defun gh-inbox--dismissed-p (item)
@@ -517,8 +530,44 @@ NOTIFICATIONS are the raw alists (for their comment URLs)."
              (when (zerop (cl-decf pending))
                (funcall done items)))))))))
 
+(defun gh-inbox--account-ok-p (viewer)
+  "Non-nil if VIEWER is the account the inbox belongs to; learns it when unknown.
+When it is another account, records an error and returns nil."
+  (gh-inbox--load-state)
+  (let ((expected (or gh-inbox-expected-login gh-inbox--known-login)))
+    (cond
+     ((null viewer) nil)
+     ((null expected)
+      (setq gh-inbox--known-login viewer)
+      (gh-inbox--save-state)
+      t)
+     ((equal viewer expected) t)
+     (t
+      (let ((msg (format "gh is on account %s, the inbox is for %s; switch back with `gh auth switch --user %s'"
+                         viewer expected expected)))
+        (unless (equal msg gh-inbox--last-error) (message "gh-inbox: %s" msg))
+        (setq gh-inbox--last-error msg
+              gh-inbox--fetch-clean nil
+              gh-inbox--fetching nil))
+      nil))))
+
+(defun gh-inbox-forget-account ()
+  "Forget which account the inbox belongs to; the next fetch learns it again.
+Use this when you really want the inbox to follow a different login."
+  (interactive)
+  (setq gh-inbox--known-login nil gh-inbox--last-error nil)
+  (gh-inbox--save-state)
+  (message "gh-inbox: will learn the account on the next refresh"))
+
 (defun gh-inbox--finish (graphql notifications callback)
-  "Build items from GRAPHQL and NOTIFICATIONS, then CALLBACK with them."
+  "Build items from GRAPHQL and NOTIFICATIONS, then CALLBACK with them.
+Does nothing (and keeps the old items) when `gh' is on the wrong account."
+  (if (not (gh-inbox--account-ok-p (gh-inbox--g graphql 'data 'viewer 'login)))
+      (gh-inbox--render)
+    (gh-inbox--finish-1 graphql notifications callback)))
+
+(defun gh-inbox--finish-1 (graphql notifications callback)
+  "The part of `gh-inbox--finish' that runs for the right account."
   (let* ((viewer (gh-inbox--g graphql 'data 'viewer 'login))
          (items (gh-inbox--merge graphql notifications viewer)))
     (setq gh-inbox--rate-remaining (gh-inbox--g graphql 'data 'rateLimit 'remaining))

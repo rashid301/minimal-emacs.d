@@ -142,6 +142,50 @@
     ;; The shared fragment must not drag threads in.
     (should-not (string-match-p "fragment PR on PullRequest {[^}]*reviewThreads" q))))
 
+;;;; Wrong GitHub account (gh auth switch)
+
+(ert-deftest gh-inbox-wrong-account-changes-nothing ()
+  "A fetch for another login must not touch items, run hooks or allow task sync."
+  (gh-inbox-test-with-state
+   (let* ((gh-inbox--known-login nil) (gh-inbox-expected-login nil)
+          (gh-inbox--last-error nil) (gh-inbox--fetch-clean t) (gh-inbox--fetching (float-time))
+          (gh-inbox-items (list (gh-inbox-test--item :roles '(requested))))
+          (before gh-inbox-items) (hook-ran 0) (called nil)
+          (gh-inbox-refresh-hook nil)
+          (work (gh-inbox--parse "{\"data\":{\"viewer\":{\"login\":\"work\"},\"rq\":{\"nodes\":[]},\"mine\":{\"nodes\":[]},\"rev\":{\"nodes\":[]}}}"))
+          (personal (gh-inbox--parse "{\"data\":{\"viewer\":{\"login\":\"personal\"},\"rq\":{\"nodes\":[]},\"mine\":{\"nodes\":[]},\"rev\":{\"nodes\":[]}}}")))
+     (add-hook 'gh-inbox-refresh-hook (lambda () (cl-incf hook-ran)))
+     ;; First fetch learns the account and proceeds (state is saved to disk).
+     (gh-inbox--finish work nil (lambda (_) (setq called t)))
+     (should called)
+     (should (equal gh-inbox--known-login "work"))
+     (should (= hook-ran 1))
+     ;; gh switched to another account: nothing changes.
+     (setq called nil gh-inbox-items before gh-inbox--fetch-clean t gh-inbox--fetching (float-time))
+     (gh-inbox--finish personal nil (lambda (_) (setq called t)))
+     (should-not called)
+     (should (= hook-ran 1))                  ; hooks (task sync!) did not run
+     (should (eq gh-inbox-items before))      ; the old items are kept
+     (should-not gh-inbox--fetch-clean)       ; and nothing may treat the fetch as complete
+     (should-not gh-inbox--fetching)
+     (should (string-match-p "gh auth switch --user work" gh-inbox--last-error))
+     ;; Switching back resumes normally and clears the error.
+     (setq gh-inbox--fetching (float-time))
+     (gh-inbox--finish work nil (lambda (_) (setq called t)))
+     (should called)
+     (should-not gh-inbox--last-error)
+     (should (= hook-ran 2))
+     ;; The learned account survives a restart.
+     (setq gh-inbox--known-login nil gh-inbox--dismissed-loaded nil)
+     (gh-inbox--load-state)
+     (should (equal gh-inbox--known-login "work"))
+     ;; An explicit expectation wins, and forgetting lets a new account in.
+     (let ((gh-inbox-expected-login "other"))
+       (should-not (gh-inbox--account-ok-p "work")))
+     (gh-inbox-forget-account)
+     (should (gh-inbox--account-ok-p "personal"))
+     (should (equal gh-inbox--known-login "personal")))))
+
 ;;;; Merging
 
 (defconst gh-inbox-test--graphql

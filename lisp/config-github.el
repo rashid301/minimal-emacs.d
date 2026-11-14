@@ -23,10 +23,14 @@
 (use-package gh-inbox
   :ensure nil
   :commands (gh-inbox)
-  ;; Branch/title keys like DEV-33054 become a Jira link on J once this is set:
-  ;; :custom (gh-inbox-jira-base-url "https://<site>.atlassian.net/browse/")
+  ;; Ticket keys in titles/branches (DEV-33054) open on J.
   ;; Limit searches to one org with: (gh-inbox-search-qualifiers "org:clearcompany")
-  )
+  :custom
+  (gh-inbox-jira-base-url "https://clearco.atlassian.net/browse/")
+  ;; The inbox, review tasks and toasts belong to the work login.  If `gh' is switched to
+  ;; another account (gh auth switch), fetches are discarded instead of looking like "all
+  ;; review requests are gone" (which would close the Taskwarrior review tasks).
+  (gh-inbox-expected-login "rashid-cc"))
 
 (use-package gh-inbox-review
   :ensure nil
@@ -45,8 +49,18 @@
   :config
   (gh-inbox-notify-mode 1))
 
+;; One "open this" for tickets (DEV-123), PRs (URL or owner/repo#N), Confluence and Google Docs.
+;; SPC o o at point / on the line / from the clipboard (C-u: choose the action); `C-.' (embark)
+;; offers the same on a reference; org/text buffers underline them (click opens).
+(use-package ref-open
+  :ensure nil
+  :commands (ref-open ref-open-buttons-mode)
+  :hook ((org-mode text-mode) . ref-open-buttons-mode)
+  :config (ref-open-setup-embark))
+
 (with-eval-after-load 'general
   (my-leader-def
+    "oo" '(ref-open :which-key "open ticket/PR/doc at point")
     "gi" '(gh-inbox-activity :which-key "GitHub inbox (own activity)")
     "gI" '(gh-inbox :which-key "GitHub inbox (this window)")
     "gt" '(gh-inbox-review-threads-here :which-key "PR threads (this branch)")
