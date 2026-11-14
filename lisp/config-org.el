@@ -141,5 +141,52 @@
 ;;   :config ; add late to hook
 ;;   (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
 
+;; ── Job application tracker ────────────────────────────────────────────
+;; Single file; keywords (APPLIED/SCREEN/...) are defined in the file's own
+;; #+TODO line so they don't pollute the global GTD keywords.
+
+(defvar my/jobs-file (expand-file-name "~/Dropbox/notes/jobs/applications.org"))
+
+(with-eval-after-load 'org
+  (add-to-list 'org-agenda-files my/jobs-file t)
+  (add-to-list 'org-capture-templates
+               '("j" "Job application" entry
+                 (file+headline my/jobs-file "Applications")
+                 "** TODO %^{Company} — %^{Role|Staff Engineer|Senior Staff Engineer}
+SCHEDULED: %^{Next step (date)}t
+:PROPERTIES:
+:COMPANY:  %\\1
+:URL:      %^{URL}
+:SOURCE:   %^{Source|cold|referral|recruiter|job board}
+:CONTACT:  %^{Contact}
+:VISA:     %^{Visa/location OK|ok|?|no}
+:SALARY:   %^{Salary range}
+:APPLIED:
+:END:
+%?")
+               t)
+  (add-to-list 'org-agenda-custom-commands
+               '("j" "Job search"
+                 ((todo "OFFER|INTERVIEW|SCREEN"
+                        ((org-agenda-overriding-header "In process")
+                         (org-agenda-files (list my/jobs-file))))
+                  (agenda "" ((org-agenda-span 14)
+                              (org-agenda-files (list my/jobs-file))
+                              (org-agenda-overriding-header "Next 14 days")))
+                  (todo "APPLIED"
+                        ((org-agenda-overriding-header "Applied — waiting")
+                         (org-agenda-files (list my/jobs-file))))
+                  (todo "TODO"
+                        ((org-agenda-overriding-header "To apply")
+                         (org-agenda-files (list my/jobs-file))))))
+               t))
+
+(defun my/jobs-open ()
+  "Open the job applications file."
+  (interactive)
+  (find-file my/jobs-file))
+
+(global-set-key (kbd "C-c C j") #'my/jobs-open)
+
 (provide 'config-org)
 ;; config-org.el ends here
