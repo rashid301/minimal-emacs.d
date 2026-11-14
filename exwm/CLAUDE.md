@@ -148,5 +148,10 @@ Mod+A/D=fuzzel, noctalia include commented out). Needs fonts/foot/fuzzel. Abando
 
 Memory notes for the assistant: `/home/dev/.claude/projects/-home-dev-repos-niri/memory/wslg-arch-exwm-setup.md` (in the cc-local distro).
 
+## Decision: staying on X11 (no Wayland migration)
+Considered nested river + reka/rau (Emacs-based WMs for river, see codeberg.org/river/wiki wm-list.md) instead of Xephyr + EXWM. **Decided not to migrate; not worth it.**
+Reasons: WSLg already composites everything so Wayland's rendering/scaling wins mostly don't apply; EXWM is mature and this config (fullscreen toggle, socket takeover, Super chain, Firefox evil) works;
+`xdotool` (Firefox link hints via Alt+j) is X11-only and would need rework; reka/rau are young and unverified in WSL2. Don't re-propose unless EXWM's single-event-loop fragility or Xephyr HiDPI becomes a real pain.
+
 ## Backup / restore
 Branch `exwm-wsl` of github.com/rashid301/minimal-emacs.d holds this folder. After cloning into `~/.emacs.d`, run `exwm/bin/install.sh` (PATH wrappers), `ln -s ~/.emacs.d/exwm ~/exwm-test`, then re-create `elpa/` by starting once.
