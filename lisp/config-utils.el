@@ -64,6 +64,33 @@
 (unless (file-exists-p my/journal-dir)
   (make-directory my/journal-dir t))
 
+(defun my/open-todays-journal ()
+  "Open today's journal file, creating it from the daily template if new."
+  (interactive)
+  (let ((file (expand-file-name (format-time-string "%Y-%m-%d.org") my/journal-dir)))
+    (find-file file)
+    (when (zerop (buffer-size))
+      (insert (format-time-string "* %A, %Y-%m-%d
+:PROPERTIES:
+:ENERGY_START:
+:ENERGY_END:
+:SLEEP:
+:SLEEP_QUALITY:
+:END:
+
+| Time | Activity | Category | Notes |
+|------+----------+----------+-------|
+
+** Summary
+
+
+** Pattern
+
+
+** Thoughts
+- "))
+      (save-buffer))))
+
 ;; Taskwarrior GTD
 (use-package taskwarrior-gtd
   :load-path "lisp/")
