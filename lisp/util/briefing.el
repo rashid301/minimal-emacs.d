@@ -385,6 +385,29 @@ New sources go last, or just ahead of the source BEFORE when it exists."
       (when (get-text-property (point) 'briefing-item) (setq done t)))
     (unless done (goto-char start) (message "No more items"))))
 
+(defun briefing--section-starts ()
+  "Buffer positions of the section titles, in order."
+  (let ((pos (point-min)) out)
+    (while (setq pos (next-single-property-change pos 'briefing-section))
+      (when (get-text-property pos 'briefing-section)
+        (push pos out)))
+    (when (get-text-property (point-min) 'briefing-section) (push (point-min) out))
+    (sort (delete-dups out) #'<)))
+
+(defun briefing-next-section ()
+  "Move to the title of the next section."
+  (interactive)
+  (let* ((here (line-beginning-position))
+         (target (seq-find (lambda (p) (> p here)) (briefing--section-starts))))
+    (if target (goto-char target) (message "Last section"))))
+
+(defun briefing-previous-section ()
+  "Move to the title of this section, or of the previous one when already on it."
+  (interactive)
+  (let* ((here (line-beginning-position))
+         (target (seq-find (lambda (p) (< p here)) (reverse (briefing--section-starts)))))
+    (if target (goto-char target) (message "First section"))))
+
 (defun briefing-next () (interactive) (briefing--step 1))
 (defun briefing-previous () (interactive) (briefing--step -1))
 
@@ -400,6 +423,7 @@ New sources go last, or just ahead of the source BEFORE when it exists."
     (princ "  T     add a Taskwarrior task (type:inbox, tag +briefing); a ✓ marks items\n")
     (princ "        that already have one\n")
     (princ "  n p   next / previous row\n")
+    (princ "  ]] [[ next / previous section\n")
     (princ "  TAB   fold the section\n")
     (princ "  r     refresh all sections     gr  refresh the section at point\n")
     (princ "  q     close\n\n")
@@ -416,6 +440,8 @@ New sources go last, or just ahead of the source BEFORE when it exists."
     (define-key m (kbd "n") #'briefing-next)
     (define-key m (kbd "p") #'briefing-previous)
     (define-key m (kbd "TAB") #'briefing-toggle-fold)
+    (define-key m (kbd "]]") #'briefing-next-section)
+    (define-key m (kbd "[[") #'briefing-previous-section)
     (define-key m (kbd "q") #'quit-window)
     (define-key m (kbd "?") #'briefing-help)
     m))
@@ -444,6 +470,8 @@ New sources go last, or just ahead of the source BEFORE when it exists."
       (kbd "j") #'briefing-next
       (kbd "k") #'briefing-previous
       (kbd "TAB") #'briefing-toggle-fold
+      (kbd "]]") #'briefing-next-section
+      (kbd "[[") #'briefing-previous-section
       (kbd "q") #'quit-window
       (kbd "?") #'briefing-help)))
 

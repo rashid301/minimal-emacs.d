@@ -487,6 +487,36 @@ outcomes, TASK-RESULT what the cal-bucket task fetch returns."
     (let ((briefing-header-functions (list (lambda () (error "boom")))))
       (should (string-match-p "Briefing" (briefing--header))))))
 
+(ert-deftest briefing-section-navigation ()
+  (briefing-test-with-env "[]"
+    (briefing-register-source 'a "Alpha" (lambda (cb _f) (funcall cb (list (briefing-test--item :key "1" :title "a1") (briefing-test--item :key "2" :title "a2")))))
+    (briefing-register-source 'b "Beta" (lambda (cb _f) (funcall cb nil)))
+    (briefing-register-source 'c "Gamma" (lambda (cb _f) (funcall cb (list (briefing-test--item :key "3" :title "c1")))))
+    (briefing--refresh-all)
+    (with-current-buffer briefing-buffer-name
+      (cl-flet ((heading () (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+        (goto-char (point-min))
+        (should (string-match-p "Alpha" (heading)))
+        (briefing-next-section) (should (string-match-p "Beta" (heading)))
+        (briefing-next-section) (should (string-match-p "Gamma" (heading)))
+        ;; At the last section: stay put, no error.
+        (briefing-next-section) (should (string-match-p "Gamma" (heading)))
+        (briefing-previous-section) (should (string-match-p "Beta" (heading)))
+        ;; From an item, [[ goes to its own title first, then the one before.
+        (goto-char (point-min)) (briefing-next) (briefing-next)
+        (should (equal (briefing-item-title (briefing--item)) "a2"))
+        (briefing-previous-section) (should (string-match-p "Alpha" (heading)))
+        ;; At the first section: stay put.
+        (briefing-previous-section) (should (string-match-p "Alpha" (heading)))
+        ;; From an item in a later section.
+        (goto-char (point-min)) (briefing-next-section) (briefing-next-section) (briefing-next)
+        (should (equal (briefing-item-title (briefing--item)) "c1"))
+        (briefing-previous-section) (should (string-match-p "Gamma" (heading)))))))
+
+(ert-deftest briefing-section-keys-are-bound ()
+  (should (eq (lookup-key briefing-mode-map (kbd "]]")) 'briefing-next-section))
+  (should (eq (lookup-key briefing-mode-map (kbd "[[")) 'briefing-previous-section)))
+
 ;;;; Order and folding
 
 (ert-deftest briefing-register-before-inserts-ahead ()
@@ -505,7 +535,7 @@ outcomes, TASK-RESULT what the cal-bucket task fetch returns."
   (should (equal (mapcar #'car (let ((briefing-sources nil))
                                  (briefing-sources-register-defaults)
                                  briefing-sources))
-                 '(today gh inbox next wait))))
+                 '(today gh slack inbox next wait))))
 
 (ert-deftest briefing-waiting-for-starts-folded ()
   (briefing-test-with-env "[]"
@@ -542,6 +572,135 @@ outcomes, TASK-RESULT what the cal-bucket task fetch returns."
     (with-current-buffer briefing-buffer-name
       (goto-char (point-min)) (briefing-next) (briefing-task))
     (should-not (string-match-p " add " (briefing-test--logged)))))
+
+;;;; Slack source
+
+(require 'slack-counts)
+(require 'slack-team)
+
+(defclass briefing-test-team ()
+  ((counts :initform nil :initarg :counts)
+   (domain :initform "acme" :initarg :domain)
+   (self-id :initform "U0")))
+
+(defun briefing-test--counts (&rest payload)
+  (slack-create-counts
+   (append payload '(:threads (:has_unreads nil :mention_count 0)))))
+
+(defun briefing-test--slack-labels (id)
+  (pcase id ("D1" "Ann Lee") ("D2" "Bob Ray") ("G1" "Ann, Bob") ("C1" "#alerts") ("C2" "#general") (_ id)))
+
+(ert-deftest briefing-slack-entries-read-the-real-counts-objects ()
+  (let* ((counts (slack-create-counts
+                  '(:threads (:has_unreads t :mention_count 2)
+                    :channels ((:id "C1" :latest "1700000000.000100" :has_unreads t :mention_count 3))
+                    :mpims ((:id "G1" :latest "1700000001.000100" :has_unreads nil :mention_count 0))
+                    :ims ((:id "D1" :latest "1700000002.000100" :has_unreads t :mention_count 1)))))
+         (team (make-instance 'briefing-test-team :counts counts))
+         (entries (briefing-sources--slack-entries team)))
+    (should (equal (mapcar (lambda (e) (plist-get e :kind)) entries) '(im mpim channel threads)))
+    (should (equal (plist-get (nth 2 entries) :mentions) 3))
+    (should (plist-get (nth 3 entries) :unread))
+    (should (equal (plist-get (nth 0 entries) :id) "D1"))
+    ;; No counts yet (connecting): nothing, not an error.
+    (should-not (briefing-sources--slack-entries (make-instance 'briefing-test-team)))))
+
+(ert-deftest briefing-slack-only-what-needs-you ()
+  (let ((entries (list '(:kind im :id "D1" :unread t :mentions 1 :latest "1.0")
+                       '(:kind im :id "D2" :unread nil :mentions 0 :latest "1.0")
+                       '(:kind mpim :id "G1" :unread nil :mentions 0 :latest "1.0")
+                       '(:kind channel :id "C1" :unread t :mentions 0 :latest "1.0")   ; chatter
+                       '(:kind channel :id "C2" :unread t :mentions 2 :latest "1.0")   ; @-mentioned
+                       '(:kind threads :id "threads" :unread nil :mentions 0 :latest nil))))
+    (should (equal (mapcar #'briefing-item-key
+                           (briefing-sources--slack-items entries #'briefing-test--slack-labels
+                                                          (lambda (_) #'ignore) "acme"))
+                   '("D1" "C2")))))
+
+(ert-deftest briefing-slack-items-order-and-wording ()
+  (let* ((now (float-time))
+         (ts (lambda (secs-ago) (format "%.6f" (- now secs-ago))))
+         (items (briefing-sources--slack-items
+                 (list `(:kind threads :id "threads" :unread t :mentions 2 :latest nil)
+                       `(:kind channel :id "C1" :unread t :mentions 3 :latest ,(funcall ts 100))
+                       `(:kind im :id "D2" :unread t :mentions 1 :latest ,(funcall ts 60))     ; newer
+                       `(:kind im :id "D1" :unread t :mentions 4 :latest ,(funcall ts 7200))   ; waiting longest
+                       `(:kind mpim :id "G1" :unread t :mentions 0 :latest ,(funcall ts 300)))
+                 #'briefing-test--slack-labels (lambda (_) #'ignore) "acme")))
+    (should (equal (mapcar #'briefing-item-key items) '("D1" "D2" "G1" "C1" "threads")))
+    (should (equal (mapcar #'briefing-item-why items)
+                   '("DM x4" "DM" "GROUP DM" "@YOU x3" "THREADS @x2")))
+    (should (equal (briefing-item-title (nth 0 items)) "Ann Lee"))
+    (should (equal (briefing-item-age (nth 0 items)) "2h"))
+    (should (equal (briefing-item-task-title (nth 0 items)) "Reply: Ann Lee"))
+    (should (equal (briefing-item-url (nth 0 items)) "https://acme.slack.com/archives/D1"))
+    ;; The threads row has no single room to link to.
+    (should-not (briefing-item-url (nth 4 items)))
+    (should (equal (briefing-item-title (nth 4 items)) "Replies in threads you follow"))))
+
+(ert-deftest briefing-slack-delivers-through-a-team ()
+  (let* ((team (make-instance 'briefing-test-team
+                              :counts (briefing-test--counts
+                                       :ims '((:id "D1" :latest "1700000000.000100" :has_unreads t :mention_count 1)))))
+         result)
+    (cl-letf (((symbol-function 'slack-team-connected-list) (lambda () (list team)))
+              ((symbol-function 'slack-room-find) (lambda (_id _team) 'room))
+              ((symbol-function 'briefing-sources--slack-room-label) (lambda (_r _t) "Ann Lee")))
+      (briefing-sources-slack (lambda (r) (setq result r)) nil))
+    (should (equal (mapcar #'briefing-item-title result) '("Ann Lee")))))
+
+(ert-deftest briefing-slack-not-connected-is-a-clear-error ()
+  (let (result)
+    (cl-letf (((symbol-function 'slack-team-connected-list) (lambda () nil)))
+      (briefing-sources-slack (lambda (r) (setq result r)) nil))
+    (should (eq (car-safe result) 'error))
+    (should (string-match-p "not connected" (cdr result)))))
+
+(ert-deftest briefing-slack-forced-refresh-replaces-the-counts ()
+  (let* ((team (make-instance 'briefing-test-team :counts (briefing-test--counts)))
+         (fresh (briefing-test--counts
+                 :ims '((:id "D1" :latest "1700000000.000100" :has_unreads t :mention_count 1))))
+         result)
+    (cl-letf (((symbol-function 'slack-team-connected-list) (lambda () (list team)))
+              ((symbol-function 'slack-client-counts) (lambda (_team cb) (funcall cb fresh)))
+              ((symbol-function 'slack-room-find) (lambda (_id _team) 'room))
+              ((symbol-function 'briefing-sources--slack-room-label) (lambda (_r _t) "Ann Lee")))
+      ;; Not forced: the (empty) live counts.
+      (briefing-sources-slack (lambda (r) (setq result r)) nil)
+      (should (null result))
+      ;; Forced: the server's answer.
+      (briefing-sources-slack (lambda (r) (setq result r)) t))
+    (should (equal (mapcar #'briefing-item-title result) '("Ann Lee")))
+    (should (eq (oref team counts) fresh))))
+
+(ert-deftest briefing-slack-refresh-falls-back-when-the-server-is-silent ()
+  (let* ((team (make-instance 'briefing-test-team
+                              :counts (briefing-test--counts
+                                       :ims '((:id "D1" :latest "1700000000.000100" :has_unreads t :mention_count 1)))))
+         (briefing-slack-refresh-timeout 0.1)
+         result called)
+    (cl-letf (((symbol-function 'slack-team-connected-list) (lambda () (list team)))
+              ((symbol-function 'slack-client-counts) (lambda (&rest _) nil))   ; never answers
+              ((symbol-function 'slack-room-find) (lambda (_id _team) 'room))
+              ((symbol-function 'briefing-sources--slack-room-label) (lambda (_r _t) "Ann Lee")))
+      (briefing-sources-slack (lambda (r) (setq result r called t)) t)
+      (let ((deadline (+ (float-time) 3)))
+        (while (and (not called) (< (float-time) deadline)) (accept-process-output nil 0.05))))
+    (should called)
+    (should (equal (mapcar #'briefing-item-title result) '("Ann Lee")))))
+
+(ert-deftest briefing-slack-room-labels ()
+  (let ((team (make-instance 'briefing-test-team)))
+    (cl-letf (((symbol-function 'slack-user-name) (lambda (_id _team) "Me Myself")))
+      (cl-flet ((label (display name)
+                  (cl-letf (((symbol-function 'slack-room-display-name) (lambda (&rest _) display))
+                            ((symbol-function 'slack-room-name) (lambda (&rest _) name)))
+                    (briefing-sources--slack-room-label 'r team))))
+        (should (equal (label "Acme - DM: Ann Lee  " nil) "Ann Lee"))
+        (should (equal (label "Acme - general" "general") "#general"))
+        ;; A group DM: you are in it, so leave yourself out.
+        (should (equal (label "Acme - MPIM: Me Myself, Ann, Bob" "MPIM: Me Myself, Ann, Bob") "Ann, Bob"))
+        (should (equal (label nil nil) "unknown room"))))))
 
 ;;;; Misc
 

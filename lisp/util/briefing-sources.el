@@ -27,6 +27,15 @@
 (defvar gh-inbox--last-error)
 (defvar gh-inbox-refresh-hook)
 (defvar my/calendar-sources)
+(declare-function slack-team-connected-list "slack-team")
+(declare-function slack-client-counts "slack-counts")
+(declare-function slack-room-find "slack-room")
+(declare-function slack-room-name "slack-room")
+(declare-function slack-room-display-name "slack-room")
+(declare-function slack-room-display "slack-message-buffer")
+(declare-function slack-user-name "slack-user")
+(declare-function slack-all-threads "slack-all-threads-buffer")
+(declare-function slack-team-domain "slack-team")
 
 ;;;; Shared: an async process that collects its output
 
@@ -344,12 +353,146 @@ child Emacs because that takes seconds."
                     (briefing-item-title best)
                     (if (< m 60) (format "%dm" m) (format "%dh%02d" (/ m 60) (% m 60))))))))))
 
+;;;; Slack (read from `emacs-slack', which keeps its counts live over the websocket)
+
+(defcustom briefing-slack-refresh-timeout 30
+  "Seconds to wait for Slack's server-side counts on a manual refresh."
+  :type 'integer)
+
+(defun briefing-sources--slack-room-label (room team)
+  "Readable name for Slack ROOM of TEAM: @person, #channel or a group of people."
+  (let ((display (ignore-errors (slack-room-display-name room team)))
+        (name (ignore-errors (slack-room-name room team))))
+    (cond
+     ((and display (string-match "\\` ?.* - DM: \\(.*\\)\\'" display))
+      (string-trim (match-string 1 display)))
+     ((and name (string-prefix-p "MPIM: " name))
+      (let* ((me (ignore-errors (slack-user-name (oref team self-id) team)))
+             (people (split-string (substring name 6) ", " t)))
+        (string-join (if me (remove me people) people) ", ")))
+     (name (concat "#" name))
+     (t "unknown room"))))
+
+(defun briefing-sources--slack-entries (team)
+  "What needs you in TEAM, as plists (:kind :id :unread :mentions :latest).
+This is the only function that reads Slack's own data structures."
+  (when-let* ((counts (oref team counts)))
+    (let (out)
+      (dolist (spec '((ims . im) (mpims . mpim) (channels . channel)))
+        (dolist (c (slot-value counts (car spec)))
+          (push (list :kind (cdr spec) :id (oref c id) :unread (oref c has-unreads)
+                      :mentions (oref c mention-count) :latest (oref c latest))
+                out)))
+      (let ((th (oref counts threads)))
+        (push (list :kind 'threads :id "threads" :unread (oref th has-unreads)
+                    :mentions (oref th mention-count) :latest nil)
+              out))
+      (nreverse out))))
+
+(defun briefing-sources--slack-ts-age (ts)
+  "Age string for a Slack timestamp like \"1794600000.000100\", or \"\"."
+  (if (and ts (string-match "\\`[0-9]+" ts) (> (string-to-number ts) 1000))
+      (let ((m (/ (- (float-time) (string-to-number ts)) 60)))
+        (cond ((< m 60) (format "%dm" (max 0 m)))
+              ((< m 1440) (format "%dh" (/ m 60)))
+              ((< m 20160) (format "%dd" (/ m 1440)))
+              (t (format "%dw" (/ m 10080)))))
+    ""))
+
+(defun briefing-sources--slack-needs-you-p (e)
+  "Non-nil if entry E (see `briefing-sources--slack-entries') is waiting on you.
+DMs and group DMs count when unread; a channel only when you were @-mentioned,
+since plain channel traffic is exactly the noise this view exists to skip."
+  (let ((unread (plist-get e :unread)) (mentions (or (plist-get e :mentions) 0)))
+    (pcase (plist-get e :kind)
+      ((or 'im 'mpim) unread)
+      ('channel (> mentions 0))
+      ('threads (or unread (> mentions 0))))))
+
+(defun briefing-sources--slack-items (entries label-fn open-fn domain)
+  "Briefing items for the entries of ENTRIES that need you.
+LABEL-FN maps a room id to a name; OPEN-FN to a function that opens it."
+  (let* ((rank '((im . 0) (mpim . 1) (channel . 2) (threads . 3)))
+         (wanted (seq-filter #'briefing-sources--slack-needs-you-p entries))
+         (sorted (sort (copy-sequence wanted)
+                       (lambda (a b)
+                         (let ((ra (alist-get (plist-get a :kind) rank))
+                               (rb (alist-get (plist-get b :kind) rank)))
+                           (if (/= ra rb) (< ra rb)
+                             ;; Waiting longest first, like reviews.
+                             (< (string-to-number (or (plist-get a :latest) "0"))
+                                (string-to-number (or (plist-get b :latest) "0")))))))))
+    (mapcar
+     (lambda (e)
+       (let* ((kind (plist-get e :kind)) (id (plist-get e :id))
+              (n (or (plist-get e :mentions) 0))
+              (label (if (eq kind 'threads) "Replies in threads you follow"
+                       (funcall label-fn id))))
+         (briefing-item-create
+          :source 'slack :key id
+          :title label
+          :task-title (format "Reply: %s" label)
+          :who ""
+          :age (briefing-sources--slack-ts-age (plist-get e :latest))
+          :why (pcase kind
+                 ('im (if (> n 1) (format "DM x%d" n) "DM"))
+                 ('mpim "GROUP DM")
+                 ('channel (if (> n 1) (format "@YOU x%d" n) "@YOU"))
+                 ('threads (if (> n 0) (format "THREADS @x%d" n) "THREADS")))
+          :url (and domain (not (eq kind 'threads))
+                    (format "https://%s.slack.com/archives/%s" domain id))
+          :open (funcall open-fn e))))
+     sorted)))
+
+(defun briefing-sources--slack-deliver (team callback)
+  "Build the Slack items for TEAM and give them to CALLBACK."
+  (funcall
+   callback
+   (briefing-sources--slack-items
+    (briefing-sources--slack-entries team)
+    (lambda (id)
+      (let ((room (ignore-errors (slack-room-find id team))))
+        (if room (briefing-sources--slack-room-label room team) (format "room %s" id))))
+    (lambda (e)
+      (let ((id (plist-get e :id)))
+        (if (eq (plist-get e :kind) 'threads)
+            (lambda (_) (if (fboundp 'slack-all-threads) (slack-all-threads)
+                          (user-error "No threads view in this emacs-slack")))
+          (lambda (_)
+            (let ((room (slack-room-find id team)))
+              (if room (slack-room-display room team)
+                (user-error "Slack does not know that room (yet)")))))))
+    (slack-team-domain team))))
+
+(defun briefing-sources-slack (callback force)
+  "Deliver unread DMs, @-mentions and thread replies from Slack to CALLBACK.
+Uses the live counts `emacs-slack' already keeps; FORCE first re-asks the
+server, in case the connection dropped and the counts went stale."
+  (let ((team (and (fboundp 'slack-team-connected-list) (car (slack-team-connected-list)))))
+    (cond
+     ((not (fboundp 'slack-team-connected-list))
+      (funcall callback (cons 'error "Slack is not loaded (C-c S s connects)")))
+     ((null team)
+      (funcall callback (cons 'error "Slack is not connected (C-c S s)")))
+     ((not force) (briefing-sources--slack-deliver team callback))
+     (t
+      (let ((done nil) timer)
+        (cl-flet ((finish ()
+                    (unless done
+                      (setq done t)
+                      (when timer (cancel-timer timer))
+                      (briefing-sources--slack-deliver team callback))))
+          ;; If the server does not answer, show the live counts rather than hang.
+          (setq timer (run-at-time briefing-slack-refresh-timeout nil #'finish))
+          (slack-client-counts team (lambda (counts) (oset team counts counts) (finish)))))))))
+
 ;;;; Registration
 
 (defun briefing-sources-register-defaults ()
   "Register the sources, in display order."
   (briefing-register-source 'today "Today" #'briefing-sources-today)
   (briefing-register-source 'gh "GitHub: waiting on you" #'briefing-sources-github)
+  (briefing-register-source 'slack "Slack: waiting on you" #'briefing-sources-slack)
   (briefing-register-source 'inbox "Inbox: to process" #'briefing-sources-inbox)
   (briefing-register-source 'next "Next actions" #'briefing-sources-next)
   (briefing-register-source 'wait "Waiting for" #'briefing-sources-wait)
