@@ -89,6 +89,8 @@
 (add-hook 'eww-mode-hook #'turn-off-line-numbers)
 (add-hook 'image-mode-hook #'turn-off-line-numbers)
 (add-hook 'pdf-view-mode-hook #'turn-off-line-numbers)
+(add-hook 'pdf-view-mode-hook #'turn-off-line-numbers)
+(add-hook 'ghostel-mode-hook #'turn-off-line-numbers)
 
 ;; doom-modeline
 (use-package doom-modeline

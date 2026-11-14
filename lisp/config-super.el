@@ -88,10 +88,10 @@ corrupts the window tree (\"same side ... but no common parent\")."
      ((and other (not (and (my/super--plain-p this) (my/super--plain-p other))))
       (message "Side/dedicated window: not moving"))
      (other
-        (let ((buf-this (window-buffer this)))
-          (switch-to-prev-buffer this)
-          (select-window other)
-          (switch-to-buffer buf-this)))
+      (let ((buf-this (window-buffer this)))
+        (switch-to-prev-buffer this)
+        (select-window other)
+        (switch-to-buffer buf-this)))
      (t (message "no window to the %s" dir)))))
 
 (defun my/window-repair ()
@@ -116,9 +116,9 @@ Drops all other windows without the usual sanity checks and clears side flags."
 (defun my/super-space-right () (interactive) (my/super--space 'right))
 
 (defun my/super-split-below () (interactive)
-  (if (fboundp 'evil-window-split) (evil-window-split) (split-window-below)))
+       (if (fboundp 'evil-window-split) (evil-window-split) (split-window-below)))
 (defun my/super-split-right () (interactive)
-  (if (fboundp 'evil-window-vsplit) (evil-window-vsplit) (split-window-right)))
+       (if (fboundp 'evil-window-vsplit) (evil-window-vsplit) (split-window-right)))
 
 (defun my/super-toggle-maximize ()
   "Toggle maximizing the current window, restoring the layout on the second call."

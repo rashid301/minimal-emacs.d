@@ -156,3 +156,61 @@
       (kbd "RET") #'slack-message-send-from-buffer)
     (evil-define-key* '(normal motion) slack-message-buffer-mode-map
       "o" #'slack-message-write-another-buffer)))
+
+;; ── Slack: minimal bookmark support (so activities.el can restore) ─────
+;; Records team + room ids; on jump, opens the room if Slack is connected,
+;; otherwise returns a stub buffer so activities.el never shows its error
+;; placeholder.
+(with-eval-after-load 'slack
+  (defun my/slack-bookmark-make-record ()
+    "Bookmark record for the current Slack buffer: team + room ids."
+    (let ((b slack-current-buffer))
+      `(,(buffer-name)
+        (team-id . ,(and b (oref b team-id)))
+        (room-id . ,(and b (slot-boundp b 'room-id) (oref b room-id)))
+        (handler . my/slack-bookmark-jump))))
+
+  (defun my/slack-bookmark-jump (bmk)
+    "Open the room in BMK; if Slack isn't connected, show a stub buffer."
+    ;; Callers (activities.el) judge success by whether the *current buffer*
+    ;; changed, so always leave a Slack buffer or a stub current.
+    (let* ((team (ignore-errors (slack-team-find (bookmark-prop-get bmk 'team-id))))
+           (room-id (bookmark-prop-get bmk 'room-id))
+           (room (and team room-id (ignore-errors (slack-room-find room-id team))))
+           (open (and room (slack-buffer-find 'slack-message-buffer team room)))
+           (open-buf (and open (oref open buf))))
+      (if (buffer-live-p open-buf)
+          (set-buffer open-buf)
+        ;; Room not open yet: fetch it (async) and hold the place with a stub.
+        (when room (slack-room-display room team))
+        (let ((stub (get-buffer-create
+                     (format "*Slack (%s): %s*"
+                             (if room "opening" "not connected")
+                             (bookmark-name-from-full-record bmk)))))
+          (with-current-buffer stub
+            (let ((inhibit-read-only t))
+              (erase-buffer)
+              (insert (if room
+                          "Opening room...\n"
+                        (concat "Slack isn't connected or the room wasn't found.\n"
+                                "Run C-c S s (slack-start), then C-c S c to reopen it.\n")))))
+          (set-buffer stub)))))
+
+  (dolist (hook '(slack-message-buffer-mode-hook
+                  slack-thread-message-buffer-mode-hook))
+    (add-hook hook (lambda ()
+                     (setq-local bookmark-make-record-function
+                                 #'my/slack-bookmark-make-record)))))
+
+;; Slack: auto-connect a few seconds after startup (idle, so it doesn't slow
+;; init). `slack-start' is autoloaded, so this also loads the package and runs
+;; the :config that registers the team. Don't re-run `slack-start' manually
+;; afterwards: it kills open Slack buffers before reconnecting.
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (run-with-idle-timer
+             5 nil
+             (lambda ()
+               (condition-case err
+                   (slack-start)
+                 (error (message "slack auto-start failed: %S" err)))))))
