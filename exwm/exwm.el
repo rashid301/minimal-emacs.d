@@ -421,38 +421,46 @@ plain default background (a white patch).  Keep the same 4-column padding as a s
   (setq slack-buffer-function #'my/slack-show-in-comms))
 
 ;; ---- SPC f y in a Firefox window copies the page URL --------------------------------------------
-;; Firefox doesn't expose its URL to Emacs, so drive it: Ctrl+L (focus the URL bar), Ctrl+Insert (copy it;
-;; NOT Ctrl+C: EXWM treats C-c as a prefix key and would swallow it),
-;; Escape (leave the URL bar), then read the clipboard back and put the URL on the kill ring too.
-;; Real key events via xdotool (Firefox ignores the synthetic ones `exwm-input--fake-key' sends for
-;; shortcuts); insert state first, because in normal state EXWM keeps the keyboard and the keys would
-;; land in Emacs.  Anywhere else `my/copy-file-path' behaves as before.
+;; Firefox doesn't expose its URL to Emacs, so drive it with the same fake-key path exwm-firefox-core
+;; uses (`exwm-input--fake-key' sends straight to the app's X window): C-l focuses the URL bar and
+;; selects the URL, C-c copies it, Escape leaves the URL bar.  Then poll the clipboard for the URL.
+;; Don't use xdotool here: its real key events go through EXWM's grabs, where C-c is a prefix key and
+;; the keys can end up in Emacs (C-Insert = `kill-ring-save', Escape = quit).
 (defun my/exwm--firefox-buffer-p (buf)
   (with-current-buffer buf
     (and (derived-mode-p 'exwm-mode) (member exwm-class-name '("firefox" "Firefox")))))
 
 (defun my/exwm-copy-firefox-url ()
-  "Copy the URL of the selected Firefox window."
-  (let ((buf (current-buffer)))
-    ;; Plant a sentinel so a stale clipboard can't be mistaken for the copied URL.
+  "Copy the URL of the selected Firefox window to the clipboard and kill ring."
+  (let ((win (selected-window)) (tries 0) timer)
+    ;; Sentinel so a stale clipboard can't be mistaken for the copied URL.
     (gui-set-selection 'CLIPBOARD "exwm-url-pending")
-    (when (bound-and-true-p exwm-firefox-evil-mode) (evil-insert-state))
-    (call-process "xdotool" nil 0 nil "key" "--clearmodifiers" "ctrl+l")
-    (run-at-time 0.15 nil
-                 (lambda ()
-                   (call-process "xdotool" nil 0 nil "key" "--clearmodifiers" "ctrl+Insert")
-                   (run-at-time 0.2 nil
-                                (lambda ()
-                                  (call-process "xdotool" nil 0 nil "key" "--clearmodifiers" "Escape")
-                                  (when (buffer-live-p buf)
-                                    (with-current-buffer buf
-                                      (when (bound-and-true-p exwm-firefox-evil-mode)
-                                        (evil-normal-state))))
-                                  (let ((url (ignore-errors (gui-get-selection 'CLIPBOARD 'UTF8_STRING))))
-                                    (if (and url (string-match-p "\\`[a-z][a-z0-9+.-]*:" url))
-                                        (progn (kill-new url) (message "Copied URL: %s" url))
-                                      (message "Could not read the Firefox URL (clipboard: %s)"
-                                               (if url (truncate-string-to-width url 40 nil nil "…") "empty"))))))))))
+    (exwm-firefox-core-focus-search-bar)
+    (cl-flet ((still-here () (and (window-live-p win) (eq win (selected-window))))
+              (finish (url)
+                ;; Escape right after the copy is dropped by Firefox, and the first Escape only closes
+                ;; the URL-bar dropdown (which opens a moment after focusing); the second leaves the bar.
+                (dolist (delay '(0.25 0.5))
+                  (run-at-time delay nil (lambda () (when (still-here) (exwm-firefox-core-cancel)))))
+                (if url
+                    (progn (kill-new url) (message "Copied URL: %s" url))
+                  (message "Could not read the Firefox URL (empty address bar, or Firefox did not answer)"))))
+      (run-at-time
+       0.25 nil
+       (lambda ()
+         (if (not (still-here))
+             (message "Copy URL cancelled: Firefox window lost focus")
+           (exwm-firefox-core-copy)
+           (setq timer
+                 (run-at-time
+                  0.1 0.1
+                  (lambda ()
+                    (cl-incf tries)
+                    (let ((url (ignore-errors (gui-get-selection 'CLIPBOARD 'UTF8_STRING))))
+                      (cond ((not (still-here)) (cancel-timer timer))
+                            ((and url (string-match-p "\\`[a-z][a-z0-9+.-]*:" url))
+                             (cancel-timer timer) (finish url))
+                            ((>= tries 20) (cancel-timer timer) (finish nil)))))))))))))
 
 (advice-add 'my/copy-file-path :around
             (lambda (orig &rest args)
