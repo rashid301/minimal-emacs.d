@@ -292,9 +292,13 @@
                           'face 'my/tab-bar-rule)))
     `((my-rule menu-item ,str ignore))))
 (defun my/tab-bar-format-status ()
-  "Clock + battery, underlined so the line under the tab bar is unbroken.
-Reads `display-time-string' / `battery-mode-line-string' directly (cheap; both are timer-updated)."
-  (let ((s (string-trim (concat (and (bound-and-true-p display-time-mode) (stringp display-time-string)
+  "GitHub count, clock + battery, underlined so the line under the tab bar is unbroken.
+Reads `display-time-string' / `battery-mode-line-string' directly (cheap; both are timer-updated);
+the GitHub count (`gh-inbox-notify-status-string') is kept current by its own polling."
+  (let ((s (string-trim (concat (and (bound-and-true-p gh-inbox-notify-mode) (fboundp 'gh-inbox-notify-status-string)
+                                     (when-let* ((gh (gh-inbox-notify-status-string)))
+                                       (concat (propertize gh 'face 'gh-inbox-tag-action) "  ")))
+                                (and (bound-and-true-p display-time-mode) (stringp display-time-string)
                                      (substring-no-properties display-time-string))
                                 (and (bound-and-true-p display-battery-mode) (stringp battery-mode-line-string)
                                      (concat " " (substring-no-properties battery-mode-line-string)))))))
@@ -302,6 +306,8 @@ Reads `display-time-string' / `battery-mode-line-string' directly (cheap; both a
       (setq s (concat " " s "  "))
       (add-face-text-property 0 (length s) 'my/tab-bar-rule t s)
       `((my-status menu-item ,s ignore)))))
+;; Under EXWM the tab bar is the status area, so the GitHub count lives there (above), not also in the mode line.
+(setq global-mode-string (delete '(:eval gh-inbox-notify-mode-line-string) global-mode-string))
 ;; Clock + battery on the right of the tab bar (there is no separate panel under EXWM).
 (setq display-time-format "%a %H:%M" display-time-default-load-average nil
       battery-mode-line-format " %b%p%%")

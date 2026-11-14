@@ -25,6 +25,9 @@
 (require 'worktrunk-activities)
 (worktrunk-activities-project-mode 1)
 
+;; GitHub: review inbox (SPC g i), PR threads, Claude review, notifications
+(load "config-github")
+
 ;; Email: mu4e + org email (loads org first)
 ;;(load "config-email")
 
