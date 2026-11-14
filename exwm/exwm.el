@@ -372,6 +372,21 @@ plain default background (a white patch).  Keep the same 4-column padding as a s
     (dolist (b (buffer-list))
       (when (string-match-p "\\` \\*\\(Minibuf-[0-9]+\\|Echo Area [0-9]+\\)\\*\\'" (buffer-name b))
         (with-current-buffer b (my/exwm-style-echo-buffer))))
+    ;; Evil state badge in the mode line.  Firefox shows no cursor, so state would otherwise be invisible:
+    ;; filled, colored badge per state (normal = accent, insert = green, visual = amber, replace = red...).
+    (cl-flet ((col (face) (let ((c (ignore-errors (face-attribute face :foreground nil t))))
+                            (if (stringp c) c fg))))
+      (dolist (spec `((doom-modeline-evil-normal-state ,accent)
+                      (doom-modeline-evil-insert-state ,(col 'success))
+                      (doom-modeline-evil-visual-state ,(col 'warning))
+                      (doom-modeline-evil-replace-state ,(col 'error))
+                      (doom-modeline-evil-operator-state ,(col 'error))
+                      (doom-modeline-evil-emacs-state ,(col 'font-lock-keyword-face))
+                      (doom-modeline-evil-motion-state ,dim)
+                      (doom-modeline-evil-user-state ,dim)))
+        (when (facep (car spec))
+          (set-face-attribute (car spec) nil :background (cadr spec) :foreground bg :weight 'bold
+                              :inherit 'unspecified))))
     (when (facep 'auto-dim-other-buffers)
       (set-face-attribute 'auto-dim-other-buffers nil :background (funcall shift 3) :foreground (funcall shift 50)))
     ;; Floating X windows (dialogs, pickers): accent border, like the selected tab.
@@ -384,3 +399,63 @@ plain default background (a white patch).  Keep the same 4-column padding as a s
 ;; Depth 90 = run after the other theme hooks (spacious-padding resets the divider faces too).
 (add-hook 'enable-theme-functions #'my/exwm-style-ui 90)
 (my/exwm-style-ui)
+
+;; ---- Slack -> "comms" activity (tab) --------------------------------------------------------------
+;; Every Slack buffer (rooms, threads, logs, previews) is displayed through `slack-buffer-function'.
+;; Point it at a function that first makes sure the "comms" activity exists and is current, so all
+;; Slack buffers land in that tab.  The activity is created lazily on first use.
+(defvar my/comms-activity-name "comms")
+(defun my/comms-ensure ()
+  "Switch to the comms activity, creating or resuming it as needed."
+  (let ((act (activities-named my/comms-activity-name)))
+    (cond ((null act) (activities-new my/comms-activity-name))
+          ((activities-activity-active-p act) (activities-switch act))
+          (t (activities-resume act)))))
+(defun my/slack-show-in-comms (buffer)
+  "Display Slack BUFFER in the comms tab."
+  (let ((cur (activities-current)))
+    (unless (and cur (equal (activities-activity-name cur) my/comms-activity-name))
+      (my/comms-ensure)))
+  (switch-to-buffer buffer))
+(with-eval-after-load 'slack
+  (setq slack-buffer-function #'my/slack-show-in-comms))
+
+;; ---- SPC f y in a Firefox window copies the page URL --------------------------------------------
+;; Firefox doesn't expose its URL to Emacs, so drive it: Ctrl+L (focus the URL bar), Ctrl+Insert (copy it;
+;; NOT Ctrl+C: EXWM treats C-c as a prefix key and would swallow it),
+;; Escape (leave the URL bar), then read the clipboard back and put the URL on the kill ring too.
+;; Real key events via xdotool (Firefox ignores the synthetic ones `exwm-input--fake-key' sends for
+;; shortcuts); insert state first, because in normal state EXWM keeps the keyboard and the keys would
+;; land in Emacs.  Anywhere else `my/copy-file-path' behaves as before.
+(defun my/exwm--firefox-buffer-p (buf)
+  (with-current-buffer buf
+    (and (derived-mode-p 'exwm-mode) (member exwm-class-name '("firefox" "Firefox")))))
+
+(defun my/exwm-copy-firefox-url ()
+  "Copy the URL of the selected Firefox window."
+  (let ((buf (current-buffer)))
+    ;; Plant a sentinel so a stale clipboard can't be mistaken for the copied URL.
+    (gui-set-selection 'CLIPBOARD "exwm-url-pending")
+    (when (bound-and-true-p exwm-firefox-evil-mode) (evil-insert-state))
+    (call-process "xdotool" nil 0 nil "key" "--clearmodifiers" "ctrl+l")
+    (run-at-time 0.15 nil
+                 (lambda ()
+                   (call-process "xdotool" nil 0 nil "key" "--clearmodifiers" "ctrl+Insert")
+                   (run-at-time 0.2 nil
+                                (lambda ()
+                                  (call-process "xdotool" nil 0 nil "key" "--clearmodifiers" "Escape")
+                                  (when (buffer-live-p buf)
+                                    (with-current-buffer buf
+                                      (when (bound-and-true-p exwm-firefox-evil-mode)
+                                        (evil-normal-state))))
+                                  (let ((url (ignore-errors (gui-get-selection 'CLIPBOARD 'UTF8_STRING))))
+                                    (if (and url (string-match-p "\\`[a-z][a-z0-9+.-]*:" url))
+                                        (progn (kill-new url) (message "Copied URL: %s" url))
+                                      (message "Could not read the Firefox URL (clipboard: %s)"
+                                               (if url (truncate-string-to-width url 40 nil nil "…") "empty"))))))))))
+
+(advice-add 'my/copy-file-path :around
+            (lambda (orig &rest args)
+              (if (my/exwm--firefox-buffer-p (current-buffer))
+                  (my/exwm-copy-firefox-url)
+                (apply orig args))))
