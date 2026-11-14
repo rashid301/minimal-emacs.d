@@ -225,3 +225,41 @@
                                    #'keyboard-escape-quit)))))
 (exwm-input-set-key (kbd "<escape>") #'my/exwm-escape)
 (exwm-input--update-global-prefix-keys)
+
+;; Padding around windows / frame edge / tab bar (replaces the old hand-made tab-bar gap element).
+;; Pairs with modus-themes; changes sizes only, not colors.  Fringes stay 0 as in config-ui.el.
+(use-package spacious-padding
+  :ensure nil   ; installed by hand like the other EXWM-side packages; keeps startup free of install prompts
+  :custom
+  (spacious-padding-widths '( :internal-border-width 10
+                              :header-line-width 2
+                              :mode-line-width 2
+                              :tab-width 6
+                              :right-divider-width 6
+                              :scroll-bar-width 0
+                              :fringe-width 0))
+  :config (spacious-padding-mode 1))
+
+;; Tab bar + window borders styled relative to the active theme, so they follow any theme (light or dark).
+;; Something already overrides the modus tab-bar colors (the bar was dark under every modus theme), so the
+;; faces are set directly and re-applied whenever a theme is enabled.
+(require 'color)
+(defun my/exwm-style-ui (&rest _)
+  (let* ((bg (face-attribute 'default :background nil t))
+         (fg (face-attribute 'default :foreground nil t))
+         (dark (eq (frame-parameter nil 'background-mode) 'dark))
+         (shift (lambda (pct) (if dark (color-lighten-name bg pct) (color-darken-name bg pct))))
+         (cur (funcall shift 7))      ; selected tab
+         (dim (funcall shift 45))     ; inactive tab text
+         (edge (funcall shift 22)))   ; window border line
+    (set-face-attribute 'tab-bar nil :background bg :foreground fg :box nil)
+    (set-face-attribute 'tab-bar-tab nil :background cur :foreground fg
+                        :box `(:line-width (8 . 4) :color ,cur))
+    (set-face-attribute 'tab-bar-tab-inactive nil :background bg :foreground dim
+                        :box `(:line-width (8 . 4) :color ,bg))
+    ;; Dividers are the gaps (spacious-padding); the first/last pixel of each divider is the border line.
+    (set-face-attribute 'window-divider nil :foreground bg)
+    (set-face-attribute 'window-divider-first-pixel nil :foreground edge)
+    (set-face-attribute 'window-divider-last-pixel nil :foreground edge)))
+(add-hook 'enable-theme-functions #'my/exwm-style-ui)
+(my/exwm-style-ui)
