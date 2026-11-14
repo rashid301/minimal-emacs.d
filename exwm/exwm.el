@@ -244,22 +244,37 @@
 ;; Something already overrides the modus tab-bar colors (the bar was dark under every modus theme), so the
 ;; faces are set directly and re-applied whenever a theme is enabled.
 (require 'color)
+;; Top border of the windows = a line right under the tab bar.  A full-width element only works with
+;; `tab-bar-auto-width' off (with it on, `tab-bar-auto-width' counts the stretch as huge and signals
+;; args-out-of-range on every redraw).  Natural-width tabs also read more like tabs.
+(setq tab-bar-auto-width nil)
+(defface my/tab-bar-rule '((t :underline t)) "Line under the tab bar = top border of the windows.")
+(defun my/tab-bar-format-rule ()
+  (list (list 'my-rule 'menu-item
+              (propertize " " 'display '(space :align-to right) 'face 'my/tab-bar-rule) 'ignore)))
+(setq tab-bar-format '(tab-bar-format-history tab-bar-format-tabs tab-bar-separator
+                       tab-bar-format-add-tab my/tab-bar-format-rule))
 (defun my/exwm-style-ui (&rest _)
   (let* ((bg (face-attribute 'default :background nil t))
          (fg (face-attribute 'default :foreground nil t))
          (dark (eq (frame-parameter nil 'background-mode) 'dark))
          (shift (lambda (pct) (if dark (color-lighten-name bg pct) (color-darken-name bg pct))))
-         (cur (funcall shift 7))      ; selected tab
+         (strip (funcall shift 8))    ; tab bar strip; the selected tab keeps the window background
          (dim (funcall shift 45))     ; inactive tab text
-         (edge (funcall shift 22)))   ; window border line
-    (set-face-attribute 'tab-bar nil :background bg :foreground fg :box nil)
-    (set-face-attribute 'tab-bar-tab nil :background cur :foreground fg
-                        :box `(:line-width (8 . 4) :color ,cur))
-    (set-face-attribute 'tab-bar-tab-inactive nil :background bg :foreground dim
-                        :box `(:line-width (8 . 4) :color ,bg))
+         (edge (funcall shift 22))    ; window border line
+         (accent (or (ignore-errors (face-attribute 'link :foreground nil t)) fg)))
+    (set-face-attribute 'tab-bar nil :background strip :foreground fg :box nil)
+    ;; Selected tab: same color as the windows below (reads as "attached" to them), bold, accent line on top.
+    ;; Inactive tabs: the strip color, dim text.
+    (set-face-attribute 'tab-bar-tab nil :background bg :foreground fg :weight 'bold
+                        :overline accent :box `(:line-width (8 . 4) :color ,bg))
+    (set-face-attribute 'tab-bar-tab-inactive nil :background strip :foreground dim :weight 'normal
+                        :overline 'unspecified :box `(:line-width (8 . 4) :color ,strip))
+    (set-face-attribute 'my/tab-bar-rule nil :underline `(:color ,edge :position t))
     ;; Dividers are the gaps (spacious-padding); the first/last pixel of each divider is the border line.
     (set-face-attribute 'window-divider nil :foreground bg)
     (set-face-attribute 'window-divider-first-pixel nil :foreground edge)
     (set-face-attribute 'window-divider-last-pixel nil :foreground edge)))
-(add-hook 'enable-theme-functions #'my/exwm-style-ui)
+;; Depth 90 = run after the other theme hooks (spacious-padding resets the divider faces too).
+(add-hook 'enable-theme-functions #'my/exwm-style-ui 90)
 (my/exwm-style-ui)
