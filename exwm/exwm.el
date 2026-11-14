@@ -23,6 +23,16 @@
 (with-demoted-errors "config-super: %S" (load "/home/dev/.emacs.d/lisp/config-super.el"))
 
 (setq exwm-workspace-number 1)   ; tabs, not workspaces
+;; Every extra Emacs frame becomes an EXWM workspace, which is what made navigation confusing.
+;; `display-buffer' ends with `display-buffer-pop-up-frame' as a last resort (e.g. *Backtrace*, *Help*
+;; when no window can be split/reused); drop it so buffers always land in a window of the one frame.
+(setq pop-up-frames nil
+      display-buffer-fallback-action
+      (list (seq-remove (lambda (f) (eq f 'display-buffer-pop-up-frame))
+                        (car display-buffer-fallback-action))))
+;; Safety net: if a frame still appears (emacsclient -c, other packages), say so loudly.
+(add-hook 'after-make-frame-functions
+          (lambda (f) (message "EXWM: new frame %S = new workspace; close it with C-x 5 0" (frame-parameter f 'name))))
 
 ;; Keep X buffer names in sync with the window: "Class: title" (title truncated).
 (defun my/exwm-sync-buffer-name ()
