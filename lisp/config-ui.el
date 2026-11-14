@@ -67,7 +67,7 @@
 
 ;; ── Line numbers ───────────────────────────────────────────────────────
 
-(global-display-line-numbers-mode 1)
+;;(global-display-line-numbers-mode nil)
 (setq display-line-numbers-width 2)
 (set-fringe-mode 0)
 (setq-default top-margin-width 0)
