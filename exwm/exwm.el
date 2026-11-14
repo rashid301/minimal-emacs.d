@@ -240,6 +240,11 @@
                               :fringe-width 0))
   :config (spacious-padding-mode 1))
 
+;; Dim every window except the focused one (text buffers, terminals, mode lines; X windows like Firefox
+;; are not Emacs text so they stay as they are).  Colors are set in `my/exwm-style-ui'.
+(use-package auto-dim-other-buffers
+  :config (auto-dim-other-buffers-mode 1))
+
 ;; Tab bar + window borders styled relative to the active theme, so they follow any theme (light or dark).
 ;; Something already overrides the modus tab-bar colors (the bar was dark under every modus theme), so the
 ;; faces are set directly and re-applied whenever a theme is enabled.
@@ -270,6 +275,18 @@
                         :overline accent :box `(:line-width (8 . 4) :color ,bg))
     (set-face-attribute 'tab-bar-tab-inactive nil :background strip :foreground dim :weight 'normal
                         :overline 'unspecified :box `(:line-width (8 . 4) :color ,strip))
+    ;; Mode line = focus indicator.  X windows (Firefox...) can't be dimmed, so this is what shows which
+    ;; window has focus.  Active: strip color + accent line on top.  Inactive: flat, window color, faint line.
+    (let ((w (or (ignore-errors (plist-get (face-attribute 'mode-line :box nil t) :line-width)) 2)))
+      (dolist (spec `((mode-line-active ,strip ,fg ,accent)
+                      (mode-line-inactive ,bg ,dim ,edge)))
+        (pcase-let ((`(,face ,b ,f ,line) spec))
+          (set-face-attribute face nil :background b :foreground f :overline line
+                              :box `(:line-width ,w :color ,b :style nil))))
+      (set-face-attribute 'mode-line nil :background strip :foreground fg
+                          :box `(:line-width ,w :color ,strip :style nil)))
+    (when (facep 'auto-dim-other-buffers)
+      (set-face-attribute 'auto-dim-other-buffers nil :background (funcall shift 3) :foreground (funcall shift 50)))
     (set-face-attribute 'my/tab-bar-rule nil :underline `(:color ,edge :position t))
     ;; Dividers are the gaps (spacious-padding); the first/last pixel of each divider is the border line.
     (set-face-attribute 'window-divider nil :foreground bg)
