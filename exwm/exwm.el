@@ -35,8 +35,15 @@
       (list (seq-remove (lambda (f) (eq f 'display-buffer-pop-up-frame))
                         (car display-buffer-fallback-action))))
 ;; Safety net: if a frame still appears (emacsclient -c, other packages), say so loudly.
+;; EXWM's own floating-window frames are expected, so they're skipped: they get their `exwm-container'
+;; parameter a moment after creation, hence the short delay before checking.
 (add-hook 'after-make-frame-functions
-          (lambda (f) (message "EXWM: new frame %S = new workspace; close it with C-x 5 0" (frame-parameter f 'name))))
+          (lambda (f)
+            (run-at-time 0.2 nil
+                         (lambda ()
+                           (when (and (frame-live-p f) (not (frame-parameter f 'exwm-container)))
+                             (message "EXWM: new frame %S = new workspace; close it with C-x 5 0"
+                                      (frame-parameter f 'name)))))))
 
 ;; Keep X buffer names in sync with the window: "Class: title" (title truncated).
 (defun my/exwm-sync-buffer-name ()
@@ -179,11 +186,14 @@
 
 ;; Per-app window rules.  Dialogs, pickers and auth prompts float, centered, without a mode line;
 ;; Picture-in-Picture floats small in the top-right corner; everything else tiles as before.
-;; x/y/width/height as fractions (0..1) are fractions of the screen.  First matching rule wins.
-(let ((dialog '(floating t floating-mode-line nil width 0.5 height 0.6 x 0.25 y 0.2)))
+;; width/height as fractions (0..1) are fractions of the screen.  (Fractional x/y don't work in EXWM: it
+;; multiplies them by the screen origin, i.e. 0.  The custom `place' key below is handled by
+;; `my/exwm-place-float' instead.)  First matching rule wins.
+(let ((dialog '(floating t floating-mode-line nil floating-header-line (:eval (my/exwm-float-header))
+                width 0.5 height 0.6 place center)))
   (setq exwm-manage-configurations
         `(((string-match-p "Picture-in-Picture" (or exwm-title ""))
-           floating t floating-mode-line nil width 0.28 height 0.28 x 0.70 y 0.06)
+           floating t floating-mode-line nil width 0.28 height 0.28 place top-right)
           ((member exwm-class-name
                    '("Pinentry" "pinentry" "Pinentry-gtk-2" "Gcr-prompter" "Zenity"
                      "Xdg-desktop-portal-gtk" "xdg-desktop-portal-gtk" "Blueman-manager"
@@ -347,6 +357,73 @@ plain default background (a white patch).  Keep the same 4-column padding as a s
                       (propertize str 'face `(:background ,my/exwm-strip))
                     str)))))
 
+;; ---- Floating X windows (dialogs, pickers, PiP) ---------------------------------------------------
+;; Title bar: the `floating-header-line' rule option below shows title + app name; its strip background
+;; comes from a buffer-local remap of `header-line' made in `exwm-floating-setup-hook'.
+;; Border: EXWM has a single border color for all floating windows, so recolor each floating window's
+;; container whenever the selection changes: accent for the selected one, edge grey for the others.
+(defvar my/exwm-accent nil "Current accent color, set by `my/exwm-style-ui'.")
+(defvar my/exwm-edge nil "Current edge/border-line color, set by `my/exwm-style-ui'.")
+(defface my/exwm-float-title '((t :weight bold)) "Title text in a floating window's header line.")
+
+(defun my/exwm-float-header ()
+  "Header-line content for a floating X window: title, then app name."
+  (concat (propertize (format " %s" (truncate-string-to-width (or exwm-title "") 90 nil nil "…"))
+                      'face 'my/exwm-float-title)
+          (propertize (format "   %s" (or exwm-class-name "")) 'face 'shadow)))
+
+(defun my/exwm-update-float-borders (&rest _)
+  "Accent border on the selected floating X window, edge grey on the rest."
+  (when (and (bound-and-true-p exwm--connection) my/exwm-accent my/exwm-edge)
+    (dolist (pair exwm--id-buffer-alist)
+      (with-current-buffer (cdr pair)
+        (when (and exwm--floating-frame (frame-live-p exwm--floating-frame))
+          (let ((px (exwm--color->pixel
+                     (if (eq (selected-window) (frame-first-window exwm--floating-frame))
+                         my/exwm-accent my/exwm-edge))))
+            (when px
+              (xcb:+request exwm--connection
+                  (make-instance 'xcb:ChangeWindowAttributes
+                                 :window (frame-parameter exwm--floating-frame 'exwm-container)
+                                 :value-mask xcb:CW:BorderPixel
+                                 :border-pixel px)))))))
+    (xcb:flush exwm--connection)))
+
+;; Place a floating window as its rule's `place' says (center, top-right), once EXWM has sized it.
+(defun my/exwm-place-float ()
+  (when-let* ((place (plist-get exwm--configurations 'place))
+              ((and exwm--floating-frame (frame-live-p exwm--floating-frame)))
+              (container (frame-parameter exwm--floating-frame 'exwm-container)))
+    (with-slots (width height border-width)
+        (xcb:+request-unchecked+reply exwm--connection
+            (make-instance 'xcb:GetGeometry :drawable container))
+      (let* ((sw (frame-pixel-width exwm--frame))
+             (sh (frame-pixel-height exwm--frame))
+             (w (+ width (* 2 border-width)))
+             (h (+ height (* 2 border-width)))
+             (top 48)                   ; clear of the tab bar
+             (pos (pcase place
+                    ('center    (cons (/ (- sw w) 2) (max top (/ (- sh h) 2))))
+                    ('top-right (cons (- sw w 24) top)))))
+        (when pos
+          (xcb:+request exwm--connection
+              (make-instance 'xcb:ConfigureWindow
+                             :window container
+                             :value-mask (logior xcb:ConfigWindow:X xcb:ConfigWindow:Y)
+                             :x (car pos) :y (cdr pos)))
+          (xcb:flush exwm--connection))))))
+
+(defun my/exwm-float-setup ()
+  "Per floating window: strip-colored header line, then set the border for the current selection."
+  (when my/exwm-strip
+    (face-remap-add-relative 'header-line :background my/exwm-strip
+                             :foreground (face-attribute 'default :foreground nil t)
+                             :box `(:line-width 3 :color ,my/exwm-strip)))
+  (my/exwm-place-float)
+  (my/exwm-update-float-borders))
+(add-hook 'exwm-floating-setup-hook #'my/exwm-float-setup)
+(add-hook 'window-selection-change-functions #'my/exwm-update-float-borders)
+
 (defun my/exwm-style-ui (&rest _)
   (let* ((bg (face-attribute 'default :background nil t))
          (fg (face-attribute 'default :foreground nil t))
@@ -406,7 +483,9 @@ plain default background (a white patch).  Keep the same 4-column padding as a s
     (when (facep 'auto-dim-other-buffers)
       (set-face-attribute 'auto-dim-other-buffers nil :background (funcall shift 3) :foreground (funcall shift 50)))
     ;; Floating X windows (dialogs, pickers): accent border, like the selected tab.
-    (ignore-errors (customize-set-variable 'exwm-floating-border-color accent))
+    (setq my/exwm-accent accent my/exwm-edge edge)
+    (ignore-errors (customize-set-variable 'exwm-floating-border-color edge))
+    (my/exwm-update-float-borders)
     (set-face-attribute 'my/tab-bar-rule nil :underline `(:color ,edge :position t))
     ;; Dividers are the gaps (spacious-padding); the first/last pixel of each divider is the border line.
     (set-face-attribute 'window-divider nil :foreground bg)
