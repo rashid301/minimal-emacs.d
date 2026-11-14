@@ -13,6 +13,7 @@
 ;;; Code:
 
 (require 'briefing)
+(require 'briefing-mail)
 (require 'cl-lib)
 (require 'subr-x)
 
@@ -39,25 +40,7 @@
 
 ;;;; Shared: an async process that collects its output
 
-(defun briefing-sources--run (program args callback &optional input)
-  "Run PROGRAM with ARGS without blocking; call CALLBACK with (EXIT . OUTPUT).
-INPUT, if given, is sent on stdin (so secrets stay off the command line).
-Uses a pipe, not a pty: some wrappers behave differently on a tty."
-  (let ((buf (generate-new-buffer " *briefing-proc*")))
-    (condition-case err
-        (let ((proc (make-process
-                     :name "briefing" :buffer buf :connection-type 'pipe :noquery t
-                     :command (cons program args)
-                     :sentinel (lambda (proc _event)
-                                 (unless (process-live-p proc)
-                                   (let ((out (with-current-buffer buf (buffer-string))))
-                                     (kill-buffer buf)
-                                     (funcall callback (cons (process-exit-status proc) out))))))))
-          (when input (process-send-string proc input))
-          (process-send-eof proc))
-      (error
-       (kill-buffer buf)
-       (funcall callback (cons -1 (error-message-string err)))))))
+(defalias 'briefing-sources--run #'briefing-run)
 
 ;;;; GitHub
 
@@ -493,6 +476,7 @@ server, in case the connection dropped and the counts went stale."
   (briefing-register-source 'today "Today" #'briefing-sources-today)
   (briefing-register-source 'gh "GitHub: waiting on you" #'briefing-sources-github)
   (briefing-register-source 'slack "Slack: waiting on you" #'briefing-sources-slack)
+  (briefing-register-source 'mail "Mail: unread" #'briefing-mail-fetch)
   (briefing-register-source 'inbox "Inbox: to process" #'briefing-sources-inbox)
   (briefing-register-source 'next "Next actions" #'briefing-sources-next)
   (briefing-register-source 'wait "Waiting for" #'briefing-sources-wait)

@@ -59,10 +59,22 @@
   :config (ref-open-setup-embark))
 
 ;; Morning briefing (SPC m m): one read-only buffer of what is waiting on you.
-;; Sections so far: GitHub and the Taskwarrior board.  r refreshes by hand; T adds a task.
+;; Sections: Today, GitHub, Slack, Mail, and your GTD inbox / next / waiting.
+;; r refreshes by hand; T adds a task.  Mail accounts come from Gnus; the password of
+;; each is read by `pass' (never by Emacs): USER -> pass entry.
 (use-package briefing-sources
   :ensure nil
-  :demand t)
+  :demand t
+  :config
+  (setq briefing-mail-pass-entries
+        '(("rashid301@gmail.com"     . "email/personal")
+          ("rashid@bitbute.tech"     . "email/zoho")
+          ("rshaikh@coachsensai.com" . "email/sensai")))
+  ;; Work mail (Gmail connector via `claude -p') is built but DISABLED: the model often
+  ;; answers without running the search, and a call costs a few cents.  See
+  ;; `briefing-work-mail-fetch' in briefing-mail.el before enabling:
+  ;; (add-to-list 'briefing-mail-providers #'briefing-work-mail-fetch)
+  )
 
 (with-eval-after-load 'general
   (my-leader-def

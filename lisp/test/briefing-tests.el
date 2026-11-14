@@ -535,7 +535,7 @@ outcomes, TASK-RESULT what the cal-bucket task fetch returns."
   (should (equal (mapcar #'car (let ((briefing-sources nil))
                                  (briefing-sources-register-defaults)
                                  briefing-sources))
-                 '(today gh slack inbox next wait))))
+                 '(today gh slack mail inbox next wait))))
 
 (ert-deftest briefing-waiting-for-starts-folded ()
   (briefing-test-with-env "[]"

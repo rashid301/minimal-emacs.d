@@ -59,7 +59,7 @@
   "Functions returning a string (or nil) to append to the header line."
   :type 'hook)
 
-(defconst briefing-task-source-ids '(inbox next wait caltask task calerr)
+(defconst briefing-task-source-ids '(inbox next wait caltask task calerr mailerr)
   "Sections whose rows already are Taskwarrior tasks (so `T' has nothing to add).")
 
 (defface briefing-section '((t :inherit font-lock-keyword-face :weight bold :height 1.1))
@@ -150,6 +150,37 @@ New sources go last, or just ahead of the source BEFORE when it exists."
   (briefing--load-tracked)
   (dolist (s briefing-sources) (briefing--fetch-one s force))
   (briefing--render))
+
+;;;; Shared helpers
+
+(defun briefing-run (program args callback &optional input)
+  "Run PROGRAM with ARGS without blocking; call CALLBACK with (EXIT . OUTPUT).
+INPUT, if given, is sent on stdin (so secrets stay off the command line).
+Uses a pipe, not a pty: some wrappers behave differently on a tty."
+  (let ((buf (generate-new-buffer " *briefing-proc*")))
+    (condition-case err
+        (let ((proc (make-process
+                     :name "briefing" :buffer buf :connection-type 'pipe :noquery t
+                     :command (cons program args)
+                     :sentinel (lambda (proc _event)
+                                 (unless (process-live-p proc)
+                                   (let ((out (with-current-buffer buf (buffer-string))))
+                                     (kill-buffer buf)
+                                     (funcall callback (cons (process-exit-status proc) out))))))))
+          (when input (process-send-string proc input))
+          (process-send-eof proc))
+      (error
+       (kill-buffer buf)
+       (funcall callback (cons -1 (error-message-string err)))))))
+
+(defun briefing-age-string (secs)
+  "Short age for SECS seconds: 5m, 3h, 2d, 4w.  Empty for nil."
+  (if (null secs) ""
+    (let ((m (/ secs 60)))
+      (cond ((< m 60) (format "%dm" (max 0 m)))
+            ((< m 1440) (format "%dh" (/ m 60)))
+            ((< m 20160) (format "%dd" (/ m 1440)))
+            (t (format "%dw" (/ m 10080)))))))
 
 ;;;; Taskwarrior plumbing (shared by the board section and `T')
 
