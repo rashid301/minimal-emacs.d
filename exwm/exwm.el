@@ -168,6 +168,33 @@
 (setq exwm-xsettings-theme '("Adwaita" . "Adwaita-dark"))
 (exwm-xsettings-mode 1)
 
+;; ---- EXWM behavior ------------------------------------------------------------------------
+;; Focus follows the mouse.  MUST be set before `exwm-wm-mode': EXWM registers its pointer-enter events
+;; at startup, so changing it later only affects Emacs windows, not X windows.  Remove this line for
+;; click-to-focus again (restart needed).
+(setq mouse-autoselect-window t)
+;; When focus moves by keyboard (s- navigation), warp the pointer into that window so pointer and
+;; keyboard focus never disagree (matters with focus-follows-mouse on).
+(setq exwm-workspace-warp-cursor t)
+
+;; Per-app window rules.  Dialogs, pickers and auth prompts float, centered, without a mode line;
+;; Picture-in-Picture floats small in the top-right corner; everything else tiles as before.
+;; x/y/width/height as fractions (0..1) are fractions of the screen.  First matching rule wins.
+(let ((dialog '(floating t floating-mode-line nil width 0.5 height 0.6 x 0.25 y 0.2)))
+  (setq exwm-manage-configurations
+        `(((string-match-p "Picture-in-Picture" (or exwm-title ""))
+           floating t floating-mode-line nil width 0.28 height 0.28 x 0.70 y 0.06)
+          ((member exwm-class-name
+                   '("Pinentry" "pinentry" "Pinentry-gtk-2" "Gcr-prompter" "Zenity"
+                     "Xdg-desktop-portal-gtk" "xdg-desktop-portal-gtk" "Blueman-manager"
+                     "Nm-connection-editor" "Pavucontrol" "Polkit-gnome-authentication-agent-1"
+                     "Lxpolkit"))
+           ,@dialog)
+          ((and (member exwm-class-name '("firefox" "Firefox"))
+                (string-match-p "\\`\\(File Upload\\|Save As\\|Open File\\|Choose File\\)"
+                                (or exwm-title "")))
+           ,@dialog))))
+
 (exwm-wm-mode 1)
 
 ;; Open URLs in the running Firefox as a new tab. This needs a D-Bus session bus, which start.sh provides.
