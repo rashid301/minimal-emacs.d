@@ -4,7 +4,8 @@
 
 (use-package org
   :demand t
-  :bind (("C-c a" . org-agenda))
+  :bind (("C-c a" . org-agenda)
+         ("C-c c" . org-capture))
   :config
   (setq org-directory (expand-file-name "~/Dropbox/notes/"))
   (setq org-return-follows-link t)
@@ -36,7 +37,7 @@
                                  ("SOMEDAY"   . (:foreground "goldenrod"    :weight bold))))
 
   (setq org-capture-templates
-        '(("i" "Inbox" entry
+        `(("i" "Inbox" entry
            (file ,(expand-file-name "inbox.org" org-directory))
            "* TODO %?\n  %U\n  %a\n")
           ("t" "Task" entry
