@@ -325,6 +325,7 @@ window."
      "\\*Calendar\\*"
      "\\*eww buffers\\*"
      "\\*eww history\\*"
+     "^claude-prompt-.*\\.md"   ; Claude Code's external-editor prompt file (no asterisks in its name)
      my/tridactyl-editor-buffer-p
      ))
   :config
