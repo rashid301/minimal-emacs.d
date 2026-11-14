@@ -195,6 +195,10 @@
                                 (or exwm-title "")))
            ,@dialog))))
 
+;; Floating X windows: no mode line (shown again when they go back to tiling).
+(add-hook 'exwm-floating-setup-hook #'exwm-layout-hide-mode-line)
+(add-hook 'exwm-floating-exit-hook #'exwm-layout-show-mode-line)
+
 (exwm-wm-mode 1)
 
 ;; Open URLs in the running Firefox as a new tab. This needs a D-Bus session bus, which start.sh provides.
