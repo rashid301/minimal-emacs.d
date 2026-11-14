@@ -253,12 +253,35 @@
 ;; `tab-bar-auto-width' off (with it on, `tab-bar-auto-width' counts the stretch as huge and signals
 ;; args-out-of-range on every redraw).  Natural-width tabs also read more like tabs.
 (setq tab-bar-auto-width nil)
+(setq exwm-floating-border-width 2)
 (defface my/tab-bar-rule '((t :underline t)) "Line under the tab bar = top border of the windows.")
-(defun my/tab-bar-format-rule ()
-  (list (list 'my-rule 'menu-item
-              (propertize " " 'display '(space :align-to right) 'face 'my/tab-bar-rule) 'ignore)))
+(defun my/tab-bar-format-rule-right ()
+  "Stretch element (underlined = the line under the tab bar) followed by the status items on the right."
+  (let* ((rest (tab-bar-format-list (cdr (memq 'my/tab-bar-format-rule-right tab-bar-format))))
+         (rest (mapconcat (lambda (item) (nth 2 item)) rest ""))
+         (hpos (progn (add-face-text-property 0 (length rest) 'tab-bar t rest)
+                      (string-pixel-width rest)))
+         (str (propertize " " 'display `(space :align-to (- right (,hpos)))
+                          'face 'my/tab-bar-rule)))
+    `((my-rule menu-item ,str ignore))))
+(defun my/tab-bar-format-status ()
+  "Clock + battery, underlined so the line under the tab bar is unbroken.
+Reads `display-time-string' / `battery-mode-line-string' directly (cheap; both are timer-updated)."
+  (let ((s (string-trim (concat (and (bound-and-true-p display-time-mode) (stringp display-time-string)
+                                     (substring-no-properties display-time-string))
+                                (and (bound-and-true-p display-battery-mode) (stringp battery-mode-line-string)
+                                     (concat " " (substring-no-properties battery-mode-line-string)))))))
+    (unless (string-empty-p s)
+      (setq s (concat " " s "  "))
+      (add-face-text-property 0 (length s) 'my/tab-bar-rule t s)
+      `((my-status menu-item ,s ignore)))))
+;; Clock + battery on the right of the tab bar (there is no separate panel under EXWM).
+(setq display-time-format "%a %H:%M" display-time-default-load-average nil
+      battery-mode-line-format " %b%p%%")
+(display-time-mode 1)
+(display-battery-mode 1)
 (setq tab-bar-format '(tab-bar-format-history tab-bar-format-tabs tab-bar-separator
-                       tab-bar-format-add-tab my/tab-bar-format-rule))
+                       tab-bar-format-add-tab my/tab-bar-format-rule-right my/tab-bar-format-status))
 (defun my/exwm-style-ui (&rest _)
   (let* ((bg (face-attribute 'default :background nil t))
          (fg (face-attribute 'default :foreground nil t))
@@ -287,6 +310,8 @@
                           :box `(:line-width ,w :color ,strip :style nil)))
     (when (facep 'auto-dim-other-buffers)
       (set-face-attribute 'auto-dim-other-buffers nil :background (funcall shift 3) :foreground (funcall shift 50)))
+    ;; Floating X windows (dialogs, pickers): accent border, like the selected tab.
+    (ignore-errors (customize-set-variable 'exwm-floating-border-color accent))
     (set-face-attribute 'my/tab-bar-rule nil :underline `(:color ,edge :position t))
     ;; Dividers are the gaps (spacious-padding); the first/last pixel of each divider is the border line.
     (set-face-attribute 'window-divider nil :foreground bg)
